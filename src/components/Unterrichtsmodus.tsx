@@ -12222,6 +12222,7 @@ ${content}
                                     case "waldruhe":
                                       return (
                                         <WaldruheWidget
+                                          key={app.activeClassId ?? 'unassigned'}
                                           widget={widget}
                                           isMinimized={isMinimized}
                                           showSettings={widgetSettingsOpenId === widget.id}

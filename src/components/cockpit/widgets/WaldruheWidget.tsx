@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import type { CockpitWidgetConfig } from '../../../types';
 import { calculateRawVolume, cleanupMediaStream, computeSmoothedVolume } from '../../../lib/noisemeterAlgorithm';
 
@@ -73,7 +73,8 @@ const durations = [5, 15, 30, 60, 120, 180, 300];
 const noiseGraceOptions = [0, 1000, 2000];
 const button = 'min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700';
 
-type Mode = 'idle' | 'requesting' | 'live' | 'demo';
+type ActiveMode = 'live' | 'demo';
+type Mode = 'idle' | 'requesting' | ActiveMode | 'paused-live' | 'paused-demo';
 type Signal = 'quiet' | 'loud' | 'unavailable';
 interface Props {
   widget: CockpitWidgetConfig;
@@ -129,21 +130,35 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
   const stop = useCallback(() => {
     release();
     reset();
+    setError('');
     setMode('idle');
   }, [release, reset]);
 
-  useEffect(() => {
-    window.addEventListener('pagehide', stop);
+  const pause = useCallback(() => {
+    release();
+    for (const round of Object.values(progress.current)) {
+      round.loudMs = 0;
+      round.aboveMs = 0;
+      round.aboveLimit = false;
+    }
+    setSignal('quiet');
+    setSignalLevel(null);
+    setMode(previous => previous === 'demo' ? 'paused-demo'
+      : previous === 'live' || previous === 'requesting' ? 'paused-live' : previous);
+  }, [release]);
+
+  useLayoutEffect(() => {
+    window.addEventListener('pagehide', pause);
     return () => {
-      window.removeEventListener('pagehide', stop);
+      window.removeEventListener('pagehide', pause);
       release();
     };
-  }, [release, stop]);
-  useEffect(() => {
-    if (isMinimized) stop();
-  }, [isMinimized, stop]);
+  }, [pause, release]);
+  useLayoutEffect(() => {
+    if (isMinimized) pause();
+  }, [isMinimized, pause]);
 
-  function run(nextMode: 'demo' | 'live', readLevel: () => number | null) {
+  function run(nextMode: ActiveMode, readLevel: () => number | null) {
     setMode(nextMode);
     let previous = performance.now();
     session.current.timer = window.setInterval(() => {
@@ -198,11 +213,15 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
     }, 100);
   }
 
-  async function startMicrophone() {
-    stop();
-    setError('');
+  async function startMicrophone(resume = false) {
+    if (isMinimized) return;
+    if (resume) {
+      release();
+      setError('');
+    } else stop();
     if (!navigator.mediaDevices?.getUserMedia || !window.AudioContext) {
-      setError('Das Mikrofon ist hier nicht verfügbar. Du kannst die Waldruhe ohne Mikrofon testen.');
+      setError(resume ? 'Das Mikrofon ist hier nicht verfügbar. Deine Ruhezeit bleibt erhalten.'
+        : 'Das Mikrofon ist hier nicht verfügbar. Du kannst die Waldruhe ohne Mikrofon testen.');
       return;
     }
     const current = session.current;
@@ -234,8 +253,8 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
       for (const track of stream.getAudioTracks()) {
         track.addEventListener('ended', () => {
           if (session.current !== current) return;
-          stop();
-          setError('Die Mikrofonverbindung wurde getrennt. Du kannst sie neu starten.');
+          pause();
+          setError('Die Mikrofonverbindung wurde getrennt. Tippe auf „Fortsetzen“, um sie neu zu starten.');
         }, { once: true });
       }
       run('live', () => {
@@ -246,10 +265,16 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
       });
     } catch (cause) {
       if (session.current !== current) return;
-      stop();
-      setError(cause instanceof Error && cause.name === 'NotAllowedError'
-        ? 'Erlaube das Mikrofon im Browser oder starte den Testmodus.'
-        : 'Das Mikrofon konnte nicht gestartet werden. Du kannst den Testmodus verwenden.');
+      const denied = cause instanceof Error && cause.name === 'NotAllowedError';
+      if (resume) {
+        pause();
+        setError(denied ? 'Erlaube das Mikrofon im Browser und tippe erneut auf „Fortsetzen“.'
+          : 'Das Mikrofon konnte nicht gestartet werden. Deine Ruhezeit bleibt erhalten.');
+      } else {
+        stop();
+        setError(denied ? 'Erlaube das Mikrofon im Browser oder starte den Testmodus.'
+          : 'Das Mikrofon konnte nicht gestartet werden. Du kannst den Testmodus verwenden.');
+      }
     }
   }
 
@@ -258,10 +283,13 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
     setDemoLoud(loud);
   }
 
-  function startDemo() {
-    stop();
-    setError('');
-    setTestVolume(false);
+  function startDemo(resume = false) {
+    if (isMinimized) return;
+    if (resume) setError('');
+    else {
+      stop();
+      setTestVolume(false);
+    }
     run('demo', () => demoSignal.current ? 100 : 0);
   }
 
@@ -274,19 +302,26 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
   const animals: readonly Animal[] = setting.animals;
   const { count, quietTenths } = display[scene];
   const running = mode === 'live' || mode === 'demo';
+  const paused = mode === 'paused-live' || mode === 'paused-demo';
   const allAnimals = count === animals.length;
-  const requiredTenths = mode === 'demo' ? 30 : seconds * 10;
+  const requiredTenths = mode === 'demo' || mode === 'paused-demo' ? 30 : seconds * 10;
   const reachedTenths = Math.min(quietTenths, requiredTenths);
   const remainingSeconds = Math.ceil((requiredTenths - reachedTenths) / 10);
   const message = mode === 'idle' ? setting.idle
     : mode === 'requesting' ? 'Mikrofon wird angefragt …'
+    : paused ? 'Waldruhe pausiert'
     : allAnimals ? 'Alle Tiere sind da!'
     : signal === 'unavailable' ? 'Mikrofonsignal fehlt'
     : signal === 'loud' ? setting.waiting
     : count === 0 ? setting.quiet : 'Schau, wer da ist!';
+  const workMode = workModes.find(workMode => workMode.tolerance === tolerance)?.label ?? `Lautstärkestufe ${tolerance}`;
+  const microphoneStatus = mode === 'requesting' ? 'Mikrofon wird verbunden'
+    : mode !== 'live' ? 'Mikrofon aus'
+    : signalLevel === null ? 'Kein Mikrofonsignal' : 'Mikrofon aktiv';
 
   return (
-    <div data-practice-root="waldruhe" data-waldruhe-scene={scene} className="flex h-full min-h-0 w-full flex-col gap-2 overflow-auto p-2 text-slate-900 dark:text-slate-100">
+    <div data-practice-root="waldruhe" data-waldruhe-scene={scene} data-waldruhe-mode={mode}
+      className="flex h-full min-h-0 w-full flex-col gap-2 overflow-auto p-2 text-slate-900 dark:text-slate-100">
       <div className="relative isolate flex min-h-44 flex-1 flex-col gap-1 overflow-hidden rounded-xl bg-emerald-950 bg-cover bg-center p-1.5 [container-type:size] [overflow-anchor:none]"
         data-waldruhe-landscape data-waldruhe-still={signal !== 'quiet' || !running}
         style={{ backgroundImage: `linear-gradient(#071e24b3, transparent 32%, transparent 68%, #071e2480), url(${setting.background})` }}>
@@ -311,13 +346,13 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
           ))}
         </div>
         <div className="flex min-h-6 items-center">
-          {running && !allAnimals && showCountdown && (
+          {(running || paused) && !allAnimals && showCountdown && (
             <div data-waldruhe-scene-label className="flex w-full items-center gap-2 rounded-lg px-2 py-0.5 text-[clamp(.6875rem,2.7cqw,.9375rem)] font-semibold">
               <span>{signal === 'unavailable' ? 'Kein Mikrofonsignal' : signal === 'loud' ? 'Ruhezeit pausiert' : 'Nächstes Tier'}</span>
               <div role="progressbar" aria-label="Ruhezeit bis zum nächsten Tier" aria-valuemin={0}
                 aria-valuemax={requiredTenths} aria-valuenow={reachedTenths}
                 className="h-1.5 min-w-4 flex-1 overflow-hidden rounded-full bg-white/30">
-                <div aria-hidden="true" className={`h-full rounded-full motion-safe:transition-[width] motion-safe:duration-100 ${signal === 'quiet' ? 'bg-emerald-300' : 'bg-amber-300'}`}
+                <div aria-hidden="true" className={`h-full rounded-full motion-safe:transition-[width] motion-safe:duration-100 ${running && signal === 'quiet' ? 'bg-emerald-300' : 'bg-amber-300'}`}
                   style={{ width: `${100 * reachedTenths / requiredTenths}%` }} />
               </div>
               <span className="shrink-0 tabular-nums">{remainingSeconds} s</span>
@@ -398,15 +433,31 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
       )}
 
       {error && <p role="alert" className="shrink-0 text-sm text-amber-800 dark:text-amber-200">{error}</p>}
+      <p className="min-w-0 shrink-0 text-xs font-medium text-slate-600 dark:text-slate-300">
+        {setting.label} · {workMode} · {microphoneStatus}
+      </p>
       <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-        <button type="button" className={button}
-          onClick={mode === 'live' || mode === 'requesting' ? stop : startMicrophone}>
-          {mode === 'live' ? 'Mikrofon stoppen' : mode === 'requesting' ? 'Abbrechen' : 'Mikrofon starten'}
-        </button>
-        <button type="button" className={button} onClick={mode === 'demo' ? stop : startDemo}>
-          {mode === 'demo' ? 'Test beenden' : 'Ohne Mikrofon testen'}
-        </button>
-        {running && <button type="button" className={button} onClick={resetScene}>Neu beginnen</button>}
+        {paused ? (
+          <>
+            <button type="button"
+              className="min-h-11 rounded-lg bg-emerald-700 px-2.5 text-sm font-bold text-white hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+              onClick={() => mode === 'paused-live' ? void startMicrophone(true) : startDemo(true)}>
+              Fortsetzen
+            </button>
+            <button type="button" className={button} onClick={stop}>Runde beenden</button>
+          </>
+        ) : (
+          <>
+            <button type="button" className={button}
+              onClick={mode === 'live' ? stop : mode === 'requesting' ? pause : () => void startMicrophone()}>
+              {mode === 'live' ? 'Mikrofon stoppen' : mode === 'requesting' ? 'Abbrechen' : 'Mikrofon starten'}
+            </button>
+            <button type="button" className={button} onClick={mode === 'demo' ? stop : () => startDemo()}>
+              {mode === 'demo' ? 'Test beenden' : 'Ohne Mikrofon testen'}
+            </button>
+          </>
+        )}
+        {(running || paused) && <button type="button" className={button} onClick={resetScene}>Neu beginnen</button>}
         {mode === 'demo' && (
           <div role="group" aria-label="Lautstärke im Test simulieren" className="flex gap-1">
             <button type="button" className={button + ' aria-pressed:border-emerald-700 aria-pressed:bg-emerald-100'} aria-pressed={!demoLoud} onClick={() => setTestVolume(false)}>Leise</button>

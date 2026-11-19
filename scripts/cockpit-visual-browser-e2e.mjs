@@ -120,6 +120,8 @@ async function metrics(client) {
   })()`);
 }
 
+const toggleWaldruheDock = client => evaluate(client, `document.querySelector('[data-dock-favorite-id="waldruhe"]').click()`);
+
 async function checkWaldruheMicrophone(client, forest, forestProgress) {
   const origin = new URL(BASE_URL).origin;
   const capturePermission = { permission: { name: 'microphone' }, origin };
@@ -175,13 +177,62 @@ async function checkWaldruheMicrophone(client, forest, forestProgress) {
   if (await evaluate(client, forestProgress) !== pausedAt) throw Error('Waldruhe microphone: loud sound advanced the timer');
   await waitFor(client, 'quiet microphone samples resume the timer', `${forestProgress} > ${pausedAt}`, 12000);
   await waitFor(client, 'a Waldruhe animal appears from real analyser input', `${forest}?.textContent.includes('1 von 5 Tieren')`, 12000);
+  await waitFor(client, 'quiet time accumulates toward the next animal', `${forestProgress} >= 5`);
+  await toggleWaldruheDock(client);
+  await waitFor(client, 'minimizing stops the microphone track and keeps the animal',
+    `window.__waldruheTracks[0].readyState === 'ended' && ${forest}.dataset.waldruheMode === 'paused-live'
+      && ${forest}.textContent.includes('1 von 5 Tieren')`);
+  const frozen = await evaluate(client, forestProgress);
+  if (!(frozen >= 5)) throw Error('Waldruhe lost the quiet time banked before minimizing');
+  await toggleWaldruheDock(client);
+  await waitFor(client, 'restoring shows an explicit resume action with the microphone off',
+    `${forest}.getBoundingClientRect().width > 0 && ${forest}.textContent.includes('Fortsetzen')
+      && ${forest}.textContent.includes('Mikrofon aus') && ${forestProgress} === ${frozen}`);
+  await sleep(600);
+  if (!await evaluate(client, `window.__waldruheTracks.length === 1 && ${forestProgress} === ${frozen}`)) {
+    throw Error('Restoring Waldruhe restarted the microphone or the countdown automatically');
+  }
+
+  await client.send('Browser.setPermission', { ...capturePermission, setting: 'denied' });
+  await clickButton(client, 'Fortsetzen');
+  await waitFor(client, 'denied resume keeps the round available',
+    `${forest}.dataset.waldruheMode === 'paused-live'
+      && ${forest}.querySelector('[role="alert"]')?.textContent.includes('Erlaube das Mikrofon')
+      && ${forestProgress} === ${frozen} && window.__waldruheTracks.length === 1`);
+  await client.send('Browser.setPermission', { ...capturePermission, setting: 'granted' });
+  await clickButton(client, 'Fortsetzen');
+  await waitFor(client, 'explicit resume starts a new track and continues the previous countdown',
+    `window.__waldruheTracks.length === 2 && window.__waldruheTracks[1].readyState === 'live'
+      && ${forest}.textContent.includes('1 von 5 Tieren') && ${forestProgress} > ${frozen}`);
   await clickButton(client, 'Mikrofon stoppen');
-  await waitFor(client, 'stop releases the captured audio track', `window.__waldruheTracks[0].readyState === 'ended' && !${forest}?.querySelector('[role="progressbar"]')`);
+  await waitFor(client, 'stop releases the new track and clears the round',
+    `window.__waldruheTracks[1].readyState === 'ended' && !${forest}.querySelector('[role="progressbar"]')
+      && ${forest}.textContent.includes('0 von 5 Tieren')`);
+
+  await evaluate(client, `(() => {
+    const devices = navigator.mediaDevices;
+    const wrapped = devices.getUserMedia;
+    devices.getUserMedia = async constraints => {
+      devices.getUserMedia = wrapped;
+      await new Promise(resolve => { window.__resolveWaldruheRequest = resolve; });
+      return wrapped(constraints);
+    };
+  })()`);
+  await clickButton(client, 'Mikrofon starten');
+  await waitFor(client, 'the microphone request is still pending',
+    `${forest}.dataset.waldruheMode === 'requesting' && Boolean(window.__resolveWaldruheRequest)`);
+  await toggleWaldruheDock(client);
+  await waitFor(client, 'minimizing invalidates the pending microphone request', `${forest}.dataset.waldruheMode === 'paused-live'`);
+  await evaluate(client, 'window.__resolveWaldruheRequest()');
+  await waitFor(client, 'a track returned after minimizing is immediately stopped',
+    `window.__waldruheTracks.length === 3 && window.__waldruheTracks[2].readyState === 'ended'`);
+  await toggleWaldruheDock(client);
+  await clickButton(client, 'Runde beenden');
 
   await client.send('Browser.setPermission', { ...capturePermission, setting: 'denied' });
   await clickButton(client, 'Mikrofon starten');
   await waitFor(client, 'denied microphone permission shows the fall-back hint',
-    `${forest}?.querySelector('[role="alert"]')?.textContent.includes('Erlaube das Mikrofon') && window.__waldruheTracks.length === 1`);
+    `${forest}?.querySelector('[role="alert"]')?.textContent.includes('Erlaube das Mikrofon') && window.__waldruheTracks.length === 3`);
 }
 
 async function checkAssignmentCountdown(client) {
@@ -783,6 +834,18 @@ async function main() {
     })()`;
     await waitFor(client, 'the hedgehog illustration is visible in the scene', animalArtworkVisible('igel'));
     await screenshot(client, 'waldruhe-waldtiere');
+    await waitFor(client, 'the test round has partial progress toward another animal', `${forestProgress} >= 4`);
+    await toggleWaldruheDock(client);
+    await waitFor(client, 'minimizing also pauses a test round', `${forest}.dataset.waldruheMode === 'paused-demo'`);
+    const frozenDemo = await evaluate(client, forestProgress);
+    await toggleWaldruheDock(client);
+    await waitFor(client, 'restoring a test round keeps the hedgehog and quiet time',
+      `${forest}.textContent.includes('Fortsetzen') && ${forest}.querySelector('figcaption')?.textContent === 'Igel'
+        && ${forest}.querySelector('[role="progressbar"]').getAttribute('aria-valuemax') === '30'
+        && ${forestProgress} === ${frozenDemo}`);
+    await clickButton(client, 'Fortsetzen');
+    await waitFor(client, 'test mode resumes with its previous countdown',
+      `${forest}.dataset.waldruheMode === 'demo' && ${forestProgress} > ${frozenDemo}`);
     const openForestSettings = () => evaluate(client, `document.querySelector('[data-widget-type="waldruhe"] .cockpit-widget-settings-trigger').click()`);
     const selectScene = scene => evaluate(client, `(() => {
       const choice = ${forest}.querySelector('select[aria-label="Schauplatz"]');
