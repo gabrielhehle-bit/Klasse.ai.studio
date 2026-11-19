@@ -9641,11 +9641,11 @@ ${content}
                                       const regularGroups = getRegularCockpitGroups(activeWidgetCategory, query);
                                       return (
                                         <>
-                                          <div className="col-span-full rounded-2xl border border-accent/20 bg-accent-soft px-4 py-3" role={query ? "status" : undefined}>
-                                            <p className="text-sm font-black text-slate-900">
-                                              {query ? `${regularGroups.length} Treffer` : activeWidgetCategory === "core" ? "Kernwidgets" : `${regularGroups.length} Werkzeuge`}
+                                          {query && (
+                                            <p className="col-span-full rounded-xl border border-accent/20 bg-accent-soft px-3 py-2 text-sm font-semibold text-slate-900" role="status">
+                                              {`${regularGroups.length} Treffer`}
                                             </p>
-                                          </div>
+                                          )}
                                           {regularGroups.length === 0 && (
                                             <div className="col-span-full rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">
                                               Keine passenden Widgets gefunden
@@ -9671,6 +9671,7 @@ ${content}
                                             const isMinimized = Boolean(primaryWidget && minimizedWidgetIds.includes(primaryWidget.id));
                                             return (
                                               <div key={group.id} data-testid={`cockpit-core-group-${group.id}`}
+                                                data-widget-core-start={activeWidgetCategory === "core" && !query ? "true" : undefined}
                                                 className={`klassio-widget-library-card relative flex min-h-[96px] flex-wrap items-center gap-3 rounded-2xl border p-3 transition-all ${
                                                   isActive
                                                     ? "border-emerald-200 bg-emerald-50/50"

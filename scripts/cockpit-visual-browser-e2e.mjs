@@ -444,6 +444,15 @@ async function main() {
     await waitFor(client, 'one core card provides distinct actions for groups and drawing a name',
       `Boolean(${picker}.querySelector('[data-testid="cockpit-core-group-groups"] [data-widget-card-action="selection"]')) &&
         ${picker}.querySelector('[data-testid="cockpit-core-group-groups"] [data-widget-card-action="primary"]').textContent.includes('Gruppen bilden')`);
+    await waitFor(client, 'all six core cards and their open buttons fit above the scroll fold',
+      `(() => {
+        const content = ${picker}.querySelector('.klassio-widget-library-content').getBoundingClientRect();
+        return Array.from(${picker}.querySelectorAll('[data-widget-core-start="true"] [data-widget-card-action="primary"]')).every(button => {
+          const box = button.getBoundingClientRect();
+          return box.height >= 43.5 && box.top >= content.top && box.bottom <= content.bottom;
+        });
+      })()`);
+    await sleep(250);
     await screenshot(client, 'widget-kernwidgets');
     await fill(client, 'Widget suchen', 'Wasserkreislauf');
     await waitFor(client, 'a specialist subject tool is directly discoverable from the core picker',
