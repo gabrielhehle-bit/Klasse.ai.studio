@@ -567,18 +567,25 @@ async function checkDayTimeline(client) {
 
   try {
     await evaluate(client, `document.querySelector('[data-dock-favorite-id="timeline"]').click()`);
-    await waitFor(client, 'the board opens with two readable cards and the next break time', `(() => {
+    await waitFor(client, 'the cards show the current lesson and the next break time', `(() => {
       const now = ${nowCard}, next = ${nextCard};
-      if (!now || !next) return false;
-      const panel = now.parentElement.parentElement;
-      const cardsFit = [now, next].every(card => card.clientWidth >= 110 && card.clientHeight >= 70
-        && card.scrollWidth <= card.clientWidth + 1);
-      return cardsFit && panel.scrollHeight <= panel.clientHeight + 1
-        && now.textContent.includes('08:50–09:45') && next.textContent.includes('09:45–10:00')
+      return now?.textContent.includes('08:50–09:45') && next?.textContent.includes('09:45–10:00')
         && next.querySelector('p').textContent === 'Pause'
         && getComputedStyle(next).borderTopColor === 'rgb(245, 158, 11)'
         && !${timeline}.querySelector('[aria-current="time"]');
     })()`);
+    const dimensions = await evaluate(client, `(() => {
+      const now = ${nowCard}, next = ${nextCard};
+      const panel = now.parentElement.parentElement;
+      return {
+        cards: [now, next].map(card => ({ width: card.clientWidth, height: card.clientHeight, scrollWidth: card.scrollWidth })),
+        panel: { height: panel.clientHeight, scrollHeight: panel.scrollHeight },
+      };
+    })()`);
+    const cardsFit = dimensions.cards.every(card => card.width >= 110 && card.height >= 70 && card.scrollWidth <= card.width + 1);
+    if (!cardsFit || dimensions.panel.scrollHeight > dimensions.panel.height + 1) {
+      throw Error('Timeline cards do not fit at the default size: ' + JSON.stringify(dimensions));
+    }
     await screenshot(client, 'tagesablauf-jetzt-und-als-naechstes');
     await setClock(14, 9, 45);
     await waitFor(client, 'at the boundary the break becomes current and the next lesson moves up',
@@ -600,6 +607,9 @@ async function checkDayTimeline(client) {
     await setClock(19, 10, 0);
     await waitFor(client, 'an empty Saturday shows a clear empty state',
       `${timeline}.textContent.includes('Heute kein Unterricht eingetragen') && !${nowCard} && !${nextCard}`);
+  } catch (error) {
+    await screenshot(client, 'tagesablauf-FAIL').catch(() => {});
+    throw error;
   } finally {
     await evaluate(client, `(() => {
       window.Date = window.__timelineDate;

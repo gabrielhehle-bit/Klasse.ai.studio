@@ -63,7 +63,7 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   groups: { minW: 300, minH: 240, prefW: 460, prefH: 420 },
   kidattendance: { minW: 280, minH: 220, prefW: 480, prefH: 420 },
   classweeklyplan: { minW: 480, minH: 360, prefW: 960, prefH: 720 },
-  timeline: { minW: 280, minH: 180, prefW: 420, prefH: 260 },
+  timeline: { minW: 280, minH: 220, prefW: 420, prefH: 260 },
   clock: { minW: 280, minH: 180, prefW: 380, prefH: 260 },
   faircall: { minW: 640, minH: 560, prefW: 640, prefH: 560 },
   tischcheck: { minW: 640, minH: 560, prefW: 640, prefH: 560 },
