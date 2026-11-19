@@ -34,7 +34,7 @@ const scenes = {
   },
 } as const;
 type Scene = keyof typeof scenes;
-const emptyRound = () => ({ count: 0, quietMs: 0, loudMs: 0, loud: false });
+const emptyRound = () => ({ count: 0, quietMs: 0, loudMs: 0, aboveMs: 0, aboveLimit: false });
 const emptyProgress = () => ({ forest: emptyRound(), aquarium: emptyRound() });
 const emptyDisplay = () => ({
   forest: { count: 0, quietTenths: 0 },
@@ -47,6 +47,7 @@ const workModes = [
   { label: 'Partnerarbeit', tolerance: 5 },
 ] as const;
 const durations = [5, 15, 30, 60, 120, 180, 300];
+const noiseGraceOptions = [0, 1000, 2000];
 const button = 'min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700';
 
 type Mode = 'idle' | 'requesting' | 'live' | 'demo';
@@ -66,13 +67,15 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
   const hideAnimals = saved?.hideAnimals === true;
   const scene: Scene = saved?.scene === 'aquarium' ? 'aquarium' : 'forest';
   const showCountdown = saved?.showCountdown !== false;
-  const settings = { tolerance, seconds, hideAnimals, scene, showCountdown };
+  const noiseGraceMs = noiseGraceOptions.includes(saved?.noiseGraceMs) ? saved.noiseGraceMs as number : 1000;
+  const settings = { tolerance, seconds, hideAnimals, scene, showCountdown, noiseGraceMs };
   const options = useRef(settings);
   options.current = settings;
 
   const [mode, setMode] = useState<Mode>('idle');
   const [display, setDisplay] = useState(emptyDisplay);
   const [signal, setSignal] = useState<Signal>('quiet');
+  const [signalLevel, setSignalLevel] = useState<number | null>(null);
   const [demoLoud, setDemoLoud] = useState(false);
   const [error, setError] = useState('');
   const demoSignal = useRef(false);
@@ -83,6 +86,7 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
     progress.current = emptyProgress();
     setDisplay(emptyDisplay());
     setSignal('quiet');
+    setSignalLevel(null);
   }, []);
 
   const resetScene = () => {
@@ -116,7 +120,7 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
     if (isMinimized) stop();
   }, [isMinimized, stop]);
 
-  function run(nextMode: 'demo' | 'live', isLoud: (wasLoud: boolean) => boolean | null) {
+  function run(nextMode: 'demo' | 'live', readLevel: () => number | null) {
     setMode(nextMode);
     let previous = performance.now();
     session.current.timer = window.setInterval(() => {
@@ -132,15 +136,26 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
         setDisplay(previous => previous[currentScene].count === count && previous[currentScene].quietTenths === quietTenths
           ? previous : { ...previous, [currentScene]: { count, quietTenths } });
       };
-      const loud = isLoud(round.loud);
-      setSignal(loud === null ? 'unavailable' : loud ? 'loud' : 'quiet');
-      if (loud === null) {
+      const level = readLevel();
+      if (nextMode === 'live') setSignalLevel(level === null ? null : Math.round(level));
+      if (level === null) {
+        setSignal('unavailable');
+        round.aboveMs = 0;
+        round.aboveLimit = false;
         round.loudMs = 0;
         return;
       }
-      round.loud = loud;
-      if (loud) {
-        round.loudMs += elapsed;
+
+      const threshold = thresholds[options.current.tolerance - 1];
+      const aboveLimit = level > threshold * (round.aboveLimit ? 0.8 : 1);
+      round.aboveLimit = aboveLimit;
+      round.aboveMs = aboveLimit ? round.aboveMs + elapsed : 0;
+      const paused = aboveLimit && round.aboveMs >= options.current.noiseGraceMs;
+      setSignal(paused ? 'loud' : 'quiet');
+
+      // A brief sound banks no quiet time and leaves already earned progress intact.
+      round.loudMs = paused ? round.loudMs + elapsed : 0;
+      if (aboveLimit) {
         if (options.current.hideAnimals && round.loudMs >= 1800) {
           round.loudMs = 0;
           round.quietMs = 0;
@@ -149,7 +164,6 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
         }
         return;
       }
-      round.loudMs = 0;
       if (round.count === scenes[currentScene].animals.length) return;
       round.quietMs += elapsed;
       const required = nextMode === 'demo' ? 3000 : options.current.seconds * 1000;
@@ -198,11 +212,11 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
           setError('Die Mikrofonverbindung wurde getrennt. Du kannst sie neu starten.');
         }, { once: true });
       }
-      run('live', (wasLoud) => {
+      run('live', () => {
         if (audio.state !== 'running' || stream.getAudioTracks().every(track => track.muted)) return null;
         analyser.getByteFrequencyData(samples);
         volume = computeSmoothedVolume(volume, calculateRawVolume(samples, 1), 0.4);
-        return volume > thresholds[options.current.tolerance - 1] * (wasLoud ? 0.8 : 1);
+        return volume;
       });
     } catch (cause) {
       if (session.current !== current) return;
@@ -222,13 +236,14 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
     stop();
     setError('');
     setTestVolume(false);
-    run('demo', () => demoSignal.current);
+    run('demo', () => demoSignal.current ? 100 : 0);
   }
 
   function updateSettings(changes: Partial<typeof settings>) {
     onUpdate({ settings: { ...widget.settings, waldruhe: { ...settings, ...changes } } });
   }
 
+  const threshold = thresholds[tolerance - 1];
   const setting = scenes[scene];
   const animals = setting.animals;
   const { count, quietTenths } = display[scene];
@@ -303,8 +318,33 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
                 type="range" min={1} max={thresholds.length} value={tolerance}
                 onChange={event => updateSettings({ tolerance: Number(event.target.value) })} />
             </label>
+            {mode === 'live' && signalLevel !== null && (
+              <div className="my-2 space-y-1 rounded-md bg-slate-50 p-2">
+                <div className="flex flex-wrap justify-between gap-1 text-xs font-semibold">
+                  <span>Mikrofonpegel</span>
+                  <span>{signalLevel > threshold ? 'Über der Grenze' : 'Unter der Grenze'}</span>
+                </div>
+                <div role="meter" aria-label="Relativer Mikrofonpegel" aria-valuemin={0}
+                  aria-valuemax={100} aria-valuenow={signalLevel}
+                  aria-valuetext={`${signalLevel} von 100, Grenze ${threshold}`}
+                  className="relative h-2.5 rounded-full bg-slate-200">
+                  <div className={`h-full rounded-full ${signalLevel > threshold ? 'bg-amber-600' : 'bg-emerald-600'}`}
+                    style={{ width: `${signalLevel}%` }} />
+                  <span aria-hidden="true" className="absolute inset-y-0 w-0.5 bg-slate-950"
+                    style={{ left: `${threshold}%` }} />
+                </div>
+              </div>
+            )}
             <p className="text-xs text-slate-600">Eine höhere Stufe lässt mehr Geräusche zu.</p>
           </fieldset>
+          <label className="font-semibold">Kurze Geräusche
+            <select aria-label="Puffer für kurze Geräusche" className={'block w-full ' + button} value={noiseGraceMs}
+              onChange={event => updateSettings({ noiseGraceMs: Number(event.target.value) })}>
+              <option value={0}>Sofort reagieren</option>
+              <option value={1000}>1 Sekunde Puffer</option>
+              <option value={2000}>2 Sekunden Puffer</option>
+            </select>
+          </label>
           <label>Leisezeit pro Tier
             <select aria-label="Leisezeit pro Tier" className={'block w-full ' + button} value={seconds} onChange={event => updateSettings({ seconds: Number(event.target.value) })}>
               {durations.map(duration => <option key={duration} value={duration}>{duration < 60 ? duration + ' Sekunden' : duration / 60 + (duration === 60 ? ' Minute' : ' Minuten')}</option>)}

@@ -136,12 +136,34 @@ async function checkWaldruheMicrophone(client, forest, forestProgress) {
     choice.value = '5';
     choice.dispatchEvent(new Event('change', { bubbles: true }));
   })()`);
-  await clickButton(client, 'Fertig');
+  await waitFor(client, 'Waldruhe defaults to a one-second noise buffer',
+    `${forest}.querySelector('select[aria-label="Puffer für kurze Geräusche"]').value === '1000'`);
+  await evaluate(client, `(() => {
+    const panel = ${forest};
+    const observer = new MutationObserver(() => {
+      if (panel.textContent.includes('Ruhezeit pausiert')) panel.dataset.testPauseObserved = 'true';
+    });
+    observer.observe(panel, { childList: true, characterData: true, subtree: true });
+    window.__waldruhePauseObserver = observer;
+  })()`);
   await clickButton(client, 'Mikrofon starten');
   await waitFor(client, 'real microphone path opens a live Chromium audio track',
     `window.__waldruheTracks.length === 1 && window.__waldruheTracks[0].readyState === 'live' && ${forest}?.textContent.includes('Mikrofon stoppen')`);
   await waitFor(client, 'quiet microphone samples advance the five-second timer',
     `${forestProgress} >= 5 && ${forest}?.querySelector('[role="progressbar"]').getAttribute('aria-valuemax') === '50'`);
+  const liveMeter = `${forest}.querySelector('[role="meter"][aria-label="Relativer Mikrofonpegel"]')`;
+  await waitFor(client, 'the settings meter sees the brief microphone spike',
+    `Number(${liveMeter}?.getAttribute('aria-valuenow')) > 26`, 2500);
+  await waitFor(client, 'the brief spike ends without pausing the scene',
+    `Number(${liveMeter}?.getAttribute('aria-valuenow')) < 20 && !${forest}.textContent.includes('Ruhezeit pausiert')`, 1600);
+  const briefNoisePaused = await evaluate(client, `(() => {
+    window.__waldruhePauseObserver.disconnect();
+    return ${forest}.dataset.testPauseObserved === 'true';
+  })()`);
+  if (briefNoisePaused) throw Error('A brief microphone spike paused the scene');
+  await screenshot(client, 'waldruhe-mikrofonpegel');
+  await clickButton(client, 'Fertig');
+  await waitFor(client, 'the microphone meter stays in the settings', `!${liveMeter}`);
   await waitFor(client, 'loud microphone samples pause the timer', `${forest}?.textContent.includes('Ruhezeit pausiert')`, 10000);
   const pausedAt = await evaluate(client, forestProgress);
   await sleep(550);
