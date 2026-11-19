@@ -258,3 +258,24 @@ test('Ein Verhaltensbutton statt fünf Symbolen; letzte Stufe springt wieder zur
   assert.doesNotMatch(last, /letzte Stufe erreicht/);
   assert.doesNotMatch(last, /disabled=""/);
 });
+
+test('Geburtstage werden in beiden Tafellayouts ohne Geburtsdatum hervorgehoben', () => {
+  const app = { activeClassId: 'a', schueler: [
+    { id: 'birthday', vorname: 'Lena', geburtstag: '2019-05-14' },
+    { id: 'regular', vorname: 'Milo', geburtstag: '2019-03-18' },
+  ] } as AppState;
+  for (const sidebarCompact of [false, true]) {
+    const html = renderToStaticMarkup(React.createElement(PublicStudentListWidget, {
+      app, sidebar: true, sidebarCompact,
+      isBirthday: student => student.id === 'birthday',
+      getTodayPoints: () => 0, addParticipation: () => {}, removeParticipation: () => {},
+      onBadgeRequest: () => {},
+    }));
+    assert.equal((html.match(/data-birthday-student="true"/g) || []).length, 1);
+    assert.match(html, /class="cockpit-birthday-name">Lena<\/span>/);
+    assert.match(html, /role="img" aria-label="Geburtstag"/);
+    assert.match(html, /aria-label="Badges für Lena vergeben"/);
+    assert.doesNotMatch(html, /2019-05-14|2019-03-18|class="cockpit-birthday-name">Milo/);
+  }
+  assert.match(teaching, /isBirthday=\{student =>[\s\S]*?checkIsAutoBirthday\(student\.geburtstag \|\| student\.geburtsdatum\)/);
+});

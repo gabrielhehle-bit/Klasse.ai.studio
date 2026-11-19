@@ -1423,6 +1423,37 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
   .mimi-book-finished .mimi-book-spread { animation: mimi-book-fold .38s ease-in both; }
 }
 
+/* A birthday name stays readable on its light card after the greeting fades. */
+.cockpit-birthday-card {
+  border-color: #e391b4;
+  background-color: #fff7f9;
+}
+.cockpit-birthday-name {
+  color: #9d174d;
+  font-weight: 900;
+}
+@supports (background-clip: text) {
+  .cockpit-birthday-name {
+    background: linear-gradient(105deg, #9d174d, #7c2d12 55%, #5b21b6);
+    background-clip: text;
+    color: transparent;
+  }
+}
+@keyframes cockpit-birthday-glow {
+  50% { filter: drop-shadow(0 0 5px #e879a6); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cockpit-birthday-name {
+    animation: cockpit-birthday-glow 1.1s ease-in-out 2;
+  }
+}
+@media (forced-colors: active) {
+  .cockpit-birthday-name {
+    background: none;
+    color: CanvasText;
+  }
+}
+
 /* Strong, theme-independent contrast inside dark classroom cockpit designs. */
 .cockpit-contrast-dark .text-slate-400,
 .cockpit-contrast-dark .text-neutral-400 { color: #cbd5e1 !important; }
