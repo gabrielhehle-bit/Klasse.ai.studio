@@ -299,6 +299,13 @@ export default function ClassMascotWidget({ app }: Props) {
     });
   };
 
+  const readingTimerDisplay = isReading && cueClock && (
+    <div role="timer" aria-label="Verbleibende Lesezeit"
+      className="self-center text-center text-2xl font-black tabular-nums text-emerald-900">
+      {readingTime}
+    </div>
+  );
+
   const liveLabel = noisePermission === 'active'
     ? `LIVE ${Math.round(liveVolume)}`
     : noisePermission === 'requesting'
@@ -346,16 +353,12 @@ export default function ClassMascotWidget({ app }: Props) {
       {cue && (
         <div data-mascot-cue={ritualAction}
           className={`rounded-xl border border-emerald-900/20 bg-white px-1 py-1 text-slate-900 shadow-md ${mimiReading ? 'mx-1 mb-1 w-[calc(100%-0.5rem)] shrink-0' : 'absolute inset-x-1 bottom-1'}`}>
-          <div role="status" className="px-1 text-center text-[clamp(.82rem,7cqw,1.125rem)] font-bold leading-tight">
+          <div role="status" className={`px-1 text-center font-bold leading-tight ${mimiReading && cueClock ? 'text-sm' : 'text-[clamp(.82rem,7cqw,1.125rem)]'}`}>
             {!isReading && cues && cues.length > 1 && <span className="block text-xs font-semibold text-emerald-800">{cueIndex + 1} von {cues.length}</span>}
             {cue.text}
             {isPaused && <span className="block text-xs text-slate-600">Pausiert</span>}
           </div>
-          {isReading && cueClock && (
-            <div role="timer" aria-label="Verbleibende Lesezeit" className="text-center text-2xl font-black tabular-nums text-emerald-900">
-              {readingTime}
-            </div>
-          )}
+          {!mimiReading && readingTimerDisplay}
           {chooseReadingTime && (
             <div role="group" aria-label="Dauer der Lesezeit" className="flex justify-evenly">
               {MASCOT_READING_MINUTES.map(minutes => (
@@ -366,13 +369,14 @@ export default function ClassMascotWidget({ app }: Props) {
               ))}
             </div>
           )}
-          <div role="group" aria-label="Ritualsteuerung" className="flex justify-center">
+          <div role="group" aria-label="Ritualsteuerung" className={mimiReading && cueClock ? 'flex items-center justify-between' : 'flex justify-center'}>
             {cueClock && (
               <button type="button" aria-label={isPaused ? 'Ritual fortsetzen' : 'Ritual pausieren'}
                 title={isPaused ? 'Fortsetzen' : 'Pausieren'} onClick={toggleCuePause} className={cueButtonClass}>
                 {isPaused ? <Play size={19} aria-hidden="true" /> : <Pause size={19} aria-hidden="true" />}
               </button>
             )}
+            {mimiReading && readingTimerDisplay}
             {!chooseReadingTime && !(isReading && cueClock) && ritualAction && (!cueClock || !isLastCue) && (
               <button type="button" aria-label={isLastCue ? 'Ritual abschließen' : 'Nächster Schritt'}
                 title={isLastCue ? 'Abschließen' : 'Weiter'} onClick={() => showCue(ritualAction, cueIndex + 1)} className={cueButtonClass}>

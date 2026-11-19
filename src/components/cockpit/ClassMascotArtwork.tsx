@@ -97,7 +97,7 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
       </g>;
 
   return (
-    <svg viewBox="0 0 180 182" data-mascot-kind={kind} data-mascot-accessory={accessory} data-mascot-season={season} data-mimi-reading={mimiScene} role="img" aria-label={`${name}, ${kind === 'elf' ? 'ein kleiner Hauself' : kind === 'otter' ? 'ein Otter' : kind === 'dog' ? 'ein Hund' : 'eine Katze'}, ${mood === 'happy' ? 'fröhlich' : mood === 'proud' ? 'stolz' : mood === 'calm' ? 'ruhig' : 'schläfrig'}`}
+    <svg viewBox={mimiScene ? "15 23 150 149" : "0 0 180 182"} data-mascot-kind={kind} data-mascot-accessory={accessory} data-mascot-season={season} data-mimi-reading={mimiScene} role="img" aria-label={`${name}, ${kind === 'elf' ? 'ein kleiner Hauself' : kind === 'otter' ? 'ein Otter' : kind === 'dog' ? 'ein Hund' : 'eine Katze'}, ${mood === 'happy' ? 'fröhlich' : mood === 'proud' ? 'stolz' : mood === 'calm' ? 'ruhig' : 'schläfrig'}`}
       className={`class-mascot-painted-artwork mx-auto block h-auto max-h-[280px] w-full max-w-[280px] drop-shadow-sm ${idleMotion && !asleep ? 'class-mascot-idle' : ''}`}>
       <defs>
         <radialGradient id={`mascot-fur-${kind}`} cx="40%" cy="28%" r="80%">
