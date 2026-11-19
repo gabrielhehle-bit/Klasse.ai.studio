@@ -391,6 +391,7 @@ async function main() {
     await clickSidebar(client, 'Lehrercockpit');
     await waitFor(client, 'white classroom board', 'Boolean(document.getElementById("widget-board-stage"))', 30000);
     await clickButton(client, 'Widget hinzufügen');
+    await setInputByLabel(client, 'Widget suchen', 'Wochenplan der Kinder');
     await waitFor(client, 'classroom weekly-plan picker entry',
       'Boolean(document.querySelector("[data-testid=\\"cockpit-core-group-classweeklyplan\\"] button[data-widget-card-action=\\"primary\\"]"))');
     const addedWidget = await evaluate(client, '(() => {const b=document.querySelector("[data-testid=\\"cockpit-core-group-classweeklyplan\\"] button[data-widget-card-action=\\"primary\\"]");if(!b)return false;b.click();return true;})()');
