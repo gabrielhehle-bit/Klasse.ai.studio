@@ -1,6 +1,6 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AppState, CockpitWidgetConfig } from '../../../types';
-import { getRandomSelectionSettings, normalizeRandomSelectionMode, updateRandomSelectionSettings,
+import { getRandomSelectionSettings, normalizeRandomSelectionMode, updateRandomSelectionSettings, RANDOM_SELECTION_MODES, RANDOM_SELECTION_LABELS,
   RandomSelectionMode } from '../../../lib/randomSelectionSettings';
 import { RandomNameWidget } from './RandomNameWidget';
 import { WheelWidget } from './WheelWidget';
@@ -16,15 +16,12 @@ interface Props {
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
   showSettings?: boolean;
   onCloseSettings?: () => void;
+  onBusyChange?: (busy: boolean) => void;
 }
-const modes: { id: RandomSelectionMode; label: string }[] = [
-  { id: 'names', label: 'Namen ziehen' },
-  { id: 'wheel', label: 'Glücksrad' },
-  { id: 'fair', label: 'Faire Runde' },
-];
+const modes = RANDOM_SELECTION_MODES.map(id => ({ id, label: RANDOM_SELECTION_LABELS[id] }));
 
 export const RandomSelectionStudio: React.FC<Props> = ({ widget, app, currentIsLight, onUpdate,
-  showSettings, onCloseSettings }) => {
+  showSettings, onCloseSettings, onBusyChange }) => {
   const settings = widget.settings || {};
   const mode = normalizeRandomSelectionMode(settings.randomSelectionMode);
   const studentScope = normalizeCockpitStudentScope(settings.studentScope);
@@ -32,8 +29,15 @@ export const RandomSelectionStudio: React.FC<Props> = ({ widget, app, currentIsL
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const [visited, setVisited] = useState<RandomSelectionMode[]>([mode]);
+  useLayoutEffect(() => {
+    setVisited(previous => previous.includes(mode) ? previous : [...previous, mode]);
+  }, [mode]);
   const [busyByMode, setBusyByMode] = useState({ names: false, wheel: false, fair: false });
   const busy = Object.values(busyByMode).some(Boolean);
+  useLayoutEffect(() => {
+    onBusyChange?.(busy);
+    return () => onBusyChange?.(false);
+  }, [busy, onBusyChange]);
   const busyHandlers = useMemo(() => Object.fromEntries(modes.map(tool => [tool.id, (value: boolean) =>
     setBusyByMode(previous => previous[tool.id] === value ? previous : { ...previous, [tool.id]: value })
   ])) as Record<RandomSelectionMode, (value: boolean) => void>, []);
@@ -53,7 +57,6 @@ export const RandomSelectionStudio: React.FC<Props> = ({ widget, app, currentIsL
   const switchMode = (next: RandomSelectionMode) => {
     if (busy) return;
     onCloseSettings?.();
-    setVisited(previous => previous.includes(next) ? previous : [...previous, next]);
     persist({ ...settingsRef.current, randomSelectionMode: next });
   };
   const common = { app, currentIsLight };

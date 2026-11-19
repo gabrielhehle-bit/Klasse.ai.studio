@@ -1,5 +1,8 @@
 export const TIME_TOOL_MODES = ['timer', 'stopwatch', 'clock'] as const;
 export type TimeToolMode = typeof TIME_TOOL_MODES[number];
+export const TIME_TOOL_LABELS: Record<TimeToolMode, string> = {
+  timer: 'Timer', stopwatch: 'Stoppuhr', clock: 'Uhrzeit',
+};
 type Settings = Record<string, any>;
 
 export function normalizeTimeToolMode(value: unknown): TimeToolMode {

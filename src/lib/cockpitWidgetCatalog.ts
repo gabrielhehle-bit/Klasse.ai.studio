@@ -709,7 +709,7 @@ export function getCockpitWidgetCanonicalDisplayLabel(type: string): string {
   return getCockpitWidgetCatalogEntry(type)?.displayName || getCockpitWidgetDisplayLabel(type);
 }
 
-const normalizeWidgetSearch = (value: string) => value.toLowerCase().normalize('NFC')
+export const normalizeWidgetSearch = (value: string) => value.toLowerCase().normalize('NFC')
   .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
   .replace(/[^a-z0-9]+/g, ' ').trim();
 /** Search the library name, runtime name and canonical aliases together. */

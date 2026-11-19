@@ -1,5 +1,8 @@
 export const RANDOM_SELECTION_MODES = ['names', 'wheel', 'fair'] as const;
 export type RandomSelectionMode = typeof RANDOM_SELECTION_MODES[number];
+export const RANDOM_SELECTION_LABELS: Record<RandomSelectionMode, string> = {
+  names: 'Namen ziehen', wheel: 'Glücksrad', fair: 'Faire Runde',
+};
 type Settings = Record<string, any>;
 
 export function normalizeRandomSelectionMode(value: unknown): RandomSelectionMode {
