@@ -3,11 +3,11 @@ import type { CockpitWidgetConfig } from '../../../types';
 import { calculateRawVolume, cleanupMediaStream, computeSmoothedVolume } from '../../../lib/noisemeterAlgorithm';
 
 const forestAnimals = [
-  { name: 'Igel', icon: '🦔', x: 18, y: 72 },
-  { name: 'Eichhörnchen', icon: '🐿️', x: 52, y: 64 },
-  { name: 'Reh', icon: '🦌', x: 34, y: 39 },
-  { name: 'Fuchs', icon: '🦊', x: 79, y: 72 },
-  { name: 'Eule', icon: '🦉', x: 81, y: 32 },
+  { name: 'Igel', artwork: 'igel', x: 18, y: 72 },
+  { name: 'Eichhörnchen', artwork: 'eichhoernchen', x: 52, y: 64 },
+  { name: 'Reh', artwork: 'reh', x: 34, y: 39 },
+  { name: 'Fuchs', artwork: 'fuchs', x: 79, y: 72 },
+  { name: 'Eule', artwork: 'eule', x: 81, y: 32 },
 ];
 const scenes = {
   forest: {
@@ -25,11 +25,11 @@ const scenes = {
     waiting: 'Das Aquarium wartet …',
     quiet: 'Ganz ruhig im Aquarium …',
     animals: [
-      { name: 'Neonfisch', icon: '🐠', x: 27, y: 47 },
-      { name: 'Guppy', icon: '🐟', x: 69, y: 34 },
-      { name: 'Garnele', icon: '🦐', x: 76, y: 70 },
-      { name: 'Rennschnecke', icon: '🐌', x: 31, y: 74 },
-      { name: 'Panzerwels', icon: '🐟', x: 51, y: 63 },
+      { name: 'Neonfisch', artwork: 'neonfisch', x: 27, y: 47 },
+      { name: 'Guppy', artwork: 'guppy', x: 69, y: 34 },
+      { name: 'Garnele', artwork: 'garnele', x: 76, y: 70 },
+      { name: 'Rennschnecke', artwork: 'rennschnecke', x: 31, y: 74 },
+      { name: 'Panzerwels', artwork: 'panzerwels', x: 51, y: 63 },
     ],
   },
 } as const;
@@ -264,13 +264,14 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
 
   return (
     <div data-practice-root="waldruhe" data-waldruhe-scene={scene} className="flex h-full min-h-0 w-full flex-col gap-2 overflow-auto p-2 text-slate-900 dark:text-slate-100">
-      <div className="relative isolate min-h-32 flex-1 overflow-hidden rounded-xl bg-emerald-950 bg-cover bg-center [container-type:inline-size]"
+      <div className="relative isolate min-h-32 flex-1 overflow-hidden rounded-xl bg-emerald-950 bg-cover bg-center [container-type:size]"
         style={{ backgroundImage: `linear-gradient(#06281999, transparent 55%, #06281966), url(${setting.background})` }}>
         <p className="absolute left-3 top-2 text-lg font-bold text-white drop-shadow-md min-[700px]:text-xl" role="status">{message}</p>
         {animals.slice(0, count).map(animal => (
-          <figure key={animal.name} className="absolute m-0 -translate-x-1/2 -translate-y-1/2 text-center"
+          <figure key={animal.name} data-waldruhe-animal={animal.artwork} className="absolute m-0 -translate-x-1/2 -translate-y-1/2 text-center"
             style={{ left: animal.x + '%', top: animal.y + '%' }}>
-            <span aria-hidden="true" className="block text-[clamp(1.65rem,8cqw,4.75rem)] leading-none drop-shadow-md motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-500">{animal.icon}</span>
+            <img alt="" draggable={false} src={`/cockpit/waldruhe-tiere/${animal.artwork}.webp`}
+              className="mx-auto block h-[min(27cqh,clamp(3rem,19cqw,8rem))] w-auto max-w-[23cqw] object-contain drop-shadow-md motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500" />
             <figcaption className="rounded-full bg-emerald-950 px-1.5 text-[clamp(.65rem,2.4cqw,1rem)] font-semibold text-white">{animal.name}</figcaption>
           </figure>
         ))}

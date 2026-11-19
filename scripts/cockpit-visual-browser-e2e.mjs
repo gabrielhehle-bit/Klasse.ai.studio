@@ -448,6 +448,17 @@ async function main() {
     await clickButton(client, 'Leise');
     await waitFor(client, 'quiet resumes from the previous progress', `${forestProgress} > ${pausedForestProgress}`);
     await waitFor(client, 'the first animal appears after quiet time', `${forest}?.textContent.includes('1 von 5 Tieren')`);
+    const animalArtworkVisible = animal => `(() => {
+      const img = ${forest}.querySelector('[data-waldruhe-animal="' + ${q(animal)} + '"] img');
+      if (!img || !img.complete || !img.naturalWidth) return false;
+      const rect = img.getBoundingClientRect();
+      const scene = img.closest('figure').parentElement.getBoundingClientRect();
+      return rect.width >= 24 && rect.height >= 24 &&
+        rect.left >= scene.left && rect.right <= scene.right &&
+        rect.top >= scene.top && rect.bottom <= scene.bottom;
+    })()`;
+    await waitFor(client, 'the hedgehog illustration is visible in the scene', animalArtworkVisible('igel'));
+    await screenshot(client, 'waldruhe-waldtiere');
     const openForestSettings = () => evaluate(client, `document.querySelector('[data-widget-type="waldruhe"] .cockpit-widget-settings-trigger').click()`);
     const selectScene = scene => evaluate(client, `(() => {
       const choice = ${forest}.querySelector('select[aria-label="Schauplatz"]');
@@ -459,6 +470,7 @@ async function main() {
     await clickButton(client, 'Fertig');
     await waitFor(client, 'aquarium has its own quiet progress', `${forest}.dataset.waldruheScene === 'aquarium' && ${forest}.textContent.includes('0 von 5 Tieren')`);
     await waitFor(client, 'the first aquarium animal appears in its own scene', `${forest}.querySelector('figcaption')?.textContent === 'Neonfisch'`);
+    await waitFor(client, 'the neon tetra illustration is visible in the aquarium', animalArtworkVisible('neonfisch'));
     await screenshot(client, 'waldruhe-aquarium');
     await openForestSettings();
     await evaluate(client, `Array.from(${forest}.querySelectorAll('label')).find(label => label.textContent.includes('Ruhezeit anzeigen')).querySelector('input').click()`);
