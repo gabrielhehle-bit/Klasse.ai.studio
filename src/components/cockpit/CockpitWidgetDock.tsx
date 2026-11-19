@@ -19,6 +19,7 @@ type Props = {
   onAddWidget: () => void;
   onToggleMascot: () => void;
   mascotVisible: boolean;
+  timerControl?: React.ReactNode;
   activeTypes: readonly string[];
   minimizedTypes?: readonly string[];
   onRestoreMinimized?: (type: string) => void;
@@ -31,7 +32,7 @@ type Props = {
 export function CockpitWidgetDock({
   settings, editing, setEditing, onChange, onReset, onOpenWidget, onAddWidget,
   onToggleMascot, mascotVisible, activeTypes, minimizedTypes = [], onRestoreMinimized, hasClass,
-  reservedRightPx = 0,
+  reservedRightPx = 0, timerControl,
 }: Props) {
   const [availableWidth, setAvailableWidth] = useState(0);
   const [draggedFavoriteId, setDraggedFavoriteId] = useState<CockpitQuickbarId | null>(null);
@@ -200,6 +201,7 @@ export function CockpitWidgetDock({
           )})}
         </div>
         <div className="klassio-dock-system flex shrink-0 items-center gap-1 border-l border-slate-200 pl-2" aria-label="Werkzeuge">
+        {timerControl}
         <button type="button" disabled={!hasClass} onClick={onAddWidget}
           aria-label="Weitere Widgets hinzufügen" title="Widget-Bibliothek öffnen"
           className="klassio-dock-add klassio-dock-primary flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-3 text-accent-text shadow-sm transition-colors hover:bg-accent-hover hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-40">

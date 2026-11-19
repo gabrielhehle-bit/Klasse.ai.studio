@@ -179,6 +179,69 @@ async function checkWaldruheMicrophone(client, forest, forestProgress) {
     `${forest}?.querySelector('[role="alert"]')?.textContent.includes('Erlaube das Mikrofon') && window.__waldruheTracks.length === 1`);
 }
 
+async function checkAssignmentCountdown(client) {
+  const dock = `document.querySelector('[data-cockpit-countdown-status]')`;
+  const timer = `document.querySelector('[data-timer-widget-status]')`;
+  await evaluate(client, `document.querySelector('[data-dock-favorite-id="instruction"]').click()`);
+  await waitFor(client, 'the assignment editor is open',
+    `Boolean(document.querySelector('[aria-label="Arbeitsauftrag Haupttext"]'))`);
+  await fill(client, 'Arbeitsauftrag Haupttext', 'Mathe, Seite 20');
+  await clickButton(client, 'Anzeigen und 5 Min. starten');
+  await waitFor(client, 'one click shows the assignment and starts five minutes',
+    `document.querySelector('[data-widget-type="instruction"]')?.textContent.includes('Mathe, Seite 20') &&
+      ${dock}?.dataset.cockpitCountdownStatus === 'running' &&
+      /^(5:00|4:5[0-9])$/.test(${dock}.querySelector('[role="timer"]').textContent.trim())`);
+  await clickLabel(client, 'Unterrichtstimer anzeigen');
+  await waitFor(client, 'the timer widget displays the existing countdown',
+    `${timer}?.dataset.timerWidgetStatus === 'running'`);
+  await clickLabel(client, 'Unterrichtstimer pausieren');
+  await waitFor(client, 'pausing in the dock also pauses the widget',
+    `${timer}?.dataset.timerWidgetStatus === 'paused' && ${dock}?.dataset.cockpitCountdownStatus === 'paused'`);
+  const paused = await evaluate(client, `${dock}.querySelector('[role="timer"]').textContent`);
+  await sleep(1100);
+  if (await evaluate(client, `${dock}.querySelector('[role="timer"]').textContent`) !== paused) throw Error('Paused classroom countdown moved');
+  await clickLabel(client, 'Unterrichtstimer fortsetzen');
+  await evaluate(client, `document.querySelector('[data-dock-favorite-id="timer"]').click()`);
+  await waitFor(client, 'minimizing the timer leaves the dock countdown running',
+    `document.querySelector('[data-dock-favorite-id="timer"]').dataset.minimized === 'true' && ${dock}?.dataset.cockpitCountdownStatus === 'running'`);
+  await clickLabel(client, 'Neue Tafelseite hinzufügen');
+  await waitFor(client, 'the new board page retains the running countdown without the timer widget',
+    `!${timer} && ${dock}?.dataset.cockpitCountdownStatus === 'running' &&
+      document.querySelector('[role="tablist"][aria-label="Tafelseiten"] [aria-selected="true"]').textContent.trim() === '2'`);
+  await screenshot(client, 'arbeitsauftrag-timer-tafelseite');
+  const endOfCountdown = `(() => {
+    const key = Object.keys(sessionStorage).find(entry => entry.startsWith('klassio-cockpit-countdown:'));
+    return key ? JSON.parse(sessionStorage.getItem(key)).endsAt : null;
+  })()`;
+  const deadline = await evaluate(client, endOfCountdown);
+  await clickLabel(client, 'Lehrercockpit schließen · Zurück zu Heute');
+  await waitFor(client, 'the cockpit closes with a countdown active', `!document.getElementById('widget-board-stage')`);
+  await clickButton(client, 'Lehrercockpit');
+  await waitFor(client, 'reopening the cockpit restores the same countdown',
+    `${dock}?.dataset.cockpitCountdownStatus === 'running' && ${endOfCountdown} === ${deadline}`);
+
+  await evaluate(client, `(() => {
+    const now = Date.now;
+    const oscillator = AudioContext.prototype.createOscillator;
+    window.__countdownOscillators = 0;
+    AudioContext.prototype.createOscillator = function (...args) {
+      window.__countdownOscillators++;
+      return oscillator.apply(this, args);
+    };
+    Date.now = () => now() + 301000;
+    document.dispatchEvent(new Event('visibilitychange'));
+    document.dispatchEvent(new Event('visibilitychange'));
+    Date.now = now;
+    AudioContext.prototype.createOscillator = oscillator;
+  })()`);
+  await waitFor(client, 'the countdown signals exactly once on the second board page',
+    `${dock}?.dataset.cockpitCountdownStatus === 'expired' && ${dock}.textContent.includes('Zeit vorbei') &&
+      window.__countdownOscillators === 6`);
+  await clickLabel(client, 'Unterrichtstimer anzeigen');
+  await waitFor(client, 'opening the timer after the alarm shows the finished session',
+    `${timer}?.dataset.timerWidgetStatus === 'expired'`);
+}
+
 async function main() {
   await waitForChrome();
   const target=await (await fetch(DEBUG_URL+'/json/new?'+encodeURIComponent(BASE_URL),{method:'PUT'})).json();
@@ -624,6 +687,8 @@ async function main() {
     await clickButton(client, 'Fertig');
 
     if (process.env.KLASSIO_E2E_FAKE_MIC === '1') await checkWaldruheMicrophone(client, forest, forestProgress);
+
+    await checkAssignmentCountdown(client);
 
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');
   } catch(error) {

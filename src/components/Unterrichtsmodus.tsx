@@ -194,6 +194,9 @@ import { generateStudentGroups } from "../lib/groupsAlgorithm";
 import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSelectionUtils";
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitWidgetDock } from "./cockpit/CockpitWidgetDock";
+import { CockpitCountdownDock } from "./cockpit/CockpitCountdownDock";
+import { useCockpitCountdown } from "./cockpit/useCockpitCountdown";
+import { getCockpitTimerPreferences } from "../lib/cockpitCountdown";
 import { getWidgetMinSizeConfig } from "./cockpit/widgetLayout";
 import {
   COCKPIT_AUTO_ARRANGE_DOCK_CLEARANCE_PX,
@@ -3065,6 +3068,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     setConfirmDeleteBoardPage(false);
   }, [app.activeClassId]);
   const boardTextClassKey = app.activeClassId || "unassigned";
+  const countdown = useCockpitCountdown(boardTextClassKey);
   const boardPageIds = normalizeCockpitBoardPageIds((app.boardSettings as any)?.cockpitBoardPagesByClass?.[boardTextClassKey]);
   const activeBoardPageId = normalizeCockpitActiveBoardPage(
     (app.boardSettings as any)?.cockpitActiveBoardPageByClass?.[boardTextClassKey],
@@ -4220,6 +4224,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
   const handleOpenWidgetInCockpitLayout = (
     type: CockpitWidgetConfig["type"],
+    openCountdown = false,
   ) => {
     setMinimizedWidgetIds(current =>
       current.filter(id => cockpitWidgets.find(widget => widget.id === id)?.type !== type),
@@ -4374,7 +4379,9 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         y: placement.y,
         w: placement.w,
         h: placement.h,
-        settings: isWhiteboard
+        settings: type === "timer" && openCountdown
+          ? { ...widget.settings, timeToolMode: "timer" }
+          : isWhiteboard
           ? getDrawingOpeningSettings(widget.settings, Boolean(useOld))
           : type === "kidattendance" && !useOld
             ? { ...(widget.settings || {}), ...checkInPreset }
@@ -4489,7 +4496,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   };
 
   const handleCloseWidget = (id: string, type: string) => {
-    if (type === "timer" && app.boardSettings.timerRunning) {
+    if (type === "timer" && countdown.run?.status === "running") {
       setTimerToCloseId(id);
     } else {
       executeWidgetClose(id);
@@ -10689,15 +10696,7 @@ ${content}
                                     const tId = timerToCloseId;
                                     setTimerToCloseId(null);
                                     executeWidgetClose(tId);
-                                    setTimerDisplaySec(0);
-                                    setApp((p) => ({
-                                      ...p,
-                                      boardSettings: {
-                                        ...p.boardSettings,
-                                        timerRunning: false,
-                                        timerEnd: undefined,
-                                      },
-                                    }));
+                                    countdown.reset();
                                     showToast(
                                       "Timer gestoppt und geschlossen.",
                                       "info",
@@ -11697,6 +11696,7 @@ ${content}
                                       return (
                                         <TimerWidgetContent
                                           widget={widget}
+                                          countdown={countdown}
                                           onUpdate={(updates) =>
                                             handleUpdateWidgetPos(
                                               widget.id,
@@ -11758,6 +11758,11 @@ ${content}
                                       return (
                                         <InstructionWidgetContent
                                           widget={widget}
+                                          hasActiveCountdown={countdown.run?.status === "running" || countdown.run?.status === "paused"}
+                                          onStartCountdown={() => {
+                                            const timer = cockpitWidgets.find(item => item.type === "timer");
+                                            countdown.start(300, countdown.run?.alarm ?? getCockpitTimerPreferences(timer?.settings).alarm);
+                                          }}
                                           onUpdate={(updates) =>
                                             handleUpdateWidgetPos(
                                               widget.id,
@@ -12860,6 +12865,7 @@ ${content}
           {cockpitView === "cockpit" && (
             <CockpitWidgetDock
               settings={quickBarSettings}
+              timerControl={<CockpitCountdownDock countdown={countdown} onOpen={() => handleOpenWidgetInCockpitLayout("timer", true)} />}
               editing={isDockSettingsOpen}
               setEditing={setIsDockSettingsOpen}
               onChange={updateQuickBarSettings}
