@@ -452,6 +452,27 @@ async function main() {
     await clickButton(client, 'Test beenden');
     await waitFor(client, 'stopping clears the countdown and the animals', `!${forest}?.querySelector('[role="progressbar"]') && ${forest}?.textContent.includes('0 von 5 Tieren')`);
 
+    await openForestSettings();
+    const toleranceControl = `${forest}.querySelector('input[aria-label="Lautstärkegrenze"]')`;
+    for (const [label, level] of [['Stillarbeit', '1'], ['Partnerarbeit', '5'], ['Flüsterarbeit', '3']]) {
+      await clickButton(client, label);
+      await waitFor(client, label + ' applies the right microphone threshold',
+        `${toleranceControl}.value === ${q(level)} && Array.from(${forest}.querySelectorAll('fieldset button[aria-pressed="true"]')).some(button => button.textContent.trim() === ${q(label)})`);
+    }
+    await evaluate(client, `(() => {
+      const slider = ${toleranceControl};
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(slider, '2');
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+      slider.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`);
+    await waitFor(client, 'fine adjustment clears the preset selection',
+      `${toleranceControl}.value === '2' && !${forest}.querySelector('fieldset button[aria-pressed="true"]')`);
+    await clickButton(client, 'Fertig');
+    await openForestSettings();
+    await waitFor(client, 'the fine adjustment is kept after closing settings', `${toleranceControl}.value === '2'`);
+    await clickButton(client, 'Flüsterarbeit');
+    await clickButton(client, 'Fertig');
+
     if (process.env.KLASSIO_E2E_FAKE_MIC === '1') await checkWaldruheMicrophone(client, forest, forestProgress);
 
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');

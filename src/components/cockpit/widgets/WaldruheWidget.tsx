@@ -41,6 +41,11 @@ const emptyDisplay = () => ({
   aquarium: { count: 0, quietTenths: 0 },
 });
 const thresholds = [12, 18, 26, 35, 48];
+const workModes = [
+  { label: 'Stillarbeit', tolerance: 1 },
+  { label: 'Flüsterarbeit', tolerance: 3 },
+  { label: 'Partnerarbeit', tolerance: 5 },
+] as const;
 const durations = [5, 15, 30, 60, 120, 180, 300];
 const button = 'min-h-11 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700';
 
@@ -280,10 +285,26 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
               <option value="aquarium">Aquarium</option>
             </select>
           </label>
-          <label>Lautstärkegrenze ({tolerance}/5)
-            <input className="block min-h-9 w-full accent-emerald-700" type="range" min={1} max={5} value={tolerance}
-              onChange={event => updateSettings({ tolerance: Number(event.target.value) })} />
-          </label>
+          <fieldset className="col-span-2 min-w-0 rounded-lg border border-slate-200 bg-white p-2">
+            <legend className="px-1 font-semibold">Lautstärke für die Arbeitsform</legend>
+            <div className="flex flex-wrap gap-1.5">
+              {workModes.map(workMode => (
+                <button key={workMode.tolerance} type="button"
+                  className={button + ' flex-1 aria-pressed:border-emerald-700 aria-pressed:bg-emerald-100'}
+                  aria-pressed={tolerance === workMode.tolerance}
+                  onClick={() => updateSettings({ tolerance: workMode.tolerance })}>
+                  {workMode.label}
+                </button>
+              ))}
+            </div>
+            <label className="mt-2 block font-semibold">
+              Lautstärkegrenze <span className="tabular-nums text-slate-600">{tolerance} von 5</span>
+              <input aria-label="Lautstärkegrenze" className="block min-h-11 w-full accent-emerald-700"
+                type="range" min={1} max={thresholds.length} value={tolerance}
+                onChange={event => updateSettings({ tolerance: Number(event.target.value) })} />
+            </label>
+            <p className="text-xs text-slate-600">Eine höhere Stufe lässt mehr Geräusche zu.</p>
+          </fieldset>
           <label>Leisezeit pro Tier
             <select aria-label="Leisezeit pro Tier" className={'block w-full ' + button} value={seconds} onChange={event => updateSettings({ seconds: Number(event.target.value) })}>
               {durations.map(duration => <option key={duration} value={duration}>{duration < 60 ? duration + ' Sekunden' : duration / 60 + (duration === 60 ? ' Minute' : ' Minuten')}</option>)}
@@ -298,7 +319,7 @@ export function WaldruheWidget({ widget, isMinimized, showSettings, onCloseSetti
             Ruhezeit anzeigen
           </label>
           <button type="button" className={button} onClick={onCloseSettings}>Fertig</button>
-          <p className="col-span-2">Höhere Stufen lassen mehr Geräusche zu. Der Ton wird nur auf diesem Gerät ausgewertet.</p>
+          <p className="col-span-2">Der Ton wird nur auf diesem Gerät ausgewertet.</p>
         </div>
       )}
 
