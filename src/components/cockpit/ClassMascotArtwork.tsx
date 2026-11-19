@@ -1,6 +1,8 @@
 import React from 'react';
 import type { ClassMascotAccessory, ClassMascotAction, ClassMascotKind, ClassMascotMood, ClassMascotSeason } from '../../lib/classMascot';
 
+export type MascotReadingPhase = 'ready' | 'reading' | 'finished';
+
 interface Props {
   kind: ClassMascotKind;
   mood: ClassMascotMood;
@@ -16,6 +18,7 @@ interface Props {
   ritualTick?: number;
   /** Ephemeral local reaction to the optional live microphone level. */
   coveringEars?: boolean;
+  readingPhase?: MascotReadingPhase;
 }
 
 /** Original, self-contained SVG designs. No third-party character assets or network requests. */
@@ -25,29 +28,68 @@ const ritualMotion: Partial<Record<ClassMascotAction, ClassMascotAction>> = {
   reflect: 'greet',
 };
 
-export default function ClassMascotArtwork({ kind, mood, name, animationEnabled = false, reactionActive = false, reactionTick = 0, accessory = 'none', season = 'none', surpriseActive = false, surpriseTick = 0, ritualAction = null, ritualTick = 0, coveringEars = false }: Props) {
+function MimiReadingBook({ phase }: { phase: MascotReadingPhase }) {
+  return (
+    <g key={phase} data-mimi-book={phase === 'reading' ? 'open' : 'closed'}
+      className={`mimi-book mimi-book-${phase}`} pointerEvents="none" aria-hidden="true">
+      <ellipse cx="126" cy="165" rx="36" ry="4" fill="#475569" opacity=".16" />
+      <g className="mimi-book-spread">
+        <path d="M125 133Q111 120 94 125L88 154Q106 151 125 163Q141 151 160 155L155 126Q140 121 125 133Z"
+          fill="#517963" stroke="#2D5149" strokeWidth="3" strokeLinejoin="round" />
+        <path d="M125 133Q112 122 95 126L91 151Q107 149 125 160Q141 149 157 152L153 127Q138 122 125 133Z"
+          fill="#FFF3D5" stroke="#D9B988" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M125 134v25m-27-24q11-1 19 4m-20 2q11-1 20 4m17-7q7-4 16-3m-16 9q8-4 17-3"
+          fill="none" stroke="#A9845F" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M129 132v13l4-3 3 1v-14" fill="#C96F75" />
+      </g>
+      <g className="mimi-book-cover">
+        <path d="M125 130L155 126 162 150 132 160 124 155Z" fill="#FFF3D5" stroke="#3C6256" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M125 129L154 122 160 147 131 155Z" fill="#517963" stroke="#2D5149" strokeWidth="2.5" strokeLinejoin="round" />
+        <path d="M134 133l12-3 2 7-12 3Z" fill="#F5D38C" />
+        <path d="M144 156l3 7 2-3 4 1-2-8Z" fill="#C96F75" />
+      </g>
+    </g>
+  );
+}
+
+export default function ClassMascotArtwork({ kind, mood, name, animationEnabled = false, reactionActive = false, reactionTick = 0, accessory = 'none', season = 'none', surpriseActive = false, surpriseTick = 0, ritualAction = null, ritualTick = 0, coveringEars = false, readingPhase }: Props) {
   const colors = {
     otter: { fur: '#B87346', light: '#F4D3A2', inner: '#D58D8A', blush: '#D88677' },
     dog: { fur: '#C68B52', light: '#F6E1BD', inner: '#C67E76', blush: '#D78B78' },
-    cat: { fur: '#87949D', light: '#E8EDF0', inner: '#DDA7B5', blush: '#D7A0A8' },
+    cat: { fur: '#7C889E', light: '#E9E7ED', inner: '#DAA9B8', blush: '#D79AA9' },
     // Elio has his own warm-stone skin, tapered leaf ears, tousled hair and teal school vest.
     // Not a licensed character likeness; all shapes and wardrobe are original to KLASSIO.
     elf: { fur: '#BDB9A2', light: '#E5DBC3', inner: '#D7A69C', blush: '#C99589' },
   }[kind];
-  const asleep = mood === 'sleepy';
+  const mimiScene = kind === 'cat' ? readingPhase : undefined;
+  const asleep = !mimiScene && mood === 'sleepy';
+  const idleMotion = animationEnabled && !mimiScene;
+  const react = reactionActive && !mimiScene;
   // Mood changes the actual silhouette, not only a facial expression.
-  const posture = asleep ? 'rest' : mood === 'proud' ? 'celebrate' : mood === 'calm' ? 'settle' : 'sit';
-  const poseTransform = asleep
+  const posture = mimiScene === 'reading' ? 'read' : mimiScene ? 'sit' : asleep ? 'rest' : mood === 'proud' ? 'celebrate' : mood === 'calm' ? 'settle' : 'sit';
+  const poseTransform = mimiScene === 'reading' ? 'translate(-2 44) scale(.79 .75)'
+    : mimiScene ? 'translate(0 15) scale(.78 .93)' : asleep
     ? kind === 'cat' ? 'translate(0 38) rotate(-15 90 110) scale(1 .76)' : 'translate(0 34) rotate(-7 90 110) scale(1 .79)'
     : mood === 'proud' ? 'translate(0 -6)' : mood === 'calm' ? 'translate(0 4)' : undefined;
-  const relaxed = mood === 'calm';
+  const relaxed = !mimiScene && mood === 'calm';
   const earCoverY = kind === 'otter' ? 66 : kind === 'cat' ? 68 : kind === 'dog' ? 82 : 84;
   const handFill = kind === 'elf' ? colors.fur : colors.fur;
   const eyes = asleep || relaxed
     ? <g stroke="#344044" strokeWidth="3.5" fill="none" strokeLinecap="round">
         <path d="M61 91 Q69 96 77 91"/><path d="M103 91 Q111 96 119 91"/>
       </g>
-    : <g className={animationEnabled ? 'class-mascot-eye-blink' : undefined}>
+    : kind === 'cat' ? (
+      <g className={idleMotion ? 'class-mascot-eye-blink' : undefined}>
+        {[68, 112].map(x => (
+          <g key={x} transform={`translate(${x} 89)`}>
+            <path d="M-11 0Q0-15 11 0Q0 11-11 0Z" fill="#E2BD70" stroke="#303B4D" strokeWidth="2.5" />
+            <ellipse cx={mimiScene === 'reading' ? 2.5 : 0} cy={mimiScene === 'reading' ? 2 : -1}
+              rx="3.7" ry="5.9" fill="#283548" />
+            <circle cx="2" cy="-4" r="1.8" fill="#FFF1D9" />
+          </g>
+        ))}
+      </g>
+    ) : <g className={idleMotion ? 'class-mascot-eye-blink' : undefined}>
         <ellipse cx="69" cy="90" rx={kind === 'elf' ? 10 : 6.5} ry={kind === 'elf' ? 13 : 9} fill="#25353B" />
         <ellipse cx="111" cy="90" rx={kind === 'elf' ? 10 : 6.5} ry={kind === 'elf' ? 13 : 9} fill="#25353B" />
         <ellipse cx="71" cy="86.5" rx={kind === 'elf' ? 3.2 : 2} ry={kind === 'elf' ? 3.7 : 2.6} fill="#FFFFFF" />
@@ -55,8 +97,8 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
       </g>;
 
   return (
-    <svg viewBox="0 0 180 182" data-mascot-kind={kind} data-mascot-accessory={accessory} data-mascot-season={season} role="img" aria-label={`${name}, ${kind === 'elf' ? 'ein kleiner Hauself' : kind === 'otter' ? 'ein Otter' : kind === 'dog' ? 'ein Hund' : 'eine Katze'}, ${mood === 'happy' ? 'fröhlich' : mood === 'proud' ? 'stolz' : mood === 'calm' ? 'ruhig' : 'schläfrig'}`}
-      className={`class-mascot-painted-artwork mx-auto block h-auto max-h-[280px] w-full max-w-[280px] drop-shadow-sm ${animationEnabled && !asleep ? 'class-mascot-idle' : ''}`}>
+    <svg viewBox="0 0 180 182" data-mascot-kind={kind} data-mascot-accessory={accessory} data-mascot-season={season} data-mimi-reading={mimiScene} role="img" aria-label={`${name}, ${kind === 'elf' ? 'ein kleiner Hauself' : kind === 'otter' ? 'ein Otter' : kind === 'dog' ? 'ein Hund' : 'eine Katze'}, ${mood === 'happy' ? 'fröhlich' : mood === 'proud' ? 'stolz' : mood === 'calm' ? 'ruhig' : 'schläfrig'}`}
+      className={`class-mascot-painted-artwork mx-auto block h-auto max-h-[280px] w-full max-w-[280px] drop-shadow-sm ${idleMotion && !asleep ? 'class-mascot-idle' : ''}`}>
       <defs>
         <radialGradient id={`mascot-fur-${kind}`} cx="40%" cy="28%" r="80%">
           <stop offset="0%" stopColor={colors.light} stopOpacity=".78"/>
@@ -69,10 +111,10 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
       <g data-mascot-posture={posture} className={`class-mascot-pose class-mascot-pose-${posture}`} transform={poseTransform}>
       {/* Gesture animates an inner drawing group, never the cockpit position or touch target. */}
       <g key={ritualTick} data-mascot-ritual={ritualAction || undefined}
-        className={ritualAction ? `class-mascot-ritual class-mascot-ritual-${ritualMotion[ritualAction] ?? ritualAction}` : undefined}>
+        className={ritualAction && !mimiScene ? `class-mascot-ritual class-mascot-ritual-${ritualMotion[ritualAction] ?? ritualAction}` : undefined}>
       {/* Restart the brief reaction on consecutive taps, without moving the widget itself. */}
-      <g key={reactionTick} className={reactionActive ? `class-mascot-react class-mascot-react-${kind}` : undefined}>
-      {mood === 'proud' && <g fill="#F7C84B"><path d="M28 42l3 7 8 1-6 5 2 8-7-4-7 4 2-8-6-5 8-1z"/><path d="M148 37l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></g>}
+      <g key={reactionTick} className={react ? `class-mascot-react class-mascot-react-${kind}` : undefined}>
+      {!mimiScene && mood === 'proud' && <g fill="#F7C84B"><path d="M28 42l3 7 8 1-6 5 2 8-7-4-7 4 2-8-6-5 8-1z"/><path d="M148 37l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></g>}
       {kind === 'otter' && <>
         <path className={reactionActive ? 'class-mascot-tail-reaction' : animationEnabled ? 'class-mascot-tail-sway' : undefined} d="M51 142Q21 137 19 153Q28 167 57 155" fill="#9D623B" stroke="#74472F" strokeWidth="2.5"/>
         <ellipse cx="90" cy={asleep ? 145 : 136} rx={asleep ? 48 : 38} ry={asleep ? 22 : 32} fill={`url(#mascot-fur-${kind})`}/>
@@ -103,16 +145,23 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
         <ellipse cx="59" cy="153" rx="13" ry="8" fill={colors.fur}/><ellipse cx="121" cy="153" rx="13" ry="8" fill={colors.fur}/>
       </>}
       {kind === 'cat' && <>
-        <path className={reactionActive ? 'class-mascot-tail-reaction' : animationEnabled ? 'class-mascot-tail-sway' : undefined} d="M124 149Q167 162 155 128" fill="none" stroke="#64747F" strokeWidth="13" strokeLinecap="round"/>
-        <ellipse cx="90" cy={asleep ? 145 : 136} rx={asleep ? 49 : 37} ry={asleep ? 20 : 31} fill={`url(#mascot-fur-${kind})`}/>
+        <g data-mimi-tail className={react ? 'class-mascot-tail-reaction' : idleMotion ? 'class-mascot-tail-sway' : undefined}>
+          <path d="M122 151C161 169 175 132 157 118C149 112 139 116 140 125"
+            fill="none" stroke="#48576C" strokeWidth="15" strokeLinecap="round" />
+          <path d="M122 150C160 164 172 132 156 120C151 116 144 117 142 123"
+            fill="none" stroke="#718096" strokeWidth="8" strokeLinecap="round" />
+          <path d="M145 150l5 8m8-18 8 4" stroke="#48576C" strokeWidth="3" strokeLinecap="round" />
+        </g>
+        <ellipse cx="90" cy={asleep || mimiScene === 'reading' ? 145 : 136}
+          rx={asleep || mimiScene === 'reading' ? 49 : 37} ry={asleep || mimiScene === 'reading' ? 20 : 31} fill={`url(#mascot-fur-${kind})`}/>
         <ellipse cx="90" cy={asleep ? 152 : 140} rx={asleep ? 30 : 22} ry={asleep ? 13 : 22} fill={colors.light}/>
-        <path className={animationEnabled && !asleep ? 'class-mascot-ear-twitch' : undefined} d="M43 76L38 23Q55 28 72 49Z" fill={colors.fur} stroke="#687780" strokeWidth="2"/>
-        <path d="M137 76L142 23Q125 28 108 49Z" fill={colors.fur} stroke="#687780" strokeWidth="2"/>
-        <path d="M48 67L45 38Q58 45 66 53Z" fill={colors.inner}/>
-        <path d="M132 67L135 38Q122 45 114 53Z" fill={colors.inner}/>
+        <path className={idleMotion && !asleep ? 'class-mascot-ear-twitch' : undefined} d="M39 80L30 19Q52 20 73 49Z" fill={colors.fur} stroke="#687780" strokeWidth="2"/>
+        <path d="M141 80L150 19Q128 20 107 49Z" fill={colors.fur} stroke="#687780" strokeWidth="2"/>
+        <path d="M45 67L38 31Q53 34 66 53Z" fill={colors.inner}/>
+        <path d="M135 67L142 31Q127 34 114 53Z" fill={colors.inner}/>
         <ellipse cx="90" cy="89" rx="51" ry="52" fill={`url(#mascot-fur-${kind})`}/>
         <path d="M67 44l-10 19m33-22v18m23-15 10 19" stroke="#6D7982" strokeWidth="4" strokeLinecap="round" opacity=".65"/>
-        <path d="M45 104l-12-3m13 12-13 4m101-13 12-3m-13 12 13 4" stroke="#64747F" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+        <path d="M47 103l-19-6m19 10-21 1m22 4-17 7m102-16 19-6m-19 10 21 1m-22 4 17 7" stroke="#48576C" strokeWidth="2" strokeLinecap="round" fill="none"/>
         <ellipse cx="90" cy="106" rx="31" ry="23" fill={colors.light}/>
         <path d="M43 81l-11-3 M137 81l11-3" stroke="#64747F" strokeWidth="2.5" strokeLinecap="round"/>
         <ellipse cx="59" cy="152" rx="13" ry="8" fill={colors.fur}/><ellipse cx="121" cy="152" rx="13" ry="8" fill={colors.fur}/>
@@ -136,8 +185,8 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
         <rect x="82" y="145" width="16" height="12" rx="3" fill="#FFE8A2"/>
         <path d="M85 148l5 2 5-2v6l-5 2-5-2z" fill="#287A78"/>
       </>}
-      {mood === 'proud' && <g fill="none" stroke="#67574E" strokeWidth="2.5" strokeLinecap="round" opacity=".75"><path d="M58 71q10-8 21-2"/><path d="M101 69q11-6 21 2"/></g>}
-      <g className={animationEnabled && !asleep ? 'class-mascot-gaze' : undefined}>{eyes}</g>
+      {!mimiScene && mood === 'proud' && <g fill="none" stroke="#67574E" strokeWidth="2.5" strokeLinecap="round" opacity=".75"><path d="M58 71q10-8 21-2"/><path d="M101 69q11-6 21 2"/></g>}
+      <g className={idleMotion && !asleep ? 'class-mascot-gaze' : undefined}>{eyes}</g>
       <ellipse cx="55" cy="104" rx="7" ry="4" fill={colors.blush} opacity=".45"/>
       <ellipse cx="125" cy="104" rx="7" ry="4" fill={colors.blush} opacity=".45"/>
       {kind === 'elf'
@@ -145,8 +194,8 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
         : <path d={kind === 'cat' ? 'M86 108l4 4 4-4z' : 'M85 108q5-6 10 0q-5 8-10 0'} fill="#4D3B37"/>}
       {asleep ? <path d="M82 120q8 5 16 0" fill="none" stroke="#604B49" strokeWidth="2.2" strokeLinecap="round" /> :
         <path d="M81 118q9 11 18 0" fill="none" stroke="#604B49" strokeWidth="2.5" strokeLinecap="round" />}
-      {mood === 'sleepy' && <text x="134" y="40" fill="#64748B" fontSize="14" fontWeight="800" aria-hidden="true">Zz</text>}
-      {coveringEars && (
+      {asleep && <text x="134" y="40" fill="#64748B" fontSize="14" fontWeight="800" aria-hidden="true">Zz</text>}
+      {coveringEars && !mimiScene && (
         <g
           data-mascot-noise-reaction="covering-ears"
           className="class-mascot-cover-ears"
@@ -185,6 +234,7 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
       </g>
       </g>
       </g>
+      {mimiScene && <MimiReadingBook phase={mimiScene} />}
       {/* The teacher chooses a single tiny seasonal detail, not a background,
           automatic calendar event or decoration outside this transparent SVG. */}
       {season === 'spring' && (

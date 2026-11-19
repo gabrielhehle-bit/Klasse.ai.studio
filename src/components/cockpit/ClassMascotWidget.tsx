@@ -280,6 +280,9 @@ export default function ClassMascotWidget({ app }: Props) {
   const cue = cues?.[cueIndex];
   const isReading = ritualAction === 'read';
   const chooseReadingTime = isReading && cueIndex === 0;
+  const mimiReading = cue && isReading && state.kind === 'cat'
+    ? chooseReadingTime ? 'ready' : cueClock ? 'reading' : 'finished'
+    : undefined;
   const isLastCue = cueIndex === (cues?.length ?? 0) - 1;
   const isPaused = cueClock?.endsAt === null;
   const readingSeconds = cueClock
@@ -307,7 +310,7 @@ export default function ClassMascotWidget({ app }: Props) {
           : 'LIVE';
 
   return (
-    <section data-practice-root="pet" data-mascot-reaction={reactionActive} aria-label="Klassenmaskottchen" className="class-mascot-v1 class-mascot-freestanding pointer-events-none relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden bg-transparent p-0">
+    <section data-practice-root="pet" data-mascot-reaction={reactionActive} aria-label="Klassenmaskottchen" className={`class-mascot-v1 class-mascot-freestanding pointer-events-none relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden bg-transparent p-0 ${mimiReading ? 'class-mascot-reading-stage flex-col' : ''}`}>
       <button
         type="button"
         aria-label={state.name + (state.quietMode
@@ -317,10 +320,10 @@ export default function ClassMascotWidget({ app }: Props) {
             : ' – Klassenmaskottchen verschieben: ziehen oder Pfeiltasten nutzen (Umschalt für Feinschritt); antippen für eine Reaktion')}
         onClick={reactToTap}
         onDoubleClick={triggerSurprise}
-        className="class-mascot-character pointer-events-none mx-auto flex max-w-full shrink-0 touch-none cursor-grab items-end justify-center bg-transparent p-0 active:cursor-grabbing focus-visible:rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500"
+        className={`class-mascot-character pointer-events-none mx-auto flex max-w-full shrink-0 touch-none cursor-grab items-end justify-center bg-transparent p-0 active:cursor-grabbing focus-visible:rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500 ${mimiReading ? 'min-h-0 flex-1' : ''}`}
         style={{ width: `min(100%, ${state.displaySize}px)` }}
       >
-        <span className="pointer-events-none block w-full">
+        <span className={`pointer-events-none block w-full ${mimiReading ? 'h-full min-h-0' : ''}`}>
           <ClassMascotArtwork
             kind={state.kind}
             mood={state.mood}
@@ -334,6 +337,7 @@ export default function ClassMascotWidget({ app }: Props) {
             surpriseTick={surpriseTick}
             ritualAction={state.quietMode ? null : ritualAction}
             ritualTick={ritualTick}
+            readingPhase={mimiReading}
             coveringEars={coveringEars && !state.quietMode}
           />
         </span>
@@ -341,7 +345,7 @@ export default function ClassMascotWidget({ app }: Props) {
 
       {cue && (
         <div data-mascot-cue={ritualAction}
-          className="absolute inset-x-1 bottom-1 rounded-xl border border-emerald-900/20 bg-white px-1 py-1 text-slate-900 shadow-md">
+          className={`rounded-xl border border-emerald-900/20 bg-white px-1 py-1 text-slate-900 shadow-md ${mimiReading ? 'mx-1 mb-1 w-[calc(100%-0.5rem)] shrink-0' : 'absolute inset-x-1 bottom-1'}`}>
           <div role="status" className="px-1 text-center text-[clamp(.82rem,7cqw,1.125rem)] font-bold leading-tight">
             {!isReading && cues && cues.length > 1 && <span className="block text-xs font-semibold text-emerald-800">{cueIndex + 1} von {cues.length}</span>}
             {cue.text}

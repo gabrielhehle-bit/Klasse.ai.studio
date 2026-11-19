@@ -1394,6 +1394,35 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
   .class-mascot-ritual-accent { animation: none !important; }
 }
 
+/* Mimi's reading scene uses a separate row so the timer never covers the book. */
+.class-mascot-reading-stage .class-mascot-painted-artwork {
+  height: 100%;
+  max-height: 100%;
+}
+.mimi-book-spread,
+.mimi-book-cover {
+  transform-origin: 125px 146px;
+}
+.mimi-book-ready .mimi-book-spread,
+.mimi-book-finished .mimi-book-spread,
+.mimi-book-reading .mimi-book-cover {
+  opacity: 0;
+}
+@keyframes mimi-book-unfold {
+  from { opacity: 0; transform: scaleX(.15); }
+  to { opacity: 1; transform: scaleX(1); }
+}
+@keyframes mimi-book-fold {
+  from { opacity: 1; transform: scaleX(1); }
+  to { opacity: 0; transform: scaleX(.15); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mimi-book-reading .mimi-book-spread,
+  .mimi-book-finished .mimi-book-cover { animation: mimi-book-unfold .56s ease-out both; }
+  .mimi-book-reading .mimi-book-cover,
+  .mimi-book-finished .mimi-book-spread { animation: mimi-book-fold .38s ease-in both; }
+}
+
 /* Strong, theme-independent contrast inside dark classroom cockpit designs. */
 .cockpit-contrast-dark .text-slate-400,
 .cockpit-contrast-dark .text-neutral-400 { color: #cbd5e1 !important; }

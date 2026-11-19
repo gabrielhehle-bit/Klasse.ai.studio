@@ -261,13 +261,33 @@ async function main() {
     await waitFor(client, 'quiet mode clears an active cue', `!${mascotCue('ready')}`);
     await openMascotMenu();
     await evaluate(client, `${mascotQuietButton}.click()`);
+    await clickButton(client, 'Widget hinzufügen');
+    await clickLabel(client, 'Widget-Voreinstellungen öffnen');
+    await clickButton(client, 'Klassenmaskottchen ändern');
+    await clickLabel(client, 'Katze Mimi als Klassenmaskottchen auswählen');
+    if (WIDTH === 1280) {
+      await evaluate(client, `Array.from(document.querySelectorAll('[aria-label="Maskottchengröße"] button')).find(button => button.textContent.trim() === 'Klein').click()`);
+    }
+    await clickLabel(client, 'Klassenmaskottchen-Einstellungen schließen');
+    await waitFor(client, 'Mimi is visible with her curved tail', `Boolean(${mascot}?.querySelector('[data-mascot-kind="cat"] [data-mimi-tail]'))`);
+
     await openMascotMenu();
     await playMascotAction('Flüsterlesen');
     const cueButton = (action, label) => evaluate(client, `${mascotCue(action)}.querySelector(${q('[aria-label="' + label + '"]')}).click()`);
     const readingTimer = `${mascotCue('read')}?.querySelector('[role="timer"]')?.textContent.trim()`;
     await waitFor(client, 'reading offers a choice of minutes', `Boolean(${mascotCue('read')}?.querySelector('[aria-label="2 Minuten lesen"]'))`);
+    await waitFor(client, 'Mimi has a closed book while the time is selected', `Boolean(${mascot}.querySelector('[data-mimi-reading="ready"] [data-mimi-book="closed"]'))`);
     await cueButton('read', '2 Minuten lesen');
     await waitFor(client, 'reading starts on the board', `${readingTimer} === '2:00' || ${readingTimer} === '1:59'`);
+    await waitFor(client, 'Mimi opens her book on start', `(() => {
+      const scene = ${mascot}.querySelector('[data-mimi-reading="reading"]');
+      const book = scene?.querySelector('[data-mimi-book="open"] .mimi-book-spread');
+      const cue = ${mascotCue('read')};
+      if (!book || !cue) return false;
+      const bounds = book.getBoundingClientRect();
+      return getComputedStyle(book).opacity === '1' && bounds.width >= 20 && bounds.bottom <= cue.getBoundingClientRect().top + 1;
+    })()`);
+    await screenshot(client, 'mimi-reading');
     await cueButton('read', 'Ritual pausieren');
     await waitFor(client, 'reading pause is shown', `${mascotCue('read')}?.textContent.includes('Pausiert')`);
     const pausedTime = await evaluate(client, readingTimer);
@@ -293,6 +313,29 @@ async function main() {
     await waitFor(client, 'reflection advances at the teacher’s pace', `${mascotCue('reflect')}?.textContent.includes('gut geklappt')`);
     await cueButton('reflect', 'Ritual beenden');
     await waitFor(client, 'reflection can be stopped', `!${mascotCue('reflect')}`);
+
+    await openMascotMenu();
+    await playMascotAction('Flüsterlesen');
+    // Accelerate only the next two-minute reading timeout. All UI transitions
+    // still go through the real timer callback and the click below.
+    await evaluate(client, `(() => {
+      const timeout = window.setTimeout;
+      window.setTimeout = (callback, delay, ...args) => {
+        if (delay > 110_000 && delay <= 120_000) {
+          window.setTimeout = timeout;
+          return timeout(callback, 700, ...args);
+        }
+        return timeout(callback, delay, ...args);
+      };
+    })()`);
+    await cueButton('read', '2 Minuten lesen');
+    await waitFor(client, 'Mimi closes the book when the timer ends', `(() => {
+      const book = ${mascot}.querySelector('[data-mimi-reading="finished"] [data-mimi-book="closed"] .mimi-book-cover');
+      return book && getComputedStyle(book).opacity === '1' && ${mascotCue('read')}?.textContent.includes('Lesezeit vorbei');
+    })()`);
+    await screenshot(client, 'mimi-finished');
+    await cueButton('read', 'Ritual abschließen');
+    await waitFor(client, 'Mimi returns to her normal pose with no book', `!${mascot}.querySelector('[data-mimi-book]')`);
 
     await clickLabel(client, 'Klassenmaskottchen ausblenden');
 

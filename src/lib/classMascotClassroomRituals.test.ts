@@ -85,3 +85,16 @@ test('Reading, tidying and reflection are transient and leave manual steps open 
     assert.strictEqual(reactToMascotAction(DEFAULT_CLASS_MASCOT, action), DEFAULT_CLASS_MASCOT);
   }
 });
+
+test('Mimi shows three reading poses without idle motion and the book belongs to Mimi', () => {
+  for (const phase of ['ready', 'reading', 'finished'] as const) {
+    const props = { kind: 'cat' as const, mood: 'happy' as const, name: 'Mimi',
+      animationEnabled: true, reactionActive: true, ritualAction: 'read' as const, readingPhase: phase };
+    const mimi = renderToStaticMarkup(React.createElement(ClassMascotArtwork, props));
+    assert.match(mimi, new RegExp('data-mimi-reading="' + phase + '"'));
+    assert.match(mimi, new RegExp('data-mimi-book="' + (phase === 'reading' ? 'open' : 'closed') + '"'));
+    assert.doesNotMatch(mimi, /class-mascot-idle|class-mascot-tail-sway|class-mascot-react-cat/);
+    const bruno = renderToStaticMarkup(React.createElement(ClassMascotArtwork, { ...props, kind: 'dog', name: 'Bruno' }));
+    assert.doesNotMatch(bruno, /data-mimi-reading|data-mimi-book/);
+  }
+});
