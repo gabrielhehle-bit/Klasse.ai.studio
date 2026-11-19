@@ -1269,6 +1269,11 @@ async function main() {
     await clickButton(client, 'Tafelfläche', true);
     await evaluate(client, `document.querySelector('[data-widget-type="calculator"] button[aria-label="Größeneinstellung schließen"]').click()`);
     await sleep(400);
+    await waitFor(client, 'board-size preset leaves room for its lower grips above the dock', `(() => {
+      const frame = document.querySelector('[data-widget-type="calculator"]').getBoundingClientRect();
+      const dock = document.querySelector('.klassio-widget-dock').getBoundingClientRect();
+      return frame.bottom + 12 <= dock.top;
+    })()`);
     const resizeBox = () => evaluate(client, `(() => {const r=document.querySelector('[data-widget-type="calculator"]').getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height};})()`);
     const dragResize = async (direction, dx, dy) => {
       await waitFor(client, 'resize interaction settled', `!document.querySelector('[data-widget-type="calculator"]').hasAttribute('data-widget-interacting')`);
