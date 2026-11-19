@@ -24,7 +24,7 @@ export type CockpitQuickbarSettings = { enabled: boolean; itemIds: CockpitQuickb
 
 const ALLOWED = new Set<string>(COCKPIT_QUICKBAR_ITEMS.map(item => item.id));
 const DEFAULT_IDS: CockpitQuickbarId[] = [
-  'kidattendance', 'classweeklyplan', 'timer', 'wheel', 'randomname', 'groups',
+  'kidattendance', 'waldruhe', 'timeline', 'instruction', 'timer',
 ];
 
 /** Previously disabled favorites remain disabled; new classrooms see useful defaults. */

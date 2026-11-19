@@ -438,7 +438,17 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     const minW = Math.min(100, (minConfig.minW / stageRect.width) * 100);
     const minH = Math.min(100, (minConfig.minH / stageRect.height) * 100);
     const w = Math.max(minW, Math.min(96, targetW));
-    const h = Math.max(minH, Math.min(96, targetH));
+    let maxHeight = 96;
+    if (moveToBoardInset) {
+      const shell = stage.closest('.klassio-cockpit-shell');
+      const dockBounds = Array.from(shell?.querySelectorAll('.klassio-widget-dock, .klassio-minimized-strip') || [])
+        .map(element => element.getBoundingClientRect())
+        .filter(bounds => bounds.height > 0 && bounds.top > stageRect.top);
+      const bottom = Math.min(stageRect.bottom, ...dockBounds.map(bounds => bounds.top));
+      // Leave room for the 4% top inset and for pulling the lower resize grips.
+      maxHeight = Math.min(maxHeight, (bottom - stageRect.top - 24) / stageRect.height * 100 - 4);
+    }
+    const h = Math.max(minH, Math.min(maxHeight, targetH));
     const x = moveToBoardInset ? Math.max(0, Math.min(4, 100 - w)) : Math.max(0, Math.min(widget.x, 100 - w));
     const y = moveToBoardInset ? Math.max(0, Math.min(4, 100 - h)) : Math.max(0, Math.min(widget.y, 100 - h));
     setIsMaximized(false);

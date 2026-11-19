@@ -12,7 +12,7 @@ const dock = readFileSync('src/components/cockpit/CockpitWidgetDock.tsx', 'utf8'
 test('new classrooms get an ordered customizable dock; old disabled favorites remain disabled', () => {
   const defaults = normalizeCockpitQuickbarSettings(null);
   assert.equal(defaults.enabled, true);
-  assert.deepEqual(defaults.itemIds, ['kidattendance', 'classweeklyplan', 'timer', 'wheel', 'randomname', 'groups']);
+  assert.deepEqual(defaults.itemIds, ['kidattendance', 'waldruhe', 'timeline', 'instruction', 'timer']);
   assert.equal(normalizeCockpitQuickbarSettings({ enabled: false }).enabled, false);
   assert.equal(normalizeCockpitQuickbarSettings({ enabled: 'yes' }).enabled, false);
   assert.deepEqual(normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['timer', 'timer', 'unsafe', null] }), {
@@ -23,8 +23,8 @@ test('new classrooms get an ordered customizable dock; old disabled favorites re
   assert.equal(COCKPIT_QUICKBAR_ITEMS.some(item => item.id === 'mathcards'), true);
   assert.deepEqual(normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['studentlist', 'timer'] }).itemIds, ['timer']);
   assert.deepEqual(
-    normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['timer', 'geometry', 'dailyquotes'] }).itemIds,
-    ['timer', 'geometry', 'dailyquotes'],
+    normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['wheel', 'timer', 'geometry', 'dailyquotes'] }).itemIds,
+    ['wheel', 'timer', 'geometry', 'dailyquotes'],
   );
   assert.match(source, /<CockpitWidgetDock/);
   assert.match(source, /onOpenWidget=\{\(id\) =>/);

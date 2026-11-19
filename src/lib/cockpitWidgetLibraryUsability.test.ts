@@ -5,11 +5,11 @@ import { readFileSync } from 'node:fs';
 const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
 const css = readFileSync('src/index.css', 'utf8');
 
-test('Widget-Bibliothek: Suche bündelt Kernwidgets und erhält die bewusste Spezialauswahl', () => {
-  assert.match(cockpit, /if \(nextSearch\.trim\(\) && activeWidgetCategory !== "legacy"\) setActiveWidgetCategory\("core"\)/);
+test('Widget-Bibliothek: Suche ist fachübergreifend und der Bestandskatalog bleibt separat durchsuchbar', () => {
+  assert.match(cockpit, /if \(activeWidgetCategory !== "legacy" && \(query \|\|/);
   assert.match(cockpit, /setActiveWidgetCategory\(cat\.id\);\s*if \(widgetSearch\) setWidgetSearch\(""\)/);
   assert.match(cockpit, /getRegularCockpitGroups\(activeWidgetCategory, query\)/);
-  assert.match(cockpit, /activeWidgetCategory === "legacy" \? "weiteren Widgets"/);
+  assert.match(cockpit, /if \(query\) return matchesCockpitWidgetSearch\(item, query\)/);
   assert.match(cockpit, /\{filteredList\.length\} Treffer/);
 });
 

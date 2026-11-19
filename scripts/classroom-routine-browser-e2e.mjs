@@ -778,7 +778,7 @@ async function main() {
     // The normal picker stays small; exact legacy names remain available separately.
     await clickButton(client, 'Widget hinzufügen');
     await clickButton(client, 'Kernwidgets');
-    await waitFor(client, 'regular picker has 26 grouped entries', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 26`);
+    await waitFor(client, 'regular picker has six core entries', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 6`);
     await waitFor(client, 'student-list resize grip is removed while choosing widgets', `!document.querySelector('[aria-label="Breite der Schülerliste ändern"]')`);
     await sleep(250);
     await evaluate(client, `document.querySelector('button[aria-label="Widget-Voreinstellungen öffnen"]').click()`);
@@ -789,7 +789,7 @@ async function main() {
     await client.send('Emulation.setDeviceMetricsOverride', { width:820, height:900, deviceScaleFactor:1, mobile:false });
     // Below 768px the app deliberately switches from the cockpit to phone quick mode.
     await sleep(250);
-    await waitFor(client, 'regular picker fits the supported tablet viewport', `(() => {const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]');if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.left>=-1 && rect.right<=innerWidth+1 && rect.top>=0 && rect.bottom<=innerHeight+1 && document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===26;})()`);
+    await waitFor(client, 'regular picker fits the supported tablet viewport', `(() => {const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]');if(!dialog)return false;const rect=dialog.getBoundingClientRect();return rect.left>=-1 && rect.right<=innerWidth+1 && rect.top>=0 && rect.bottom<=innerHeight+1 && document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===6;})()`);
     await waitFor(client, 'tablet picker controls are unobstructed', `(() => {
       const dialog=document.querySelector('[role=dialog][aria-label="Widget-Bibliothek"]'),content=dialog.querySelector('main').getBoundingClientRect();
       const actions=Array.from(dialog.querySelectorAll('[data-widget-card-action="primary"], [data-widget-library-action]')).filter(button=>{const r=button.getBoundingClientRect(),y=r.top+r.height/2;return r.width>0 && y>=content.top && y<=content.bottom || button.hasAttribute('data-widget-library-action');});
@@ -800,10 +800,9 @@ async function main() {
     await sleep(250);
     await setInputByLabel(client, 'Widget suchen', 'Bruch');
     await waitFor(client, 'fraction search shows one group', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 1 && Boolean(document.querySelector('[data-testid="cockpit-core-group-fractionvisualizer"]'))`);
-    await evaluate(client, `document.querySelector('button[aria-label="Varianten von Brüche anzeigen"]').click()`);
     await waitFor(client, 'fraction variants are available inside their group', `Array.from(document.querySelectorAll('[data-testid="cockpit-core-group-fractionvisualizer"] button')).some(button => button.textContent.includes('Bruch-Kuchen'))`);
     await setInputByLabel(client, 'Widget suchen', 'Zahnputz');
-    await waitFor(client, 'special topic stays outside regular search', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 0 && document.body.innerText.includes('Kein Kernwidget gefunden')`);
+    await waitFor(client, 'special topic appears in global search', `Boolean(document.querySelector('[data-testid="cockpit-core-group-toothbrush"]'))`);
     await clickButton(client, 'Weitere Widgets');
     await setInputByLabel(client, 'Widget suchen', 'Zahnputz');
     await waitFor(client, 'special topic remains accessible', `Boolean(document.querySelector('button[aria-label="Zahnputz-Station öffnen"]'))`);
@@ -1270,6 +1269,11 @@ async function main() {
     await clickButton(client, 'Tafelfläche', true);
     await evaluate(client, `document.querySelector('[data-widget-type="calculator"] button[aria-label="Größeneinstellung schließen"]').click()`);
     await sleep(400);
+    await waitFor(client, 'board-size preset leaves room for its lower grips above the dock', `(() => {
+      const frame = document.querySelector('[data-widget-type="calculator"]').getBoundingClientRect();
+      const dock = document.querySelector('.klassio-widget-dock').getBoundingClientRect();
+      return frame.bottom + 12 <= dock.top;
+    })()`);
     const resizeBox = () => evaluate(client, `(() => {const r=document.querySelector('[data-widget-type="calculator"]').getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height};})()`);
     const dragResize = async (direction, dx, dy) => {
       await waitFor(client, 'resize interaction settled', `!document.querySelector('[data-widget-type="calculator"]').hasAttribute('data-widget-interacting')`);
