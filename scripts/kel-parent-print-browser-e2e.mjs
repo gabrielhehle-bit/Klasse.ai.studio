@@ -553,9 +553,13 @@ try {
   await clickButton(client, 'KEL-Gespräch vorbereiten');
   const hasNovemberDraft = 'document.querySelector("#kel-preparation-date")?.value==="2026-11-25" && Array.from(document.querySelectorAll("textarea")).some(field=>field.value==="Wir spielen zusammen Anlautspiele.")';
   await waitFor(client, 'closing and reopening preserves the November draft and its date', hasNovemberDraft);
-  await clickButton(client, 'Elternblatt drucken');
-  await waitFor(client, 'a draft can be printed before creating a November protocol',
-    'document.querySelector("#kel-parent-meeting")?.value==="" && document.querySelector("#kel-parent-agreements")?.value.includes("Wir spielen zusammen Anlautspiele.") && document.querySelector("[data-kel-parent-report]")?.textContent.includes("25.11.2026")');
+  await clickButton(client, 'Elternblatt drucken', { exact: true });
+  await waitFor(client, 'the draft opens the selected child’s parent sheet',
+    'document.querySelector("#kel-parent-student")?.value===' + q(nextChildId));
+  await waitFor(client, 'the draft opens with no saved protocol selected',
+    'document.querySelector("#kel-parent-meeting")?.value===""');
+  await waitFor(client, 'the parent sheet uses the November draft agreement and date',
+    'document.querySelector("#kel-parent-agreements")?.value.includes("Wir spielen zusammen Anlautspiele.") && document.querySelector("[data-kel-parent-report]")?.textContent.includes("25.11.2026")');
   await evaluate(client, 'window.print = () => { window.draftPrintRequested = true; }');
   await clickSelector(client, '[data-testid="print-center-primary-print"]');
   await waitFor(client, 'print command opens the November draft parent sheet',
@@ -624,7 +628,7 @@ try {
     'document.querySelector("#kel-preparation-date")?.value==="2026-10-29" && Array.from(document.querySelectorAll("textarea")).some(field=>field.value==="Wir lesen im Oktober Silben.")');
   await setControl(client, '#kel-preparation-meeting', novemberMeeting);
   await waitFor(client, 'November agreement remains assigned to its own date', hasNovemberDraft);
-  await clickButton(client, 'Elternblatt drucken');
+  await clickButton(client, 'Elternblatt drucken', { exact: true });
   await waitFor(client, 'same child and agreement copied into the parent sheet',
     'document.querySelector("#kel-parent-student")?.value===' + q(nextChildId) + ' && document.querySelector("#kel-parent-agreements")?.value.includes("Die Lehrperson legt die Karten bereit.") && document.querySelector("#kel-parent-agreements")?.value.includes("25.11.2026")');
   for (const { area, title } of cases) {
