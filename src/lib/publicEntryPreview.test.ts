@@ -36,32 +36,29 @@ test('Die Vorschau zeigt die vier wichtigsten KLASSIO-Bereiche', () => {
 });
 
 
-test('Öffentliche Startseite erklärt Produkt, Ablauf und Datenschutz klar', () => {
+test('Öffentliche Startseite erklärt den Nutzen, den Preis und den Datenschutz', () => {
   const previewSource = readFileSync('src/components/PublicWelcome.tsx', 'utf8');
+  const hero = previewSource.match(/<section data-public-landing-hero[\s\S]*?<\/section>/)?.[0] || '';
 
-  assert.match(previewSource, /Dein kompletter Schulalltag/);
-  assert.match(previewSource, /Eine Oberfläche/);
-  assert.match(previewSource, /KLASSIO in Aktion/);
-  assert.match(previewSource, /So funktioniert KLASSIO/);
+  assert.match(hero, /Die App für Lehrpersonen/);
+  assert.match(hero, /Dauerhaft kostenlos/);
+  assert.match(hero, /0 €/);
+  assert.match(hero, /Alle Funktionen inklusive/);
+  assert.match(hero, /Demo ausprobieren/);
+  assert.match(hero, /Demo ohne Anmeldung/);
+  assert.match(hero, /Mit KLASSIO starten/);
   assert.match(previewSource, /AES-256-Verschlüsselung/);
-
-  for (const label of [
-    'Planung',
-    'Lehrer-Cockpit',
-    'Klasse & Schülerdossier',
-    'Leistungen & Diagnostik',
-    'Organisation',
-    'KI & Werkzeuge',
-  ]) {
-    assert.match(previewSource, new RegExp(label.replace(/[.*+?^$\{\}()|[\]\\]/g, '\\$&')));
-  }
+  assert.match(previewSource, /Unterricht planen/);
+  assert.match(previewSource, /Deine Klasse im Blick behalten/);
+  assert.match(previewSource, /KEL-Gespräche vorbereiten/);
 });
 
 test('Startseiten-Metadaten sind deutsch und für Teilen aktualisiert', () => {
   const indexSource = readFileSync('index.html', 'utf8');
 
   assert.match(indexSource, /<html lang="de">/);
-  assert.match(indexSource, /KLASSIO – Dein kompletter Schulalltag in einer Oberfläche/);
+  assert.match(indexSource, /<title>KLASSIO – Kostenlose App für Lehrpersonen<\/title>/);
+  assert.match(indexSource, /property="og:description" content="[^"]*Dauerhaft 0 €/);
   assert.match(indexSource, /property="og:type" content="website"/);
   assert.match(indexSource, /property="og:url" content="https:\/\/klassio\.at\/"/);
   assert.match(indexSource, /rel="canonical" href="https:\/\/klassio\.at\/"/);
@@ -72,7 +69,6 @@ test('Öffentliche Startseite ist für kleine Displays abgesichert', () => {
   const previewSource = readFileSync('src/components/PublicWelcome.tsx', 'utf8');
 
   assert.match(previewSource, /overflow-x-hidden/);
-  assert.match(previewSource, /clamp\(2\.35rem,11vw,3\.25rem\)/);
   assert.match(previewSource, /scroll-mt-20/);
   assert.match(previewSource, /scrollbar-width:none/);
   assert.match(previewSource, /aria-pressed=\{tab === id\}/);

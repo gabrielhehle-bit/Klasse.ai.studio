@@ -8,6 +8,7 @@ on:
       - 'src/components/Attendance.tsx'
       - 'src/components/Topbar.tsx'
       - 'src/components/Sidebar.tsx'
+      - 'src/mobileQuickMode.ts'
       - 'scripts/mobile-attendance-browser-e2e.mjs'
       - '.github/workflows/mobile-attendance-browser-e2e.yml'
   workflow_dispatch:

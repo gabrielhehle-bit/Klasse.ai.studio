@@ -29,5 +29,5 @@ test('PWA prompt compares client and server and never resets encrypted local dat
   assert.match(prompt, /Neue Version laden/);
   assert.match(prompt, /navigator\.serviceWorker\?\.getRegistrations\(\)/);
   assert.doesNotMatch(prompt, /(?:localStorage|indexedDB|localforage)\.(?:clear|delete)/i);
-  assert.match(app, /<ReleaseUpdateNotice \/>/);
+  assert.match(app, /<AccessGuard>\s*<ReleaseUpdateNotice \/>/);
 });

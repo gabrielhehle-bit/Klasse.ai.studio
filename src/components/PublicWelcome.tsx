@@ -10,7 +10,6 @@ import {
   Clock3,
   GraduationCap,
   LayoutDashboard,
-  ListChecks,
   LogIn,
   Presentation,
   ShieldCheck,
@@ -42,95 +41,52 @@ const demoStudents = [
 function KlassioMark() {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-950/10">
-        <GraduationCap size={21} strokeWidth={2.2} />
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-700 text-white">
+        <GraduationCap size={22} strokeWidth={2} aria-hidden="true" />
       </div>
-      <div className="leading-none">
-        <div className="text-[1.05rem] font-black tracking-[-0.04em] text-slate-950">KLASSIO</div>
-        <div className="mt-1 text-[0.62rem] font-bold uppercase tracking-[0.2em] text-slate-400">Lehreralltag, klarer.</div>
-      </div>
+      <span className="text-lg font-black tracking-[-0.045em] text-slate-950">KLASSIO</span>
     </div>
   );
 }
 
 function HeroPreview() {
   return (
-    <div className="relative mx-auto w-full max-w-[720px] min-w-0">
-      <div className="absolute -inset-8 -z-10 rounded-[3rem] bg-indigo-200/35 blur-3xl" />
-      <div className="overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white shadow-[0_30px_80px_-28px_rgba(15,23,42,0.32)]">
-        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 sm:px-5">
-          <div className="flex items-center gap-2">
-            <div className="h-2.5 w-2.5 rounded-full bg-slate-200" />
-            <div className="h-2.5 w-2.5 rounded-full bg-slate-200" />
-            <div className="h-2.5 w-2.5 rounded-full bg-slate-200" />
-          </div>
-          <div className="rounded-full bg-emerald-50 px-3 py-1 text-[0.63rem] font-black uppercase tracking-[0.14em] text-emerald-700">
-            Beispielklasse 3b
-          </div>
+    <figure className="min-w-0 rounded-[1.75rem] border border-indigo-100 bg-[#efedf9] p-3 sm:p-6 lg:p-7">
+      <div className="overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-[0_18px_42px_-24px_rgba(49,46,129,0.55)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3.5 text-sm sm:px-6">
+          <span className="inline-flex items-center gap-2.5 font-bold text-slate-950">
+            <LayoutDashboard size={16} className="text-indigo-700" aria-hidden="true" /> Heute
+          </span>
+          <span className="font-medium text-slate-600">Beispielklasse 3b</span>
         </div>
-        <div className="grid min-h-[330px] grid-cols-[64px_1fr] bg-slate-50 sm:min-h-[390px] sm:grid-cols-[164px_1fr]">
-          <aside className="border-r border-slate-100 bg-slate-950 p-2.5 text-white sm:p-4">
-            <div className="mb-5 flex h-9 items-center justify-center rounded-xl bg-white/10 text-xs font-black">K</div>
-            <div className="space-y-2">
-              {[
-                { label: 'Heute', icon: LayoutDashboard },
-                { label: 'Klasse', icon: Users },
-                { label: 'Planung', icon: CalendarDays },
-                { label: 'Cockpit', icon: Presentation },
-              ].map(({ label, icon: Icon }, index) => (
-                <div
-                  key={label}
-                  className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-[0.68rem] font-bold ${index === 0 ? 'bg-white text-slate-950' : 'text-white/55'}`}
-                >
-                  <Icon size={14} />
-                  <span className="hidden sm:inline">{label}</span>
-                </div>
-              ))}
+        <div className="space-y-5 p-4 sm:p-6">
+          <div>
+            <h2 className="text-lg font-bold tracking-tight text-slate-950">Dein Unterricht am Freitag</h2>
+            <ul className="mt-3 divide-y divide-slate-200 rounded-xl border border-slate-200">
+              <li className="flex items-center gap-3 px-3 py-3">
+                <span className="h-8 w-1 shrink-0 rounded-full bg-blue-500" aria-hidden="true" />
+                <span className="text-xs font-medium tabular-nums text-slate-600">08:00</span>
+                <div><div className="text-sm font-bold text-slate-950">Mathematik</div><div className="text-xs text-slate-600">Einführung in die Multiplikation</div></div>
+              </li>
+              <li className="flex items-center gap-3 px-3 py-3">
+                <span className="h-8 w-1 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
+                <span className="text-xs font-medium tabular-nums text-slate-600">08:55</span>
+                <div><div className="text-sm font-bold text-slate-950">Deutsch</div><div className="text-xs text-slate-600">Partnerlesen</div></div>
+              </li>
+            </ul>
+          </div>
+          <div className="rounded-xl bg-indigo-50 p-4">
+            <div className="flex items-center gap-2.5 text-sm font-bold text-indigo-950">
+              <ClipboardCheck size={18} className="shrink-0 text-indigo-700" aria-hidden="true" /> KEL-Gespräch vorbereiten
             </div>
-          </aside>
-          <main className="min-w-0 p-3.5 sm:p-6">
-            <div className="mb-5 flex items-start justify-between gap-3">
-              <div>
-                <div className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-indigo-600">Guten Morgen</div>
-                <div className="mt-1 text-xl font-black tracking-tight text-slate-950 sm:text-2xl">Dein Schultag auf einen Blick.</div>
-              </div>
-              <div className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-right sm:block">
-                <div className="text-[0.6rem] font-bold uppercase tracking-wider text-slate-400">Heute</div>
-                <div className="text-xs font-black text-slate-700">Freitag</div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-              {[
-                { value: '19', label: 'Kinder', icon: Users },
-                { value: '4', label: 'Einheiten', icon: BookOpen },
-                { value: '3', label: 'Aufgaben', icon: ListChecks },
-              ].map(({ value, label, icon: Icon }) => (
-                <div key={label} className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
-                  <Icon size={16} className="mb-3 text-indigo-500" />
-                  <div className="text-xl font-black text-slate-950">{value}</div>
-                  <div className="text-[0.68rem] font-bold text-slate-400">{label}</div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="text-xs font-black text-slate-800">Nächste Einheit</div>
-                <div className="rounded-lg bg-indigo-50 px-2 py-1 text-[0.6rem] font-black text-indigo-600">08:55</div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                  <BookOpen size={18} />
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-black text-slate-900">Deutsch · Lesen</div>
-                  <div className="truncate text-xs font-semibold text-slate-400">Leseflüssigkeit · Partnerlesen</div>
-                </div>
-              </div>
-            </div>
-          </main>
+            <p className="mt-2 text-xs leading-5 text-indigo-950/85 sm:text-sm">
+              Aus „Leseflüssigkeit“ in der Notenmappe wird ein Lernnachweis fürs Gespräch und das Elternblatt.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+      <figcaption className="mt-3 text-center text-xs font-medium text-indigo-950/75">Vorschau mit Beispieldaten</figcaption>
+    </figure>
   );
 }
 
@@ -144,12 +100,12 @@ function FeatureCard({
   text: string;
 }) {
   return (
-    <div className="rounded-[1.4rem] border border-slate-200 bg-white p-5 shadow-sm transition-transform duration-200 hover:-translate-y-1 sm:rounded-[1.6rem] sm:p-6">
-      <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
         <Icon size={21} />
       </div>
       <h3 className="text-lg font-black tracking-tight text-slate-950">{title}</h3>
-      <p className="mt-2 text-sm font-medium leading-6 text-slate-500">{text}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
     </div>
   );
 }
@@ -166,14 +122,13 @@ function ProductPreviewSection({ onDemo }: Pick<PublicWelcomeProps, 'onDemo'>) {
 
   return (
     <section id="produkt" className="scroll-mt-20 border-y border-slate-200 bg-white">
-      <div className="mx-auto max-w-[1240px] px-5 py-18 sm:px-7 sm:py-20 lg:px-8">
+      <div className="mx-auto max-w-[1240px] px-5 py-12 sm:px-7 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <div className="text-[0.68rem] font-black uppercase tracking-[0.18em] text-indigo-600">KLASSIO in Aktion</div>
-          <h2 className="mt-3 text-3xl font-black tracking-[-0.035em] text-slate-950 sm:text-4xl">
-            Nicht nur erklären. Direkt ansehen.
+          <h2 className="text-3xl font-bold tracking-[-0.035em] text-slate-950 sm:text-4xl">
+            Schau dich in KLASSIO um
           </h2>
-          <p className="mt-4 text-sm font-medium leading-6 text-slate-500 sm:text-base">
-            Wechsle zwischen vier zentralen Bereichen und bekomme sofort ein Gefühl dafür, wie Planung, Unterricht und Dokumentation zusammenspielen.
+          <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">
+            Wähle einen Bereich und sieh dir die Beispielklasse an.
           </p>
         </div>
 
@@ -207,7 +162,7 @@ function ProductPreviewSection({ onDemo }: Pick<PublicWelcomeProps, 'onDemo'>) {
             onClick={onDemo}
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 text-sm font-black text-white shadow-lg shadow-slate-950/10 transition-all hover:-translate-y-0.5 hover:bg-indigo-600"
           >
-            Gesamte Demo öffnen
+            Interaktive Demo öffnen
             <ArrowRight size={17} />
           </button>
         </div>
@@ -218,12 +173,11 @@ function ProductPreviewSection({ onDemo }: Pick<PublicWelcomeProps, 'onDemo'>) {
 
 function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDemo'>) {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#f7f8fb] text-slate-950">
-      <PublicFreePromise />
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-[#f7f8fb]/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-3 px-4 py-3.5 sm:px-7 sm:py-4 lg:px-8">
+    <div className="min-h-screen overflow-x-hidden bg-[#fcfbf8] text-slate-950">
+      <header className="border-b border-slate-200 bg-[#fcfbf8]">
+        <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-3 px-5 py-3.5 sm:px-7 lg:px-8">
           <KlassioMark />
-          <div className="flex items-center gap-2">
+          <nav aria-label="Hauptnavigation" className="flex items-center gap-2">
             <a
               href="#klassio-entdecken"
               className="hidden rounded-xl px-3.5 py-2 text-sm font-bold text-slate-500 transition-colors hover:bg-white hover:text-slate-900 md:inline-flex"
@@ -239,96 +193,74 @@ function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDe
             <button
               type="button"
               onClick={onLogin}
-              className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-black text-slate-800 shadow-sm transition-all hover:border-slate-300 hover:shadow-md sm:px-4 sm:text-sm"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-bold text-slate-800 transition-colors hover:border-indigo-300 hover:text-indigo-800"
             >
-              <LogIn size={16} />
+              <LogIn size={16} aria-hidden="true" />
               Anmelden
             </button>
-          </div>
+          </nav>
         </div>
       </header>
 
       <main>
-        <section className="overflow-hidden">
-          <div className="mx-auto grid max-w-[1240px] items-center gap-10 px-4 py-12 sm:px-7 sm:py-18 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12 lg:px-8 lg:py-24">
+        <section data-public-landing-hero aria-labelledby="klassio-start-heading" className="border-b border-slate-200">
+          <div className="mx-auto grid max-w-[1240px] items-center gap-8 px-5 py-7 sm:px-7 sm:py-14 lg:grid-cols-[0.94fr_1.06fr] lg:gap-12 lg:px-8 lg:py-17">
             <div>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1.5 text-[0.68rem] font-black uppercase tracking-[0.16em] text-indigo-700">
-                <Sparkles size={13} />
-                Für den echten Schulalltag
-              </div>
-              <h1 className="max-w-[720px] text-[clamp(2.35rem,11vw,3.25rem)] font-black leading-[0.98] tracking-[-0.05em] text-slate-950 sm:text-6xl lg:text-[4.45rem]">
-                Dein kompletter Schulalltag.<br />
-                <span className="text-indigo-600">Eine Oberfläche.</span>
+              <p className="text-sm font-bold text-indigo-700">Die App für Lehrpersonen</p>
+              <h1 id="klassio-start-heading" className="mt-3 max-w-xl text-balance text-[clamp(2.2rem,8.7vw,3.3rem)] font-black leading-[1.05] tracking-[-0.055em] text-slate-950 lg:text-[clamp(3.2rem,5.1vw,4.35rem)]">
+                Dein Schulalltag, gut organisiert.
               </h1>
-              <p className="mt-5 max-w-xl text-[0.98rem] font-medium leading-7 text-slate-500 sm:mt-7 sm:text-lg">
-                Planen, unterrichten, beobachten, dokumentieren und organisieren – mit Klasse, Leistungen, Diagnostik und digitaler Tafel an einem Ort.
+              <p className="mt-4 max-w-lg text-base leading-7 text-slate-700 sm:text-lg">
+                Plane deine Woche, behalte deine Klasse im Blick und nutze vorhandene Einträge für deine KEL-Gespräche.
               </p>
-              <div className="mt-7 flex flex-col gap-3 sm:mt-8 sm:flex-row">
+              <div data-public-free-promise className="mt-5 flex max-w-max flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-emerald-200 bg-[#eaf6ed] px-4 py-2.5 sm:mt-6 sm:px-5">
+                <span className="whitespace-nowrap text-[2.75rem] font-black leading-none tracking-[-0.08em] text-emerald-900 sm:text-5xl">0 €</span>
+                <div className="text-emerald-950">
+                  <p className="text-sm font-bold sm:text-base">Dauerhaft kostenlos</p>
+                  <p className="text-xs leading-5 sm:text-sm">Alle Funktionen inklusive.</p>
+                </div>
+              </div>
+              <div className="mt-6 grid gap-2.5 min-[400px]:flex min-[400px]:flex-wrap">
                 <button
                   type="button"
                   onClick={onDemo}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 text-sm font-black text-white shadow-xl shadow-slate-950/15 transition-all hover:-translate-y-0.5 hover:bg-indigo-600"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-indigo-700 px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-indigo-800 sm:px-5"
                 >
-                  Demo öffnen – ohne Anmeldung
-                  <ArrowRight size={17} />
+                  Demo ausprobieren
+                  <ArrowRight size={16} aria-hidden="true" />
                 </button>
                 <button
                   type="button"
                   onClick={onLogin}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 text-sm font-black text-slate-800 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+                  className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-900 transition-colors hover:border-indigo-300 hover:text-indigo-800 sm:px-5"
                 >
-                  Ich habe schon einen Zugang
+                  Mit KLASSIO starten
                 </button>
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-bold text-slate-400">
-                <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={14} className="text-emerald-500" /> Sofort ausprobieren</span>
-                <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={14} className="text-emerald-500" /> Nur erfundene Beispieldaten</span>
-                <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={14} className="text-emerald-500" /> Nichts wird gespeichert</span>
-              </div>
+              <p className="mt-3 text-xs font-medium leading-5 text-slate-600 sm:text-sm">Demo ohne Anmeldung, nur mit Beispieldaten.</p>
             </div>
             <HeroPreview />
           </div>
         </section>
 
-        <section id="klassio-entdecken" className="scroll-mt-20 border-y border-slate-200 bg-white">
-          <div className="mx-auto max-w-[1240px] px-5 py-18 sm:px-7 sm:py-20 lg:px-8">
-            <div className="mx-auto max-w-2xl text-center">
-              <div className="text-[0.68rem] font-black uppercase tracking-[0.18em] text-indigo-600">Ein Arbeitsbereich statt Tool-Chaos</div>
-              <h2 className="mt-3 text-3xl font-black tracking-[-0.035em] text-slate-950 sm:text-4xl">Alles, was deinen Schultag zusammenhält.</h2>
-              <p className="mt-4 text-sm font-medium leading-6 text-slate-500 sm:text-base">
-                KLASSIO bündelt die wichtigsten Arbeitsbereiche, ohne daraus ein überladenes Verwaltungssystem zu machen.
-              </p>
-            </div>
-            <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <section id="klassio-entdecken" className="scroll-mt-20">
+          <div className="mx-auto max-w-[1240px] px-5 py-12 sm:px-7 sm:py-16 lg:px-8">
+            <h2 className="text-3xl font-bold tracking-[-0.035em] text-slate-950 sm:text-4xl">Was du mit KLASSIO machen kannst</h2>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
               <FeatureCard
                 icon={CalendarDays}
-                title="Planung"
-                text="Wochenplanung, Hausübungen, Jahresplanung und Termine dort, wo du sie im Alltag brauchst."
+                title="Unterricht planen"
+                text="Bereite deine Woche vor und sieh Unterricht, Hausübungen und Termine auf einen Blick."
               />
               <FeatureCard
                 icon={Presentation}
-                title="Lehrer-Cockpit"
-                text="Digitale Tafel, frei platzierbare Widgets, Schülerliste und Werkzeuge für den laufenden Unterricht."
-              />
-              <FeatureCard
-                icon={Users}
-                title="Klasse & Schülerdossier"
-                text="Stammdaten, Beobachtungen, Entwicklung und Organisation pro Kind übersichtlich zusammenführen."
+                title="Deine Klasse im Blick behalten"
+                text="Halte Anwesenheit und Beobachtungen fest. Nutze im Unterricht die digitale Tafel und die Werkzeuge im Lehrer-Cockpit."
               />
               <FeatureCard
                 icon={ClipboardCheck}
-                title="Leistungen & Diagnostik"
-                text="Leistungen dokumentieren, Lernstände sichtbar machen und nächste Schritte nachvollziehbar festhalten."
-              />
-              <FeatureCard
-                icon={ListChecks}
-                title="Organisation"
-                text="Aufgaben, Notizen, Termine und wiederkehrende Abläufe an einem Ort statt über mehrere Werkzeuge verteilt."
-              />
-              <FeatureCard
-                icon={Sparkles}
-                title="KI & Werkzeuge"
-                text="Hilfen für Unterricht und Vorbereitung gezielt nutzen – als Unterstützung innerhalb deines bestehenden Arbeitsablaufs."
+                title="KEL-Gespräche vorbereiten"
+                text="Nutze vorhandene Noten, Lernbereiche und Beobachtungen für die Gesprächsfolien. Drucke das Elternblatt direkt aus dem Entwurf."
               />
             </div>
           </div>
@@ -336,66 +268,34 @@ function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDe
 
         <ProductPreviewSection onDemo={onDemo} />
 
-        <section className="mx-auto max-w-[1240px] px-5 py-18 sm:px-7 sm:py-20 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <div className="text-[0.68rem] font-black uppercase tracking-[0.18em] text-indigo-600">So funktioniert KLASSIO</div>
-            <h2 className="mt-3 text-3xl font-black tracking-[-0.035em] text-slate-950 sm:text-4xl">Von der Klasse bis zum nächsten Lernschritt.</h2>
-          </div>
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {[
-              ['01', 'Klasse einrichten', 'Klasse anlegen oder Daten übernehmen und den eigenen Arbeitsbereich passend vorbereiten.'],
-              ['02', 'Alltag führen', 'Planen, unterrichten, Anwesenheit und Aufgaben im selben Ablauf erledigen.'],
-              ['03', 'Entwicklung festhalten', 'Beobachtungen, Leistungen und Diagnostik so dokumentieren, dass nächste Schritte sichtbar bleiben.'],
-            ].map(([number, title, text]) => (
-              <div key={number} className="rounded-[1.6rem] border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="text-sm font-black text-indigo-600">{number}</div>
-                <h3 className="mt-5 text-lg font-black tracking-tight text-slate-950">{title}</h3>
-                <p className="mt-2 text-sm font-medium leading-6 text-slate-500">{text}</p>
+        <section id="sicherheit" className="scroll-mt-20">
+          <div className="mx-auto grid max-w-[1240px] gap-5 px-5 py-12 sm:px-7 sm:py-16 lg:grid-cols-[1.06fr_0.94fr] lg:px-8">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
+              <div className="mb-4 inline-flex rounded-xl bg-indigo-50 p-2.5 text-indigo-700">
+                <ShieldCheck size={22} aria-hidden="true" />
               </div>
-            ))}
-          </div>
-        </section>
-
-        <section id="sicherheit" className="scroll-mt-20 border-y border-slate-200 bg-white">
-          <div className="mx-auto grid max-w-[1240px] gap-5 px-5 py-18 sm:px-7 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
-            <div className="rounded-[2rem] bg-slate-950 p-7 text-white sm:p-9">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-emerald-300">
-                <ShieldCheck size={23} />
-              </div>
-              <div className="mt-7 text-[0.68rem] font-black uppercase tracking-[0.18em] text-emerald-300">Datenschutz ist Teil des Produkts</div>
-              <h2 className="mt-3 text-3xl font-black tracking-[-0.04em]">Schülerdaten sind keine gewöhnlichen App-Daten.</h2>
-              <p className="mt-4 max-w-2xl text-sm font-medium leading-6 text-white/60 sm:text-base">
-                Deshalb trennt KLASSIO Anmeldung, öffentliche Vorschau und geschützten Arbeitsbereich. Die Demo arbeitet ausschließlich mit erfundenen Daten und hat keinen Zugriff auf echte Klassendaten.
+              <h2 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Geschützt arbeiten</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-700 sm:text-base">
+                Deine Klassendaten liegen im geschützten Arbeitsbereich. Für die öffentliche Demo gibt es eine eigene Klasse mit erfundenen Daten.
               </p>
-              <div className="mt-7 grid gap-3 sm:grid-cols-2">
-                {[
-                  'Lokaler Datentresor mit AES-256-Verschlüsselung',
-                  'Anmeldung und Datenschlüssel technisch getrennt',
-                  'Öffentliche Demo ohne Zugriff auf Klassendaten',
-                  'Verschlüsselte Speicherung im Arbeitsbereich',
-                ].map(item => (
-                  <div key={item} className="flex items-start gap-2.5 rounded-2xl bg-white/5 px-4 py-3 text-sm font-bold text-white/75">
-                    <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-400" />
-                    {item}
-                  </div>
-                ))}
-              </div>
+              <ul className="mt-4 grid gap-2.5 text-sm font-medium text-slate-700">
+                <li className="flex items-start gap-2.5"><CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-700" aria-hidden="true" /> Lokaler Datentresor mit AES-256-Verschlüsselung</li>
+                <li className="flex items-start gap-2.5"><CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-700" aria-hidden="true" /> Technisch getrennte Anmeldung und Datenschlüssel</li>
+              </ul>
             </div>
-            <div className="flex flex-col justify-between rounded-[2rem] border border-slate-200 bg-[#f7f8fb] p-7 sm:p-9">
-              <div>
-                <div className="text-[0.68rem] font-black uppercase tracking-[0.18em] text-indigo-600">Selbst ausprobieren</div>
-                <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-slate-950">Nach wenigen Klicks weißt du, ob KLASSIO zu dir passt.</h2>
-                <p className="mt-4 text-sm font-medium leading-6 text-slate-500">
-                  Öffne die Beispielklasse, wechsle zwischen Dashboard, Wochenplanung, Cockpit und Schülerdossier und probiere die Oberfläche ohne Anmeldung aus.
-                </p>
-              </div>
+            <div className="flex flex-col items-start rounded-3xl border border-emerald-200 bg-[#eaf6ed] p-6 sm:p-8">
+              <h2 className="text-2xl font-bold tracking-tight text-emerald-950 sm:text-3xl">Kostenlos für Lehrpersonen</h2>
+              <p className="mt-3 text-sm leading-6 text-emerald-950 sm:text-base">
+                Alle Funktionen von KLASSIO sind dauerhaft kostenlos. Wer das Projekt unterstützen möchte, kann das freiwillig tun.
+              </p>
+              <p className="mt-3 text-sm text-emerald-950">Wissenschaftlich begleitet an der PH Feldkirch.</p>
               <button
                 type="button"
-                onClick={onDemo}
-                className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 text-sm font-black text-white shadow-lg shadow-indigo-600/20 transition-all hover:bg-indigo-700"
+                onClick={onLogin}
+                className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-800 px-5 text-sm font-bold text-white transition-colors hover:bg-emerald-900"
               >
-                Interaktive Vorschau öffnen
-                <ArrowRight size={17} />
+                Mit KLASSIO starten
+                <ArrowRight size={16} aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -415,9 +315,6 @@ function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDe
                   <div className="mt-1 text-[0.62rem] font-bold uppercase tracking-[0.2em] text-white/40">Lehreralltag, klarer.</div>
                 </div>
               </div>
-              <p className="mt-4 max-w-md text-xs font-medium leading-5 text-white/45">
-                Digitale Planung, Unterricht, Dokumentation und Organisation für den Schulalltag.
-              </p>
             </div>
             <div className="grid grid-cols-2 gap-x-5 gap-y-3 text-sm font-bold text-white/60 sm:flex sm:flex-wrap sm:items-center">
               <a href="#klassio-entdecken" className="transition-colors hover:text-white">Funktionen</a>
