@@ -128,7 +128,38 @@ async function clickSelector(c, selector) {
 
 const client = await createClient();
 try {
+  const homeUrl = new URL('/', BASE_URL).href;
   const demoUrl = new URL('/demo', BASE_URL).href;
+  for (const viewport of [
+    { width: 320, height: 640, deviceScaleFactor: 1, mobile: true },
+    { width: 360, height: 740, deviceScaleFactor: 1, mobile: true },
+    { width: 1360, height: 760, deviceScaleFactor: 1, mobile: false },
+  ]) {
+    await client.send('Emulation.setDeviceMetricsOverride', viewport);
+    await client.send('Emulation.setTouchEmulationEnabled', { enabled: viewport.mobile });
+    await client.send('Page.navigate', { url: homeUrl });
+    await waitFor(client, `the free price and both first steps fit the opening screen at ${viewport.width}px`, `(() => {
+      const hero = document.querySelector('[data-public-landing-hero]');
+      const price = hero?.querySelector('[data-public-free-promise]');
+      const buttons = [...(hero?.querySelectorAll('button') || [])];
+      const visible = element => {
+        if (!element) return false;
+        const { left, top, right, bottom, width, height } = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(left + width / 2, top + height / 2);
+        return width > 0 && height > 0 && top >= 0 && left >= 0 &&
+          right <= innerWidth + 1 && bottom <= innerHeight && element.contains(hit);
+      };
+      return location.pathname === '/' && innerWidth === ${viewport.width} && window.scrollY === 0 &&
+        document.documentElement.scrollWidth <= innerWidth + 1 &&
+        visible(hero?.querySelector('h1')) && visible(price) && price.textContent.includes('0 €') &&
+        price.textContent.includes('Dauerhaft kostenlos') && price.textContent.includes('Alle Funktionen inklusive.') &&
+        visible(buttons.find(button => button.textContent.trim() === 'Demo ausprobieren')) &&
+        visible(buttons.find(button => button.textContent.trim() === 'Mit KLASSIO starten'));
+    })()`);
+  }
+  await clickButton(client, 'Demo ausprobieren', { exact: true });
+  await waitFor(client, 'the first-time visitor can open the demo without an account',
+    'location.pathname === "/demo" && Boolean(document.querySelector("[data-demo-learning-path] select"))');
   for (const viewport of [
     { width: 1360, height: 760, deviceScaleFactor: 1, mobile: false },
     { width: 360, height: 740, deviceScaleFactor: 1, mobile: true },
@@ -171,11 +202,10 @@ try {
   await waitFor(client, 'the demo parent sheet carries through the recorded evidence',
     'document.querySelector("[data-demo-learning-path] article")?.textContent.includes("Leseflüssigkeit · 1 Nachweis · 60 %")');
   await clickSelector(client, 'header button[aria-label="Zur Startseite"]');
-  await waitFor(client, 'the public home page retains its original price banner', `(() => {
-    const banner = document.querySelector('[data-public-free-promise] + header')?.previousElementSibling;
-    return location.pathname === '/' && banner?.textContent.includes('0 € dauerhaft');
-  })()`);
-  await client.send('Page.navigate', { url: BASE_URL });
+  await waitFor(client, 'the demo returns to the free public home page',
+    'location.pathname === "/" && document.querySelector("[data-public-landing-hero] [data-public-free-promise]")?.textContent.includes("Dauerhaft kostenlos")');
+  await clickButton(client, 'Mit KLASSIO starten', { exact: true });
+  await waitFor(client, 'the direct start button opens the protected access page', 'location.pathname === "/login"');
   await waitFor(client, 'access code gate', 'document.body?.innerText.toLowerCase().includes("geschützter zugang")');
   await fillInput(client, 'Zugangscode', ACCESS_CODE);
   await clickButton(client, 'Klassio öffnen');
