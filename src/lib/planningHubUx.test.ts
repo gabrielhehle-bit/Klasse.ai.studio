@@ -18,10 +18,10 @@ test('planning hub keeps every agreed planning destination', () => {
   for (const id of [
     'wochenplanung',
     'jahresplanung',
-    'planungszentrale',
     'materialien',
     'vertretung',
   ]) {
     assert.match(source, new RegExp(`id:\\s*['"]${id}['"]`));
   }
+  assert.match(source, /setPage\('planungszentrale'\)/);
 });

@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { COCKPIT_CORE_WIDGETS, COCKPIT_REGULAR_WIDGETS, getRegularCockpitGroups } from './cockpitRegularCatalog';
+import { COCKPIT_CORE_WIDGETS, COCKPIT_REGULAR_WIDGETS, getCockpitFavoriteGroups, getRegularCockpitGroups } from './cockpitRegularCatalog';
 import { COCKPIT_WIDGET_LIBRARY_ITEMS } from './cockpitWidgetCatalog';
+
+test('start view adds available personal favorites once without repeating a core tool', () => {
+  assert.deepEqual(getCockpitFavoriteGroups([
+    'clock', 'timer', 'spellingdetective', 'vocabulary', 'fractionvisualizer', 'removed-widget',
+  ]).map(group => group.id), ['vocabulary', 'fractionvisualizer']);
+});
 
 test('regular selection has 26 unique, available entries while retaining every legacy entry', () => {
   assert.equal(COCKPIT_REGULAR_WIDGETS.length, 26);

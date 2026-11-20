@@ -1308,7 +1308,7 @@ export default function WeeklyPlan() {
   };
 
   const handleEditCell = (tag: string, idx: number) => {
-    const current = plan[tag]?.[idx] || {};
+    const current = plan[tag]?.[idx] ?? plan[String(TAGE_NAMEN.indexOf(tag))]?.[idx] ?? {};
     const stammFach = app.stammplan?.[tag]?.[idx + 1] || '';
     const initialFach = current.fach || stammFach;
     setEditingCell({ tag, idx });
@@ -1372,6 +1372,22 @@ export default function WeeklyPlan() {
     const syncSet = app.wochenplanSyncSet || [];
     setSyncWpSubjects(syncSet.length > 0 && syncSet.includes(normalizedFach));
   };
+
+  React.useEffect(() => {
+    const target = app.weeklyPlanTarget;
+    if (!target) return;
+    const matches = target.classId === app.activeClassId && target.schoolYear === app.schuljahr;
+    if (matches && target.week !== activeKW) return;
+    if (matches && TAGE_NAMEN.includes(target.day) &&
+        Number.isInteger(target.index) && target.index >= 0 && target.index < MAX_LESSON_SLOTS) {
+      setSelectedDay(target.day);
+      setViewMode('day');
+      handleEditCell(target.day, target.index);
+    }
+    setApp(previous => previous.weeklyPlanTarget === target ? { ...previous, weeklyPlanTarget: undefined } : previous);
+  // The overview hands off a single click. Editing and week changes stay local after opening it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app.weeklyPlanTarget, app.activeClassId, app.schuljahr, activeKW]);
 
   const openWeeklyCell = (tag: string, idx: number) => {
     const current = plan[tag]?.[idx] || {};
@@ -3891,7 +3907,8 @@ export default function WeeklyPlan() {
 
       {/* PLANNER MODAL */}
       {editingCell && createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
+        <div data-weekly-lesson-editor role="dialog" aria-modal="true" aria-labelledby="weekly-lesson-editor-heading"
+          className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setEditingCell(null)} />
            <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -3899,7 +3916,7 @@ export default function WeeklyPlan() {
            >
               <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
                  <div>
-                    <h3 className="text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Einheit planen</h3>
+                    <h3 id="weekly-lesson-editor-heading" className="text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Einheit planen</h3>
                     <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mt-1">{editingCell.tag} • {editingCell.idx + 1}. Stunde • KW {activeKW}{sw && <span className="text-[0.53125rem] opacity-75 ml-1 font-bold"> (SW {sw})</span>}</p>
                  </div>
                  <button onClick={() => setEditingCell(null)} className="p-3 hover:bg-slate-100 rounded-full transition-all text-slate-400"><X size={24} /></button>

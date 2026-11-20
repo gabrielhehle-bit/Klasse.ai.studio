@@ -32,6 +32,7 @@ export interface KELParentReportOptions {
   goalsText: string;
   agreementsText: string;
   meetingSourceDate?: string;
+  meetingDate?: string;
 }
 
 const COLORS = ['#0d9488', '#4f46e5', '#c67e4c', '#7c3aed'];
@@ -145,7 +146,7 @@ export default function KELParentReport({
           <span>Klasse: {app.klassenbezeichnung || '—'}</span>
           <span>Schuljahr: {app.schuljahr || '—'}</span>
           {app.schulName && <span>Schule: {app.schulName}</span>}
-          <span>Gespräch am: {new Date().toLocaleDateString('de-AT')}</span>
+          <span>Gespräch am: {options.meetingDate ? options.meetingDate.split('-').reverse().join('.') : new Date().toLocaleDateString('de-AT')}</span>
           {(app.anrede || app.nachname) && <span>Lehrperson: {[app.anrede, app.nachname].filter(Boolean).join(' ')}</span>}
         </div>
       </div>

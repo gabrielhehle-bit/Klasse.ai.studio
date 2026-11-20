@@ -495,6 +495,10 @@ export interface Student {
   wunschpartner?: string[]; // student IDs
   sperrpartner?: string[];  // student IDs
   portfolio?: PortfolioEntry[];
+  kelMeetingDrafts?: Record<string, {
+    date: string;
+    text: import('./lib/kelConversationText').KelConversationText;
+  }>;
   /** Verschlüsselter, klassenlokaler KEL-Vorbereitungsplan je Schuljahr, Semester und Gespräch.
    * Enthält nur Freigabeschalter und IDs, niemals kopierte Bewertungen.
    */
@@ -1499,7 +1503,8 @@ export interface AppState {
   retiredClasses?: ClassRoom[];
   activePrintTemplate?: string;
   activePrintStudentId?: string;
-  activePrintKelMeeting?: { classId: string; meetingId: string; semester: string };
+  activePrintKelMeeting?: { classId: string; meetingId: string | null; semester: string; schoolYear?: string };
+  weeklyPlanTarget?: { classId: string; schoolYear: string; week: number; day: string; index: number };
   openPrintModalOnLoad?: boolean;
   selectedRoom?: string;
   demoModusAktiv?: boolean;

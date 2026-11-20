@@ -725,6 +725,19 @@ async function main() {
     await waitFor(client, 'planning preview keeps the chosen week on return', `document.querySelector('#planning-week-picker')?.value === ${q(alternateWeek)}`);
     await clickButton(client, 'Diese Woche', true);
     await waitFor(client, 'current week restores the original saved preview', `document.querySelector('#planning-week-picker')?.value === ${q(originalWeek)} && document.querySelector('[data-planning-week-overview]')?.textContent.includes(${q(topic)})`);
+    const clickedLesson = await evaluate(client, `(() => {
+      const card = [...document.querySelectorAll('[data-planning-lesson]')].find(button => button.textContent.includes(${q(topic)}));
+      if (!card) return null;
+      const [day, hour] = card.dataset.planningLesson.split('-');
+      card.click();
+      return { day, hour };
+    })()`);
+    if (!clickedLesson) throw new Error('Saved lesson has no shortcut to its editor');
+    await waitFor(client, 'lesson shortcut opens the correct day, hour, week and saved topic', `(() => {
+      const editor = document.querySelector('[data-weekly-lesson-editor]');
+      return editor?.textContent.includes(${q(clickedLesson.day + ' • ' + clickedLesson.hour + '. Stunde • KW ' + originalWeek)}) &&
+        [...editor.querySelectorAll('input,textarea')].some(field => field.value === ${q(topic)});
+    })()`);
     if (uncaught.length) throw new Error('Uncaught browser exceptions:\n' + uncaught.join('\n---\n'));
     console.log('Klassio planning browser E2E passed.');
   } catch (error) {

@@ -48,6 +48,8 @@ import Markdown from 'react-markdown';
 import PrintHeader from './PrintHeader';
 import KELParentReport, { type KELParentReportOptions } from './KELParentReport';
 import { listKelParentMeetingSources, draftKelParentMeetingText } from '../lib/kelParentMeetingDraft';
+import { formatKelAgreement, getKelConversationText } from '../lib/kelConversationText';
+import { toLocalDateKey as kelToday } from '../lib/localDate';
 import { listKelParentGoalProgress } from '../lib/kelParentGoalProgress';
 import { KEL_PROGRESS_LABELS } from '../lib/kelGoalProgress';
 import { getStudentNotes } from '../lib/studentMetrics';
@@ -196,9 +198,9 @@ export default function PrintCenter() {
     { id: 'klassenbuch', icon: BookOpen, label: 'Klassenbuch', desc: 'Wochen- & Lehrbericht', cat: 'planung', taskCat: 'planung', badge: 'Lehrbericht', keywords: 'klassenbuch bericht woche unterricht ersatz' },
     { id: 'jahresplanung', icon: FileText, label: 'Jahresplan', desc: 'Syllabus & Kompetenzen', cat: 'planung', taskCat: 'planung', badge: 'Syllabus', keywords: 'jahresplan syllabus monate ziele kompetenzen' },
 
-    { id: 'kel', icon: Award, label: 'KEL-Gespräch', desc: 'Entwicklungsdossier & Zieldialog', cat: 'eltern', taskCat: 'schueler', badge: 'Dossier', keywords: 'kel gespräch eltern entwicklung ziele vereinbarung elterngespräch elternsprechtag' },
+    { id: 'kel', icon: Award, label: 'KEL-Dossier (intern)', desc: 'Entwicklungsdossier & Zieldialog', cat: 'eltern', taskCat: 'schueler', badge: 'Dossier', keywords: 'kel gespräch eltern entwicklung ziele vereinbarung elterngespräch elternsprechtag' },
     { id: 'kel_elternblatt', icon: Heart, label: 'KEL-Elternblatt', desc: 'Befinden, Verhalten, Mitarbeit, Lernen und Gesprächsnotizen', cat: 'eltern', taskCat: 'schueler', badge: 'A4 Eltern', keywords: 'elternblatt kel gespräch entwicklung befinden verhalten mitarbeit lernbereiche notizen drucken elterngespräch elternsprechtag unterschrift elternunterschrift pdf' },
-    { id: 'kel_presentation', icon: Sparkles, label: 'KEL-Präsentation', desc: 'Visuelle Bento-Karten', cat: 'eltern', taskCat: 'schueler', badge: 'Bento-Visual', keywords: 'kel bento präsentation visual stärken' },
+    { id: 'kel_presentation', icon: Sparkles, label: 'KEL-Folien (Druckvorlage)', desc: 'Visuelle Bento-Karten', cat: 'eltern', taskCat: 'schueler', badge: 'Bento-Visual', keywords: 'kel bento präsentation visual stärken' },
     { id: 'eltern_diagnostik', icon: Stethoscope, label: 'Elternbericht', desc: 'Förderdiagnostik & Feedback', cat: 'eltern', taskCat: 'schueler', badge: 'Diagnostik', keywords: 'eltern bericht diagnostik förderung test ergebnis' },
     { id: 'schuelerprofil', icon: User, label: 'Schülerdossier', desc: 'Stammdaten, Noten & Profil', cat: 'eltern', taskCat: 'schueler', badge: 'Einzelblatt', keywords: 'schüler profil stammdaten notarzt eltern handy' },
     { id: 'uebergabemappe', icon: FileText, label: 'Vertretung & Übergabe', desc: 'Gemeinsame Vorbereitung und Druckvorschau', cat: 'planung', taskCat: 'planung', badge: 'Vertretung', keywords: 'übergabe vertretung lehrer tagesplan notfall' },
@@ -372,6 +374,7 @@ export default function PrintCenter() {
   const [elternblattAgreementsText, setElternblattAgreementsText] = useState('');
   const [elternblattSavedMeetingId, setElternblattSavedMeetingId] = useState('');
   const [elternblattMeetingSourceDate, setElternblattMeetingSourceDate] = useState('');
+  const [elternblattMeetingDate, setElternblattMeetingDate] = useState('');
   const elternblattSavedMeetings = listKelParentMeetingSources(
     app.kelGespraeche, elternblattSelectedStudentId, app.schuljahr || '',
   );
@@ -404,6 +407,7 @@ export default function PrintCenter() {
     goalsText: elternblattGoalsText,
     agreementsText: elternblattAgreementsText,
     meetingSourceDate: elternblattMeetingSourceDate,
+    meetingDate: elternblattMeetingDate,
   };
 
   useEffect(() => {
@@ -423,6 +427,7 @@ export default function PrintCenter() {
       setElternblattAgreementsText('');
         setElternblattSavedMeetingId('');
         setElternblattMeetingSourceDate('');
+        setElternblattMeetingDate('');
     }
   }, [activeTemplate]);
 
@@ -718,6 +723,7 @@ export default function PrintCenter() {
         setElternblattAgreementsText('');
         setElternblattSavedMeetingId('');
         setElternblattMeetingSourceDate('');
+        setElternblattMeetingDate('');
         setProfSelectedStudentId(app.activePrintStudentId);
         setDiagSelectedStudentId(app.activePrintStudentId);
         setKpSelectedStudentId(app.activePrintStudentId);
@@ -743,6 +749,7 @@ export default function PrintCenter() {
     setElternblattAgreementsText('');
         setElternblattSavedMeetingId('');
         setElternblattMeetingSourceDate('');
+        setElternblattMeetingDate('');
     setProfSelectedStudentId(firstStudentId);
     setDiagSelectedStudentId(firstStudentId);
     setKpSelectedStudentId(firstStudentId);
@@ -757,13 +764,16 @@ export default function PrintCenter() {
     const request = app.activePrintKelMeeting;
     if (!request) return;
     const student = students.find(entry => entry.id === app.activePrintStudentId);
-    const meeting = app.activePrintTemplate === 'kel_elternblatt' && request.classId === app.activeClassId && student
+    const matchingContext = app.activePrintTemplate === 'kel_elternblatt' && request.classId === app.activeClassId
+      && (!request.schoolYear || request.schoolYear === app.schuljahr);
+    const meeting = matchingContext && request.meetingId && student
       ? listKelParentMeetingSources(app.kelGespraeche, student.id, app.schuljahr || '')
         .find(entry => entry.id === request.meetingId)
       : undefined;
-    if (meeting && student) {
-      const draft = draftKelParentMeetingText(meeting);
-      const planKey = JSON.stringify([app.schuljahr || '', request.semester, meeting.id]);
+    if (matchingContext && student && (meeting || request.meetingId === null)) {
+      const protocol = meeting ? draftKelParentMeetingText(meeting) : null;
+      const planKey = JSON.stringify([app.schuljahr || '', request.semester, meeting?.id || 'vorbereitung']);
+      const draft = student.kelMeetingDrafts?.[planKey];
       const plan = student.kelPraesentationAuswahl?.[planKey];
       const matches = plan?.classId === request.classId && plan?.studentId === student.id && plan?.semester === request.semester;
       const semester = request.semester === '2' ? '2' : '1';
@@ -776,11 +786,12 @@ export default function PrintCenter() {
         }),
       );
       const subjects = Object.keys(subjectAreas);
-      setElternblattSavedMeetingId(meeting.id);
-      setElternblattMeetingSourceDate(draft.sourceDate);
-      setElternblattStrengthsText(typeof meeting.gespraechStaerke === 'string' ? meeting.gespraechStaerke.trim() : '');
-      setElternblattGoalsText(draft.goalsText);
-      setElternblattAgreementsText(draft.agreementsText);
+      setElternblattSavedMeetingId(meeting?.id || '');
+      setElternblattMeetingSourceDate(protocol?.sourceDate || '');
+      setElternblattMeetingDate(draft?.date || meeting?.datum || kelToday());
+      setElternblattStrengthsText(getKelConversationText(draft?.text ?? meeting).gespraechStaerke.trim());
+      setElternblattGoalsText(protocol?.goalsText || '');
+      setElternblattAgreementsText(draft ? formatKelAgreement(draft.text) : protocol?.agreementsText || '');
       setElternblattShowMood(false);
       setElternblattShowBehavior(false);
       setElternblattShowParticipation(false);
@@ -2989,6 +3000,7 @@ export default function PrintCenter() {
                         setElternblattAgreementsText('');
         setElternblattSavedMeetingId('');
         setElternblattMeetingSourceDate('');
+        setElternblattMeetingDate('');
                       }}
                       className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
                       <option value="">Bitte Kind auswählen</option>
@@ -3105,6 +3117,7 @@ export default function PrintCenter() {
                           setElternblattShowGoalProgress(false);
                           setElternblattSharedProgressKeys([]);
                           setElternblattMeetingSourceDate('');
+                          setElternblattMeetingDate('');
                         }}
                         className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-xs">
                         <option value="">Kein Protokoll ausgewählt</option>

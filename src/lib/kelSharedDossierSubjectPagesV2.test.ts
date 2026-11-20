@@ -61,7 +61,7 @@ test('Teacher can set independent chart types, learning areas, order and explici
 });
 
 test('KEL configuration stays scoped to child, class, year, semester and KEL meeting', () => {
-  assert.match(presentation, /const planKey = JSON\.stringify\(\[app\.schuljahr \|\| '', sem, latestKel\?\.id \|\| 'vorbereitung'\]\)/);
+  assert.match(presentation, /const planKey = JSON\.stringify\(\[app\.schuljahr \|\| '', sem, selectedMeeting\?\.id \|\| 'vorbereitung'\]\)/);
   assert.match(presentation, /savedPlan\?\.classId === app\.activeClassId/);
   assert.match(presentation, /savedPlan\?\.studentId === student\.id/);
   assert.match(presentation, /const scopeMatches = scopeRef\.current === selectionScope/);

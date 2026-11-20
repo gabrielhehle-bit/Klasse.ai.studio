@@ -50,14 +50,16 @@ test('only valid stored lesson slots with a subject count; completion is not pre
 const hub = readFileSync('src/components/PlanungHub.tsx', 'utf8');
 const check = readFileSync('src/components/PlanungsZentrale.tsx', 'utf8');
 
-test('planning home shows a date-aware, read-only five-day preview from selected KW', () => {
+test('planning home shows a date-aware five-day preview with a link to the exact stored lesson', () => {
   assert.match(hub, /resolveWeeklyPlanOpeningWeek\('planung', app\.currentKW, calendarKW\)/);
   assert.match(hub, /getPlanningWeekOverview\(app.wochenplanung\?\.\[activeKW\]\)/);
   assert.match(hub, /data-planning-week-overview/);
   assert.match(hub, /data-planning-day-summary=\{day.day\}/);
   assert.match(hub, /setPage\('wochenplanung'\)/);
   assert.match(hub, /setApp\(previous => previous\.currentKW === week\s*\? previous\s*:\s*\{ \.\.\.previous, currentKW: week \}\)/);
-  assert.equal((hub.match(/setApp\(/g) || []).length, 1);
+  assert.match(hub, /openLesson\(day\.day, lesson\.hour - 1\)/);
+  assert.match(hub, /weeklyPlanTarget: \{ classId: previous\.activeClassId, schoolYear: previous\.schuljahr, week: activeKW, day, index \}/);
+  assert.doesNotMatch(hub, /wochenplanung\s*:/);
   assert.match(check, /getPlanningWeekOverview\(app.wochenplanung\?\.\[nextKW\]\)/);
 });
 

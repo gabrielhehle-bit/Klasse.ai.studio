@@ -15,10 +15,10 @@ import {
   Presentation,
   ShieldCheck,
   Sparkles,
-  Star,
   UserRound,
   Users,
 } from 'lucide-react';
+import { getNormalizedAssessmentPercent } from '../lib/GradeUtils';
 
 export type PublicEntryMode = 'landing' | 'demo';
 
@@ -583,39 +583,10 @@ function CockpitDemo() {
           </div>
         </div>
 
-        <div className="absolute right-5 top-5 w-[190px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-[0.68rem] font-black text-slate-500">
-            <Star size={14} className="text-amber-500" />
-            Wochensterne
-          </div>
-          <div className="mt-3 space-y-2">
-            {[
-              ['Sophie', 18],
-              ['Mia', 16],
-              ['Lukas', 14],
-            ].map(([name, value], index) => (
-              <div key={name as string} className="flex items-center gap-2">
-                <div className="w-4 text-[0.65rem] font-black text-slate-400">{index + 1}</div>
-                <div className="flex-1 text-[0.68rem] font-bold text-slate-700">{name as string}</div>
-                <div className="text-[0.68rem] font-black text-amber-600">{value as number}★</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
-          {[Clock3, Users, Star, ListChecks].map((Icon, index) => (
-            <button
-              type="button"
-              key={index}
-              className={`flex h-10 w-10 items-center justify-center rounded-xl ${index === 0 ? 'bg-slate-950 text-white' : 'text-slate-400 hover:bg-slate-100'}`}
-              aria-label="Demo-Widget"
-            >
-              <Icon size={17} />
-            </button>
-          ))}
-          <div className="mx-1 h-7 w-px bg-slate-200" />
-          <button type="button" className="rounded-xl bg-indigo-50 px-3 py-2 text-[0.65rem] font-black text-indigo-700">+ Widgets</button>
+        <div className="mt-36 rounded-2xl border border-indigo-100 bg-indigo-50 p-4 sm:ml-44 sm:mt-0">
+          <h3 className="font-bold text-indigo-950">Arbeitsauftrag</h3>
+          <p className="mt-2 text-sm text-indigo-950">Lies den Text leise. Markiere anschließend zwei Wörter für das Partnerlesen.</p>
+          <p className="mt-2 text-xs font-semibold text-indigo-700">5 Minuten Einzelarbeit</p>
         </div>
       </div>
 
@@ -712,6 +683,48 @@ function DossierDemo() {
   );
 }
 
+function DemoLearningPath() {
+  const [step, setStep] = React.useState(0);
+  const [grade, setGrade] = React.useState('2');
+  const steps = ['Lernnachweis', 'Schülerdossier', 'Elternblatt'];
+  return (
+    <section data-demo-learning-path aria-labelledby="demo-learning-title" className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
+      <h2 id="demo-learning-title" className="text-xl font-bold text-slate-950">Vom Lernnachweis zum Elternblatt</h2>
+      <p className="mt-1 text-sm text-slate-600">Sophie Muster · Deutsch · Lesen</p>
+      <ol className="my-4 flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
+        {steps.map((title, index) => <li key={title} aria-current={step === index ? 'step' : undefined}
+          className={step === index ? 'text-indigo-700' : 'text-slate-600'}>{title}</li>)}
+      </ol>
+      {step === 0 && <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_8rem_auto]">
+        <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold">Leseflüssigkeit</p>
+        <label className="grid gap-1 text-sm font-semibold">
+          Note
+          <select value={grade} onChange={event => setGrade(event.target.value)} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3">
+            {['1', '2', '3', '4', '5'].map(value => <option key={value}>{value}</option>)}
+          </select>
+        </label>
+        <button type="button" onClick={() => setStep(1)} className="min-h-11 rounded-lg bg-indigo-700 px-4 text-sm font-bold text-white">Lernnachweis erfassen</button>
+      </div>}
+      {step === 1 && <div className="space-y-4">
+        <div className="rounded-lg border border-slate-200 px-4 py-3">
+          <h3 className="font-semibold text-slate-950">Lesen</h3>
+          <p className="mt-1 text-sm text-slate-700">Leseflüssigkeit · Note {grade}</p>
+        </div>
+        <button type="button" onClick={() => setStep(2)} className="min-h-11 rounded-lg bg-indigo-700 px-4 text-sm font-bold text-white">Elternblatt öffnen</button>
+      </div>}
+      {step === 2 && <div className="space-y-4">
+        <article aria-label="Elternblatt für Sophie Muster" className="rounded-lg border border-slate-200 px-4 py-3">
+          <h3 className="text-lg font-semibold text-slate-950">Lern- &amp; Entwicklungsübersicht</h3>
+          <p className="mt-1 text-sm text-slate-600">Sophie Muster · Beispielklasse 3b</p>
+          <p className="mt-3 text-sm font-semibold">Deutsch · Lesen</p>
+          <p className="mt-1 text-sm text-slate-700">Leseflüssigkeit · 1 Nachweis · {getNormalizedAssessmentPercent(grade, 'grades', 20)} %</p>
+        </article>
+        <button type="button" onClick={() => setStep(0)} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-bold">Beispiel erneut starten</button>
+      </div>}
+    </section>
+  );
+}
+
 function Demo({ onLogin, onHome }: Pick<PublicWelcomeProps, 'onLogin' | 'onHome'>) {
   const [tab, setTab] = React.useState<'dashboard' | 'planung' | 'cockpit' | 'dossier'>('dashboard');
 
@@ -769,6 +782,9 @@ function Demo({ onLogin, onHome }: Pick<PublicWelcomeProps, 'onLogin' | 'onHome'
           </div>
         </div>
 
+        <DemoLearningPath />
+
+        <h2 className="mb-2 text-sm font-bold text-slate-700">Weitere Ansichten ausprobieren</h2>
         <div className="mb-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex min-w-max snap-x snap-mandatory gap-1">
             {tabs.map(([id, label, Icon]) => (

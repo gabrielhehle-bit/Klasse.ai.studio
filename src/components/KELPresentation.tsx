@@ -221,7 +221,7 @@ export default function KELPresentation({
   const [isExporting, setIsExporting] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(15 * 60);
   const [timerActive, setTimerActive] = useState(false);
-  const [conversationDraft, setConversationDraft] = useState(() => getKelConversationText());
+  const [meetingChoice, setMeetingChoice] = useState('');
   const [agreementSaved, setAgreementSaved] = useState(false);
   const updateConversation = (field: keyof KelConversationText, value: string) => {
     setConversationDraft(previous => ({ ...previous, [field]: value }));
@@ -233,17 +233,20 @@ export default function KELPresentation({
   const currentClass = app.classes?.find((entry: any) => entry.id === app.activeClassId);
   const classLabel = currentClass?.name || app.klassenbezeichnung || 'Klasse';
 
-  const latestKel = useMemo(() => {
-    const matches = (app.kelGespraeche || [])
+  const savedMeetings = useMemo(() => (app.kelGespraeche || [])
       .filter((entry: any) => entry.schuelerId === student.id)
       .filter((entry: any) => !app.schuljahr || !entry.schuljahr || entry.schuljahr === app.schuljahr)
-      .sort((a: any, b: any) => dateValue(b.datum) - dateValue(a.datum));
-    return matches[0] || null;
-  }, [app.kelGespraeche, app.schuljahr, student.id]);
+      .sort((a: any, b: any) => dateValue(b.datum) - dateValue(a.datum)),
+    [app.kelGespraeche, app.schuljahr, student.id]);
+  const selectedMeeting = savedMeetings.find(entry => entry.id === meetingChoice) ?? null;
 
   // The presentation plan is per child + meeting + class + semester. Never reuse
   // a global localStorage switch from another child or an earlier meeting.
-  const planKey = JSON.stringify([app.schuljahr || '', sem, latestKel?.id || 'vorbereitung']);
+  const planKey = JSON.stringify([app.schuljahr || '', sem, selectedMeeting?.id || 'vorbereitung']);
+  const storedDraft = student.kelMeetingDrafts?.[planKey];
+  const originalDate = selectedMeeting?.datum || toLocalDateKey();
+  const [meetingDate, setMeetingDate] = useState(() => storedDraft?.date ?? originalDate);
+  const [conversationDraft, setConversationDraft] = useState(() => getKelConversationText(storedDraft?.text ?? selectedMeeting));
   const savedPlan = student.kelPraesentationAuswahl?.[planKey];
   const matchingSavedPlan = savedPlan?.classId === app.activeClassId &&
     savedPlan?.studentId === student.id && savedPlan?.semester === sem ? savedPlan : null;
@@ -260,7 +263,12 @@ export default function KELPresentation({
   const [subjectAreaSelection, setSubjectAreaSelection] = useState<Record<string,string[]>>(() => ({ ...(matchingSavedPlan?.subjectAreaSelection || {}) }));
   const [subjectChartTypes, setSubjectChartTypes] = useState<Record<string,KelSubjectChartType>>(() => ({ ...(matchingSavedPlan?.subjectChartTypes || {}) }));
   const [selectionSaved, setSelectionSaved] = useState(Boolean(matchingSavedPlan));
-  const selectionScope = JSON.stringify([app.activeClassId, student.id, app.schuljahr, sem]);
+  const [selectionChanged, setSelectionChanged] = useState(false);
+  const markSelectionEdited = () => {
+    setSelectionSaved(false);
+    setSelectionChanged(true);
+  };
+  const selectionScope = JSON.stringify([app.activeClassId, student.id, planKey]);
   const scopeRef = useRef(selectionScope);
   const scopeMatches = scopeRef.current === selectionScope;
 
@@ -275,19 +283,24 @@ export default function KELPresentation({
     setSubjectAreaSelection({ ...(matchingSavedPlan?.subjectAreaSelection || {}) });
     setSubjectChartTypes({ ...(matchingSavedPlan?.subjectChartTypes || {}) });
     setSelectionSaved(Boolean(matchingSavedPlan));
-    setView('prepare');
-    setSlideIndex(0);
+    setSelectionChanged(false);
+    setMeetingDate(storedDraft?.date ?? originalDate);
+    setConversationDraft(getKelConversationText(storedDraft?.text ?? selectedMeeting));
     setSubjectPreviewRequest(null);
-  // A fresh meeting/selection created by pressing Save must NOT reset the edited
-  // form. Only changing the child, class or semester resets the disclosure scope.
+  // Only a change of child, class, school period or conversation loads a different draft.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectionScope]);
 
-  const savedConversation = getKelConversationText(latestKel);
+  const savedConversation = getKelConversationText(selectedMeeting);
   const conversationDirty = Object.keys(savedConversation).some(key => {
     const field = key as keyof KelConversationText;
     return savedConversation[field] !== conversationDraft[field];
   });
+  const savedDraftText = getKelConversationText(storedDraft?.text ?? selectedMeeting);
+  const draftDirty = JSON.stringify(savedDraftText) !== JSON.stringify(conversationDraft)
+    || (storedDraft?.date ?? originalDate) !== meetingDate;
+  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(meetingDate)
+    && Number.isFinite(new Date(meetingDate + 'T12:00:00').getTime());
   const agreementText = formatKelAgreement(conversationDraft);
   const childPrompt = ({
     de: 'Worauf bist du stolz? Was möchtest du uns zeigen?',
@@ -296,10 +309,6 @@ export default function KELPresentation({
     bks: 'Na šta si ponosan ili ponosna? Šta nam želiš pokazati?',
     ar: 'بماذا تشعر بالفخر؟ ماذا تود أن ترينا؟',
   })[selectedLang] || 'Worauf bist du stolz? Was möchtest du uns zeigen?';
-
-  useEffect(() => {
-    setConversationDraft(getKelConversationText(latestKel));
-  }, [latestKel, selectionScope]);
 
   useEffect(() => {
     if (!timerActive) return;
@@ -343,21 +352,21 @@ export default function KELPresentation({
   }, [student.badges, student.foerderprofil?.staerken, conversationDraft.gespraechStaerke]);
 
   const childVoice = useMemo(() => {
-    const values = Object.values(latestKel?.selbsteinschaetzungKind || {})
+    const values = Object.values(selectedMeeting?.selbsteinschaetzungKind || {})
       .map((entry: any) => safeText(entry?.kommentar))
       .filter(Boolean);
-    const goals = Array.isArray(latestKel?.zieleKind)
-      ? latestKel.zieleKind.map((entry: any) => safeText(entry)).filter(Boolean)
+    const goals = Array.isArray(selectedMeeting?.zieleKind)
+      ? selectedMeeting.zieleKind.map((entry: any) => safeText(entry)).filter(Boolean)
       : [];
     return [...new Set([conversationDraft.kindStimme.trim(), ...values, ...goals].filter(Boolean))].slice(0, 4);
-  }, [latestKel, conversationDraft.kindStimme]);
+  }, [selectedMeeting, conversationDraft.kindStimme]);
 
   const teacherVoice = useMemo(() => {
-    const values = Object.values(latestKel?.einschaetzungLehrperson || {})
+    const values = Object.values(selectedMeeting?.einschaetzungLehrperson || {})
       .map((entry: any) => safeText(entry?.kommentar))
       .filter(Boolean);
     return [...new Set(values)].slice(0, 4);
-  }, [latestKel]);
+  }, [selectedMeeting]);
 
   const parentVoice = conversationDraft.elternEindruck.trim();
   const parentPrompt = ({
@@ -428,7 +437,7 @@ export default function KELPresentation({
       return current.includes(fach) ? current.filter(item => item !== fach) : [...current, fach];
     });
     setVisible(previous => ({ ...previous, learning: true }));
-    setSelectionSaved(false);
+    markSelectionEdited();
   };
   const changeSubjectOrder = (fach: string, delta: -1 | 1) => {
     setSubjectSelection(previous => {
@@ -440,7 +449,7 @@ export default function KELPresentation({
       [next[current], next[target]] = [next[target], next[current]];
       return next;
     });
-    setSelectionSaved(false);
+    markSelectionEdited();
   };
   const toggleSubjectArea = (fach: string, area: string, available: string[]) => {
     setSubjectAreaSelection(previous => {
@@ -450,13 +459,13 @@ export default function KELPresentation({
         : [...current, area];
       return { ...previous, [fach]: next };
     });
-    setSelectionSaved(false);
+    markSelectionEdited();
   };
   const toggleAssessment = (id: string) => {
     setSelectedAssessmentIds(previous => previous.includes(id)
       ? previous.filter(item => item !== id) : [...previous, id]);
     setVisible(previous => ({ ...previous, individualGrades: true }));
-    setSelectionSaved(false);
+    markSelectionEdited();
   };
   const savePresentationSelection = () => {
     if (!scopeMatches || !app.schueler.some(entry => entry.id === student.id)) return;
@@ -491,20 +500,21 @@ export default function KELPresentation({
       };
     });
     setSelectionSaved(true);
+    setSelectionChanged(false);
   };
 
   const kelAreas = useMemo(() => {
     const map = new Map<string, any>();
     for (const area of STANDARD_KEL_BEREICHE || []) map.set(area.id, area);
     for (const key of [
-      ...Object.keys(latestKel?.selbsteinschaetzungKind || {}),
-      ...Object.keys(latestKel?.einschaetzungLehrperson || {}),
+      ...Object.keys(selectedMeeting?.selbsteinschaetzungKind || {}),
+      ...Object.keys(selectedMeeting?.einschaetzungLehrperson || {}),
     ]) {
       if (!map.has(key)) map.set(key, { id: key, label: key.replace(/_/g, ' '), kindgerecht: '' });
     }
     return [...map.values()].flatMap(area => {
-      const child = latestKel?.selbsteinschaetzungKind?.[area.id]?.wert;
-      const teacher = latestKel?.einschaetzungLehrperson?.[area.id]?.wert;
+      const child = selectedMeeting?.selbsteinschaetzungKind?.[area.id]?.wert;
+      const teacher = selectedMeeting?.einschaetzungLehrperson?.[area.id]?.wert;
       if (child === undefined && teacher === undefined) return [];
       return [{
         id: area.id,
@@ -514,7 +524,7 @@ export default function KELPresentation({
         teacher: teacher === undefined || teacher === null ? null : Number(teacher),
       }];
     }).slice(0, 12);
-  }, [STANDARD_KEL_BEREICHE, latestKel]);
+  }, [STANDARD_KEL_BEREICHE, selectedMeeting]);
 
   const selectedPortfolio = useMemo(() => (
     (student.portfolio || []).filter((entry: any) => entry.isInKEL).slice(0, 6)
@@ -525,14 +535,14 @@ export default function KELPresentation({
   ), [app.ikmRecords, student.id]);
 
   const documentedGoals = useMemo(() => {
-    const kelGoals = Array.isArray(latestKel?.zieleKind)
-      ? latestKel.zieleKind.map((entry: any) => safeText(entry)).filter(Boolean)
+    const kelGoals = Array.isArray(selectedMeeting?.zieleKind)
+      ? selectedMeeting.zieleKind.map((entry: any) => safeText(entry)).filter(Boolean)
       : [];
     const supportGoals = (student.foerderprofil?.foerderziele || [])
       .filter((entry: any) => !entry.status || entry.status === 'offen' || entry.status === 'in Arbeit')
       .map((entry: any) => safeText(entry)).filter(Boolean);
     return [...new Set([...kelGoals, ...supportGoals])].slice(0, 6);
-  }, [latestKel?.zieleKind, student.foerderprofil?.foerderziele]);
+  }, [selectedMeeting?.zieleKind, student.foerderprofil?.foerderziele]);
 
   const slides = useMemo<Slide[]>(() => {
     const list: Slide[] = [
@@ -584,6 +594,36 @@ export default function KELPresentation({
     if (slideIndex >= slides.length) setSlideIndex(Math.max(0, slides.length - 1));
   }, [slideIndex, slides.length]);
 
+  const persistDraft = () => {
+    if (!scopeMatches || !draftDirty) return;
+    const text = getKelConversationText(conversationDraft);
+    setApp(previous => {
+      if (previous.activeClassId !== app.activeClassId || previous.schuljahr !== app.schuljahr) return previous;
+      return { ...previous, schueler: previous.schueler.map(entry => entry.id !== student.id ? entry : {
+        ...entry,
+        kelMeetingDrafts: { ...entry.kelMeetingDrafts, [planKey]: { date: meetingDate, text } },
+      }) };
+    });
+  };
+
+  const keepPreparation = () => {
+    persistDraft();
+    if (selectionChanged) savePresentationSelection();
+  };
+
+  const closePreparation = () => {
+    keepPreparation();
+    onClose();
+  };
+
+  const switchMeeting = (id: string) => {
+    keepPreparation();
+    setMeetingChoice(id);
+    setAgreementSaved(false);
+    setView('prepare');
+    setSlideIndex(0);
+  };
+
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'TEXTAREA' || document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'SELECT') return;
@@ -598,45 +638,36 @@ export default function KELPresentation({
       if (event.key === 'Escape') {
         event.preventDefault();
         if (isFullscreen) setIsFullscreen(false);
-        else onClose();
+        else closePreparation();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isFullscreen, onClose, slides.length]);
+  }, [isFullscreen, closePreparation, slides.length]);
 
   const currentSlide = slides[slideIndex] || slides[0];
   const formatTimer = (seconds: number) => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
 
   const saveAgreement = () => {
-    if (!scopeMatches || !conversationDirty) return;
+    if (!scopeMatches || !validDate || (!conversationDirty && selectedMeeting)) return;
     const values = getKelConversationText(conversationDraft);
-    const newMeetingId = `kel-${crypto.randomUUID()}`;
+    const newMeetingId = selectedMeeting?.id ?? `kel-${crypto.randomUUID()}`;
+    savePresentationSelection();
     setApp(previous => {
       if (previous.activeClassId !== app.activeClassId || previous.schuljahr !== app.schuljahr
         || !previous.schueler.some(entry => entry.id === student.id)) return previous;
       const list = [...(previous.kelGespraeche || [])];
-      const index = latestKel ? list.findIndex(entry => entry.id === latestKel.id && entry.schuelerId === student.id) : -1;
-      if (latestKel && index < 0) return previous;
-      let nextStudents = previous.schueler;
+      const index = selectedMeeting
+        ? list.findIndex(entry => entry.id === selectedMeeting.id && entry.schuelerId === student.id)
+        : -1;
+      if (selectedMeeting && index < 0) return previous;
       if (index >= 0) {
         list[index] = { ...list[index], ...values };
       } else {
-        // A plan prepared before the first KEL protocol follows this explicitly
-        // created meeting; saving a preparation never creates a fake protocol.
-        const oldKey = JSON.stringify([previous.schuljahr || '', sem, 'vorbereitung']);
-        const newKey = JSON.stringify([previous.schuljahr || '', sem, newMeetingId]);
-        nextStudents = previous.schueler.map(entry => {
-          if (entry.id !== student.id || !entry.kelPraesentationAuswahl?.[oldKey]) return entry;
-          const plans = { ...entry.kelPraesentationAuswahl };
-          plans[newKey] = plans[oldKey];
-          delete plans[oldKey];
-          return { ...entry, kelPraesentationAuswahl: plans };
-        });
         list.push({
           id: newMeetingId,
           schuelerId: student.id,
-          datum: toLocalDateKey(),
+          datum: meetingDate,
           schuljahr: previous.schuljahr || '',
           teilnehmer: [],
           selbsteinschaetzungKind: {},
@@ -649,21 +680,36 @@ export default function KELPresentation({
           notiz: '',
         });
       }
-      return { ...previous, kelGespraeche: list,
-        schueler: nextStudents };
+
+      const newKey = JSON.stringify([previous.schuljahr || '', sem, newMeetingId]);
+      const nextStudents = previous.schueler.map(entry => {
+        if (entry.id !== student.id) return entry;
+        const drafts = { ...entry.kelMeetingDrafts };
+        delete drafts[planKey];
+        const plans = { ...entry.kelPraesentationAuswahl };
+        if (newKey !== planKey && plans[planKey]) {
+          plans[newKey] = plans[planKey];
+          delete plans[planKey];
+        }
+        return { ...entry, kelMeetingDrafts: drafts, kelPraesentationAuswahl: plans };
+      });
+      return { ...previous, kelGespraeche: list, schueler: nextStudents };
     });
+    setMeetingChoice(newMeetingId);
     setAgreementSaved(true);
   };
 
   const openParentSheet = () => {
-    if (!scopeMatches || !latestKel || conversationDirty) return;
+    if (!scopeMatches || !validDate) return;
+    persistDraft();
     savePresentationSelection();
     setApp(previous => previous.activeClassId !== app.activeClassId
+      || previous.schuljahr !== app.schuljahr
       || !previous.schueler.some(entry => entry.id === student.id) ? previous : ({
       ...previous,
       activePrintTemplate: 'kel_elternblatt',
       activePrintStudentId: student.id,
-      activePrintKelMeeting: { classId: previous.activeClassId, meetingId: latestKel.id, semester: sem },
+      activePrintKelMeeting: { classId: previous.activeClassId, meetingId: selectedMeeting?.id ?? null, semester: sem, schoolYear: previous.schuljahr },
     }));
     setPage('drucken');
   };
@@ -904,11 +950,16 @@ export default function KELPresentation({
   );
   const renderSaveConversation = () => (
     <div className="mt-4 flex flex-wrap items-center gap-3">
-      <button type="button" onClick={saveAgreement} disabled={!conversationDirty}
+      <button type="button" onClick={keepPreparation} disabled={!draftDirty && !selectionChanged}
+        className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 disabled:opacity-50">
+        Entwurf speichern
+      </button>
+      <button type="button" onClick={saveAgreement} disabled={!validDate || Boolean(selectedMeeting && !conversationDirty)}
         className="min-h-11 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
         Gespräch speichern
       </button>
       {agreementSaved && !conversationDirty && <span role="status" className="text-sm font-semibold text-emerald-700">Gespeichert</span>}
+      {storedDraft && !draftDirty && !agreementSaved && <span role="status" className="text-sm font-semibold text-emerald-700">Entwurf gespeichert</span>}
     </div>
   );
 
@@ -1123,23 +1174,27 @@ export default function KELPresentation({
     {!isFullscreen && <header className="z-50 border-b border-slate-200 bg-white px-4 py-3 shadow-sm">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700" title="KEL schließen"><X size={16} /></button>
+          <button type="button" onClick={closePreparation} className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700" title="KEL schließen"><X size={16} /></button>
           <div className="min-w-0"><p className="text-[0.58rem] font-black uppercase tracking-[0.18em] text-indigo-600">KEL-Gespräch</p><h2 className="truncate text-sm font-black text-slate-900">{student.vorname} {student.nachname}</h2></div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-xl border border-slate-200 bg-slate-100 p-1">
-            <button type="button" onClick={() => setView('slides')} className={`rounded-lg px-3 py-1.5 text-xs font-black ${view === 'slides' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}>Präsentation</button>
-            <button type="button" onClick={() => setView('prepare')} className={`rounded-lg px-3 py-1.5 text-xs font-black ${view === 'prepare' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}>Vorbereiten</button>
-          </div>
-          <select aria-label="Präsentationssprache" value={selectedLang} onChange={event => setSelectedLang(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
-            {LANGUAGES.map(language => <option key={language.id} value={language.id}>{language.flag} {language.label}</option>)}
-          </select>
-          <button type="button" onClick={() => setShowConfig(true)} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700"><Settings2 size={13} /> Folien</button>
-          <button type="button" onClick={exportPowerPoint} disabled={isExporting} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 disabled:opacity-50">{isExporting ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />} PowerPoint</button>
-          <button type="button" onClick={() => exportSchuelerPDF(student.id, app)} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700"><Printer size={13} /> Dossier-PDF</button>
-          <button type="button" onClick={openParentSheet} disabled={!latestKel || conversationDirty}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 disabled:opacity-40"><Printer size={13}/> Elternblatt ansehen</button>
-          {view === 'slides' && <button type="button" onClick={() => setIsFullscreen(true)} className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white"><Maximize2 size={13} /> Präsentieren</button>}
+          {view === 'slides' && <button type="button" onClick={() => setView('prepare')} className="min-h-11 rounded-xl border border-slate-200 px-3 text-sm font-semibold">Vorbereiten</button>}
+          <button type="button" onClick={openParentSheet} disabled={!validDate}
+            className="flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-800 disabled:opacity-40"><Printer size={15}/> Elternblatt drucken</button>
+          {view === 'slides' && <button type="button" onClick={() => setIsFullscreen(true)} className="flex min-h-11 items-center gap-1.5 rounded-xl bg-indigo-600 px-3 text-sm font-bold text-white"><Maximize2 size={15} /> Vollbild</button>}
+          <details className="relative">
+            <summary className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-sm font-semibold"><Settings2 size={15} /> Weitere Optionen</summary>
+            <div className="absolute right-0 z-10 mt-1 grid w-60 gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+              <label className="text-xs font-semibold">Präsentationssprache
+                <select aria-label="Präsentationssprache" value={selectedLang} onChange={event => setSelectedLang(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-2">
+                  {LANGUAGES.map(language => <option key={language.id} value={language.id}>{language.flag} {language.label}</option>)}
+                </select>
+              </label>
+              <button type="button" onClick={() => setShowConfig(true)} className="min-h-10 rounded-lg bg-slate-50 px-2 text-left text-sm">Folien auswählen</button>
+              <button type="button" onClick={exportPowerPoint} disabled={isExporting} className="flex min-h-10 items-center gap-1.5 rounded-lg bg-slate-50 px-2 text-sm">{isExporting ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PowerPoint</button>
+              <button type="button" onClick={() => exportSchuelerPDF(student.id, app)} className="min-h-10 rounded-lg bg-slate-50 px-2 text-left text-sm">Dossier-PDF</button>
+            </div>
+          </details>
         </div>
       </div>
     </header>}
@@ -1148,7 +1203,7 @@ export default function KELPresentation({
       <div className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-3"><div><h3 className="text-lg font-black text-slate-950">Was soll im Gespräch sichtbar sein?</h3><p className="mt-1 text-xs text-slate-600">Standardmäßig werden nur kind- und elterngeeignete Kerninhalte gezeigt.</p></div><button onClick={() => setShowConfig(false)} className="rounded-xl border border-slate-200 p-2"><X size={15} /></button></div>
         <div className="mt-4 space-y-2">{slideOptions.map(option => <label key={option.key} className={`flex items-start gap-3 rounded-2xl border p-3 ${option.available ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-60'}`}>
-          <input type="checkbox" checked={visible[option.key]} disabled={!option.available} onChange={event => { setVisible(previous => ({ ...previous, [option.key]: event.target.checked })); setSelectionSaved(false); }} className="mt-1" />
+          <input type="checkbox" checked={visible[option.key]} disabled={!option.available} onChange={event => { setVisible(previous => ({ ...previous, [option.key]: event.target.checked })); markSelectionEdited(); }} className="mt-1" />
           <div className="flex-1"><p className="text-sm font-black text-slate-900">{option.label}</p><p className="mt-0.5 text-xs text-slate-500">{option.help}</p></div>
           {visible[option.key] && option.available ? <Eye size={16} className="text-emerald-600" /> : <EyeOff size={16} className="text-slate-400" />}
         </label>)}</div>
@@ -1168,7 +1223,23 @@ export default function KELPresentation({
               </p>
             </div>
             <button type="button" onClick={() => { setShowConfig(false); setView('slides'); setSlideIndex(0); }}
-              className="rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white">Vorschau ansehen</button>
+              className="min-h-11 rounded-xl bg-indigo-700 px-4 text-sm font-bold text-white">Präsentieren</button>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1 text-sm font-semibold">
+              Gespräch auswählen
+              <select id="kel-preparation-meeting" value={meetingChoice} onChange={event => switchMeeting(event.target.value)}
+                className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm">
+                <option value="">{!selectedMeeting && storedDraft?.date ? `Neues Gespräch · Entwurf vom ${storedDraft.date.split('-').reverse().join('.')}` : 'Neues Gespräch vorbereiten'}</option>
+                {savedMeetings.map(meeting => <option key={meeting.id} value={meeting.id}>{meeting.datum.split('-').reverse().join('.')} · Protokoll</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-semibold">
+              Gesprächsdatum
+              <input id="kel-preparation-date" type="date" value={meetingDate} readOnly={Boolean(selectedMeeting)}
+                onChange={event => { setMeetingDate(event.target.value); setAgreementSaved(false); }}
+                className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm read-only:bg-slate-50" />
+            </label>
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             {renderField('gespraechStaerke', 'Das gelingt schon')}
@@ -1191,7 +1262,7 @@ export default function KELPresentation({
               {subjectSelection !== null && <button type="button" onClick={() => {
                 setSubjectSelection(null);
                 setVisible(previous => ({ ...previous, learning: true }));
-                setSelectionSaved(false);
+                markSelectionEdited();
               }} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">Fächer automatisch auswählen</button>}
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1241,7 +1312,7 @@ export default function KELPresentation({
                             <label key={chart} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-800">
                               <input type="radio" name={`kel-subject-chart-${item.fach}`}
                                 checked={(subjectChartTypes[item.fach] || 'donuts') === chart}
-                                onChange={() => { setSubjectChartTypes(previous => ({ ...previous, [item.fach]: chart })); setSelectionSaved(false); }}/>
+                                onChange={() => { setSubjectChartTypes(previous => ({ ...previous, [item.fach]: chart })); markSelectionEdited(); }}/>
                               {label}
                             </label>
                           )}
@@ -1269,12 +1340,12 @@ export default function KELPresentation({
                         <textarea rows={3} maxLength={2000}
                           placeholder="Stärke, Lernfortschritt, nächste Schritte – nur für dieses Gespräch formulieren …"
                           value={subjectNotes[item.fach] || ''}
-                          onChange={event => { setSubjectNotes(previous => ({ ...previous, [item.fach]: event.target.value })); setSelectionSaved(false); }}
+                          onChange={event => { setSubjectNotes(previous => ({ ...previous, [item.fach]: event.target.value })); markSelectionEdited(); }}
                           className="w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500"/>
                       </label>
                       <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
                         <input type="checkbox" checked={Boolean(subjectNoteVisible[item.fach])}
-                          onChange={event => { setSubjectNoteVisible(previous => ({ ...previous, [item.fach]: event.target.checked })); setSelectionSaved(false); }}/>
+                          onChange={event => { setSubjectNoteVisible(previous => ({ ...previous, [item.fach]: event.target.checked })); markSelectionEdited(); }}/>
                         Diese eigene Gesprächsnotiz auf Folie und in PowerPoint zeigen
                       </label>
                       <p className="text-[0.68rem] text-slate-500">
@@ -1282,7 +1353,7 @@ export default function KELPresentation({
                       </p>
                       <button type="button" disabled={!subjectsWithDetails.some(subject => subject.fach === item.fach)} onClick={() => {
                         setVisible(previous => ({ ...previous, learning: true, subjectPages: true }));
-                        setSelectionSaved(false);
+                        markSelectionEdited();
                         setSubjectPreviewRequest(item.fach);
                       }} className="min-h-10 rounded-lg bg-indigo-50 px-4 text-xs font-bold text-indigo-800 hover:bg-indigo-100 disabled:opacity-40">
                         Fachseite ansehen
