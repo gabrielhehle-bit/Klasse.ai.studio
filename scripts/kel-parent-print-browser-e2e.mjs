@@ -128,15 +128,16 @@ async function clickSelector(c, selector) {
 
 const client = await createClient();
 try {
-  await client.send('Page.navigate', { url: new URL('/demo', BASE_URL).href });
-  await waitFor(client, 'public demo exposes the complete example journey without signing in',
-    'Boolean(document.querySelector("[data-demo-learning-path] select"))');
+  const demoUrl = new URL('/demo', BASE_URL).href;
   for (const viewport of [
     { width: 1360, height: 760, deviceScaleFactor: 1, mobile: false },
     { width: 360, height: 740, deviceScaleFactor: 1, mobile: true },
   ]) {
     await client.send('Emulation.setDeviceMetricsOverride', viewport);
     await client.send('Emulation.setTouchEmulationEnabled', { enabled: viewport.mobile });
+    await client.send('Page.navigate', { url: demoUrl });
+    await waitFor(client, `public demo opens without signing in at ${viewport.width}px`,
+      `window.innerWidth === ${viewport.width} && Boolean(document.querySelector("[data-demo-learning-path] select"))`);
     await evaluate(client, 'window.scrollTo({ top: 0, behavior: "instant" })');
     const initialTop = await evaluate(client, `(() => {
       const price = document.querySelector('main + footer [data-public-free-promise]');
