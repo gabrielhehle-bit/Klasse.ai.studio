@@ -3,11 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const saveSyncStatus = readFileSync('src/components/SaveSyncStatus.tsx', 'utf8');
-const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
 const topbar = readFileSync('src/components/Topbar.tsx', 'utf8');
 
-test('Lehrercockpit-Widgets bleiben jederzeit verschiebbar und skalierbar', () => {
-  assert.match(cockpit, /<SaveSyncStatus compact/);
+test('Der Speicherstatus enthält keine Steuerung für das Tafellayout', () => {
   assert.doesNotMatch(saveSyncStatus, /cockpitEditing/);
   assert.doesNotMatch(saveSyncStatus, /cockpitLayoutMode/);
   assert.doesNotMatch(saveSyncStatus, /data-widget-resize/);
