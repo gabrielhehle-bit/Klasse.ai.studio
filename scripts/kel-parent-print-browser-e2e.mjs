@@ -74,9 +74,10 @@ async function waitFor(c, title, expression, timeout = 30000) {
   }
   throw new Error('Timed out waiting for ' + title);
 }
-async function clickButton(c, label) {
+async function clickButton(c, label, { exact = false } = {}) {
   const expr = '(() => {const text=' + q(label) +
-    '; const button=Array.from(document.querySelectorAll("button")).find(b=>String(b.textContent||"").trim().includes(text)&&!b.disabled&&getComputedStyle(b).display!=="none");' +
+    '; const matches = (b) => {const label=String(b.textContent||"").trim();return ' + (exact ? 'label===text' : 'label.includes(text)') + ';};' +
+    'const button=Array.from(document.querySelectorAll("button")).find(b=>matches(b)&&!b.disabled&&b.getClientRects().length>0);' +
     'if(!button)return false;button.click();return true})()';
   if (!await evaluate(c, expr)) throw new Error('Button unavailable: ' + label);
 }
@@ -537,7 +538,7 @@ try {
 
   await setControl(client, '#kel-preparation-date', '2026-10-29');
   await fillInput(client, 'Was machen wir?', 'Wir lesen im Oktober Silben.');
-  await clickButton(client, 'Gespräch speichern');
+  await clickButton(client, 'Gespräch speichern', { exact: true });
   await waitFor(client, 'the October conversation has its own saved protocol',
     'Array.from(document.querySelector("#kel-preparation-meeting").options).some(option=>option.textContent.includes("29.10.2026 · Protokoll"))');
   const octoberMeeting = await evaluate(client,
@@ -555,6 +556,23 @@ try {
   await clickButton(client, 'Elternblatt drucken');
   await waitFor(client, 'a draft can be printed before creating a November protocol',
     'document.querySelector("#kel-parent-meeting")?.value==="" && document.querySelector("#kel-parent-agreements")?.value.includes("Wir spielen zusammen Anlautspiele.") && document.querySelector("[data-kel-parent-report]")?.textContent.includes("25.11.2026")');
+  await evaluate(client, 'window.print = () => { window.draftPrintRequested = true; }');
+  await clickSelector(client, '[data-testid="print-center-primary-print"]');
+  await waitFor(client, 'print command opens the November draft parent sheet',
+    'window.draftPrintRequested===true && document.body.classList.contains("print-center-kel-parent-active")');
+  const draftPdf = await client.send('Page.printToPDF', { printBackground: true, preferCSSPageSize: true });
+  const draftDocument = await getDocument({
+    data: new Uint8Array(Buffer.from(draftPdf.data, 'base64')), useSystemFonts: true, disableFontFace: true,
+  }).promise;
+  const draftPages = await Promise.all(Array.from({ length: draftDocument.numPages }, (_, index) =>
+    draftDocument.getPage(index + 1).then(page => page.getTextContent())));
+  const draftText = draftPages.flatMap(page => page.items.map(item => ('str' in item ? item.str : '')))
+    .join('').normalize('NFKC').replace(/\s+/g, '');
+  if (!draftText.includes('25.11.2026') || !draftText.includes('WirspielenzusammenAnlautspiele.')) {
+    throw new Error('The printed draft needs the November date and agreement.');
+  }
+  await evaluate(client, 'window.dispatchEvent(new Event("afterprint"))');
+  console.log('PASS Real parent PDF contains the uncommitted November conversation');
   await clickSelector(client, '[data-menu-id="kel"]');
   await waitFor(client, 'KEL child picker opens after the draft preview', 'Boolean(document.querySelector("[data-kel-shared-dossier-portal]"))');
   await clickSelector(client, '[data-kel-child=' + q(nextChildId) + ']');
@@ -591,7 +609,7 @@ try {
   await fillInput(client, 'Wer hilft und wie?', 'Die Lehrperson legt die Karten bereit.');
   await fillInput(client, 'Woran erkennen wir den Fortschritt?', 'Das Kind nennt die ersten Laute.');
   await fillInput(client, 'Wann schauen wir wieder darauf?', '25.11.2026');
-  await clickButton(client, 'Gespräch speichern');
+  await clickButton(client, 'Gespräch speichern', { exact: true });
   await waitFor(client, 'conversation saved before printing',
     'Array.from(document.querySelectorAll("button")).some(b=>b.textContent.trim()==="Elternblatt drucken"&&!b.disabled)');
   await clickSelector(client, '[aria-label^="Folie"][aria-label$="Das nehmen wir mit"]');
