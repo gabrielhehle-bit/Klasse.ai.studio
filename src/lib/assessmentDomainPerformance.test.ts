@@ -84,6 +84,5 @@ test('dossier and KEL use the same domain data but KEL only shows opted-in subje
   assert.match(presentation, /subjectsWithDetails\.map\(item => \(/);
   assert.match(presentation, /compact hideWhenEmpty/);
   assert.match(modal, /Teilbereich in \{subject\}/);
-  assert.match(modal, /Zahlen und Operationen/);
-  assert.match(modal, /Rechtschreibung/);
+  assert.match(modal, /getLearningAreaGroups\(subject\)/);
 });

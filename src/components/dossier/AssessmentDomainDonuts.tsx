@@ -2,11 +2,14 @@ import React, { useMemo } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { useApp } from '../../context/AppContext';
 import { getStudentAssessmentDomainPerformance } from '../../lib/assessmentDomainPerformance';
+import { getKelGradebookAssessments } from '../../lib/kelGradebookSelection';
+import { getKelSubjectEvidence } from '../../lib/kelPresentationSources';
 
 const PALETTE = ['#047857', '#2563eb', '#a16207', '#7c3aed', '#0f766e', '#be185d'] as const;
 
 export default function AssessmentDomainDonuts({
   studentId, subject, semester = '1', compact = false, hideWhenEmpty = false, selectedAreas, showAll = false,
+  showEvidenceTitles = false,
 }: {
   studentId: string;
   subject: string;
@@ -16,6 +19,7 @@ export default function AssessmentDomainDonuts({
   /** Optional explicit subset for the KEL presentation; dossier defaults to all areas. */
   selectedAreas?: string[];
   showAll?: boolean;
+  showEvidenceTitles?: boolean;
 }) {
   const { app } = useApp();
   const areas = useMemo(() =>
@@ -24,6 +28,9 @@ export default function AssessmentDomainDonuts({
   const filteredAreas = selectedAreas ? areas.filter(row => selectedAreas.includes(row.area)) : areas;
   const maxVisible = showAll ? filteredAreas.length : compact ? 4 : 8;
   const visible = filteredAreas.slice(0, maxVisible);
+  const evidenceByArea = showEvidenceTitles
+    ? getKelSubjectEvidence(getKelGradebookAssessments(app, studentId, semester, [subject]), subject, visible, true)
+    : undefined;
 
   if (filteredAreas.length === 0 && hideWhenEmpty) return null;
 
@@ -59,6 +66,7 @@ export default function AssessmentDomainDonuts({
               const chart = [{ name: 'Leistungsstand', value: percent },
                 { name: 'Rest zur Darstellung', value: 100 - percent }];
               const evidence = row.assessments === 1 ? '1 Nachweis' : `${row.assessments} Nachweise`;
+              const titles = [...(evidenceByArea?.get(row.area) ?? [])].filter(title => title !== row.area);
               return (
                 <div key={row.area} data-assessment-area={row.area}
                   className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/40 p-2.5">
@@ -84,6 +92,7 @@ export default function AssessmentDomainDonuts({
                       {row.percent.toLocaleString('de-AT', { maximumFractionDigits: 1 })} % · {evidence}
                     </p>
                     <p className="mt-1 text-[0.68rem] text-slate-500">{row.categories.join(' · ')}</p>
+                    {titles.length > 0 && <p className="mt-1 break-words text-xs text-slate-700">{titles.join(' · ')}</p>}
                     {row.assessments < 2 && <p className="mt-1 text-[0.65rem] font-semibold text-amber-800">
                       Erst ein Nachweis: begrenzte Aussagekraft
                     </p>}
