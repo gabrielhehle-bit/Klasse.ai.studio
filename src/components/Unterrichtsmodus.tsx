@@ -1,8 +1,6 @@
 import { ClockLearningStudio } from "./cockpit/widgets/ClockLearningStudio";
 import { getDrawingOpeningSettings } from '../lib/drawingSurfaceState';
 import SidebarStarsOverview from './cockpit/SidebarStarsOverview';
-import SaveSyncStatus from './SaveSyncStatus';
-import ClassTeamStatus from './ClassTeamStatus';
 import ParticipationSettingsPanel from './cockpit/ParticipationSettingsPanel';
 import ParticipationResetPanel from './cockpit/ParticipationResetPanel';
 import ParticipationSubjectPicker from './cockpit/ParticipationSubjectPicker';
@@ -8382,7 +8380,7 @@ ${content}
       <header
         className={`w-full px-2 min-h-11 flex justify-between items-center relative z-[500] shrink-0 border shadow-sm backdrop-blur-xl rounded-xl gap-1.5 overflow-visible ${currentIsLight ? "bg-white/90 border-slate-200" : "bg-black/60 border-white/10"} dim-in-focus`}
       >
-        {/* Left: Branding & Status */}
+        {/* Left: Back, title and class */}
         <div className="flex items-center gap-1.5 flex-initial min-w-0">
           <button
             onClick={handleCloseCockpit}
@@ -8393,25 +8391,19 @@ ${content}
             <ArrowLeft size={16} strokeWidth={2.5} />
           </button>
 
-          <div className="flex min-w-0 flex-wrap items-center justify-start gap-x-2 gap-y-0.5">
-            <div
-              className={`flex min-w-0 items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-black tracking-tight ${currentIsLight ? "text-slate-950" : "text-white"}`}
-            >
-              <span className="shrink-0">LEHRERCOCKPIT</span>
-              {cockpitClassLabel && (
-                <span
-                  className={`min-w-0 max-w-40 truncate px-1 sm:px-1.5 py-0.5 border rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-300 ${getThemeClassBadgeClasses()}`}
-                  style={getThemeClassBadgeStyle()}
-                  title={cockpitClassLabel}
-                >
-                  {cockpitClassLabel}
-                </span>
-              )}
-            </div>
-            <div className="flex min-w-0 items-center gap-1" aria-label="Speicherung und Klassenteam">
-              <SaveSyncStatus compact inlineLabel onOpenTeam={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
-              <ClassTeamStatus onOpen={() => { handleCloseCockpit(); setPage("teamteaching"); }} />
-            </div>
+          <div
+            className={`flex min-w-0 items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-black tracking-tight ${currentIsLight ? "text-slate-950" : "text-white"}`}
+          >
+            <span className="shrink-0">LEHRERCOCKPIT</span>
+            {cockpitClassLabel && (
+              <span
+                className={`min-w-0 max-w-40 truncate px-1 sm:px-1.5 py-0.5 border rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-300 ${getThemeClassBadgeClasses()}`}
+                style={getThemeClassBadgeStyle()}
+                title={cockpitClassLabel}
+              >
+                {cockpitClassLabel}
+              </span>
+            )}
           </div>
         </div>
 

@@ -228,8 +228,8 @@ test("Cockpit: Ansichtssteuerung liegt gesammelt in den Cockpit-Einstellungen", 
   assert.doesNotMatch(teachingSurface, /Functional Controls Buttons Cluster/);
 });
 
-test("Cockpit: Status und Zurück-Navigation sind lehrerfreundlich beschriftet", () => {
-  assert.match(teachingSurface, /<SaveSyncStatus/);
+test("Cockpit: Tages-Sicherung und Zurück-Navigation sind lehrerfreundlich beschriftet", () => {
+  assert.match(teachingSurface, /Tag sichern/);
   assert.doesNotMatch(teachingSurface, /Speichert beim Beenden/);
   assert.doesNotMatch(teachingSurface, /Echtzeit-Tracker/);
   assert.match(teachingSurface, /aria-label="Lehrercockpit schließen · Zurück zu Heute"/);
