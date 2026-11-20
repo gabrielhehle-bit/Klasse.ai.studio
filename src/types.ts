@@ -504,6 +504,8 @@ export interface Student {
     semester: string;
     visible: Record<string, boolean>;
     selectedSubjects: string[];
+    /** Keep documented subjects current until the teacher makes an explicit selection. */
+    autoSelectSubjects?: boolean;
     selectedAssessmentIds: string[];
     /** Only deliberately authored KEL discussion notes, never imported private dossier notes. */
     subjectNotes?: Record<string, string>;

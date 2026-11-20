@@ -428,10 +428,18 @@ try {
   await clickSelector(client, '[data-kel-child=' + q(nextChildId) + ']');
   await waitFor(client, 'direct conversation preparation', 'Array.from(document.querySelectorAll("h1")).some(h=>h.textContent==="Gespräch vorbereiten")');
 
-  // A selected subject without a released note or selected learning areas may
-  // still have a reportable overall grade, but must never get an empty slide.
+  const automaticSubject = await evaluate(client,
+    'Array.from(document.querySelectorAll("[data-testid=kel-gradebook-preparation] label")).find(l=>l.querySelector("input:checked")&&l.textContent.includes("Deutsch:"))?.textContent.trim().split(":")[0]');
+  if (!automaticSubject) throw new Error('Documented German subject was not automatically chosen');
+  await clickButton(client, 'Vorschau ansehen');
+  await clickSelector(client, '[aria-label^="Folie"][aria-label$=' + q(': ' + automaticSubject) + ']');
+  await waitFor(client, 'automatic subject page shows data from the gradebook',
+    'Boolean(document.querySelector("[data-kel-subject-page="+' + q(automaticSubject) + '+"]")) && document.querySelector("[data-kel-subject-page]").textContent.includes("Mitarbeit dokumentiert")');
+  await clickButton(client, 'Vorbereiten');
+
+  // Choosing an empty subject for a potential note must not produce an empty slide.
   const emptySubjectLabel = await evaluate(client,
-    'Array.from(document.querySelectorAll("[data-testid=kel-gradebook-preparation] label")).find(l=>l.textContent.includes(": noch keine Gesamtbewertung"))?.textContent.trim()');
+    'Array.from(document.querySelectorAll("[data-testid=kel-gradebook-preparation] label")).find(l=>l.textContent.includes(": noch keine Gesamtbewertung")&&l.querySelector("input[type=checkbox]:not(:checked)"))?.textContent.trim()');
   if (!emptySubjectLabel) throw new Error('No ungraded sample subject available');
   const emptySubject = emptySubjectLabel.split(':')[0];
   await clickCheckbox(client, emptySubjectLabel);

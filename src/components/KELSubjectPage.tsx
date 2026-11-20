@@ -19,6 +19,8 @@ interface KELSubjectPageProps {
   chartType?: KelSubjectChartType;
   subjectLabel: string;
   evidenceCount: number;
+  hasParticipation: boolean;
+  evidenceByArea?: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
 /**
@@ -27,7 +29,7 @@ interface KELSubjectPageProps {
  */
 export default function KELSubjectPage({
   studentId, fach, semester, note, showNote = false, selectedAreas,
-  chartType = 'donuts', subjectLabel, evidenceCount,
+  chartType = 'donuts', subjectLabel, evidenceCount, hasParticipation, evidenceByArea,
 }: KELSubjectPageProps) {
   const { app } = useApp();
   const areas = useMemo(() => {
@@ -38,7 +40,7 @@ export default function KELSubjectPage({
   }, [app, studentId, fach, semester, selectedAreas]);
   const noAreasSelected = Array.isArray(selectedAreas) && selectedAreas.length === 0;
   const hasNote = showNote && Boolean(note?.trim());
-  const bars = areas.slice(0, 8).map(row => ({
+  const bars = areas.map(row => ({
     name: row.area, value: row.percent, count: row.assessments,
   }));
   return (
@@ -57,18 +59,18 @@ export default function KELSubjectPage({
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="flex items-center gap-2 text-slate-600"><TrendingUp size={16}/><span className="text-xs font-extrabold uppercase tracking-wider">Dokumentation</span></div>
           <p className="mt-3 text-2xl font-black text-slate-950">{evidenceCount}</p>
-          <p className="mt-1 text-xs text-slate-600">erfasste Leistungsnachweise</p>
+          <p className="mt-1 text-xs text-slate-600">erfasste Leistungsnachweise{hasParticipation ? ' · Mitarbeit dokumentiert' : ''}</p>
         </div>
       </div>
       {areas.length > 0 && chartType === 'donuts' && (
         <AssessmentDomainDonuts studentId={studentId} subject={fach} semester={semester}
-          selectedAreas={selectedAreas} />
+          selectedAreas={selectedAreas} showAll />
       )}
       {areas.length > 0 && chartType === 'bars' && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4" data-kel-subject-bars>
           <div className="mb-3 flex items-center gap-2"><BarChart3 size={17} className="text-indigo-600"/><h3 className="text-base font-black text-slate-900">Dokumentierte Lernbereiche</h3></div>
           <p className="mb-3 text-xs text-slate-600">Rechnerischer Stand aus den zugeordneten Bewertungen, keine vollständige Kompetenzdiagnose.</p>
-          <div style={{ height: Math.max(200, Math.min(430, bars.length * 53 + 50)) }}>
+          <div style={{ height: Math.max(200, bars.length * 47 + 50) }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart layout="vertical" data={bars} margin={{ top: 8, right: 30, bottom: 8, left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
@@ -81,6 +83,22 @@ export default function KELSubjectPage({
             </ResponsiveContainer>
           </div>
         </div>
+      )}
+      {Boolean(evidenceByArea?.size) && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4" data-kel-subject-evidence>
+          <h3 className="text-sm font-black text-slate-900">Dokumentierte Leistungsnachweise</h3>
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+            {[...(evidenceByArea ?? [])].map(([area, titles]) => <div key={area}
+              className="rounded-xl bg-slate-50 p-3">
+              <dt className="break-words text-sm font-bold text-slate-900">{area}</dt>
+              <dd className="mt-1">
+                <ul className="list-disc space-y-1 pl-4 text-sm text-slate-700">
+                  {[...titles].map(title => <li key={title} className="break-words">{title}</li>)}
+                </ul>
+              </dd>
+            </div>)}
+          </dl>
+        </section>
       )}
       {areas.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center" data-kel-subject-empty>

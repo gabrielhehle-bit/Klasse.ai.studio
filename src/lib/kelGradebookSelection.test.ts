@@ -95,7 +95,7 @@ test('KEL content choice belongs to encrypted pupil record and survives legacy-c
 test('KEL on-screen and PowerPoint grades share only chosen values and preparation is saved explicitly', () => {
   const source = readFileSync('src/components/KELPresentation.tsx', 'utf8');
   assert.match(source, /individualGrades: false/);
-  assert.match(source, /learning: false/);
+  assert.match(source, /learning: true/);
   assert.match(source, /getKelGradebookAssessments\(app, student\.id, sem, activeFaecher\)/);
   assert.match(source, /pickKelAssessments\(availableAssessments, selectedAssessmentIds\)/);
   assert.match(source, /chosenAssessments\.map\(item =>/);

@@ -22,11 +22,13 @@ test('KEL opens exactly the same dossier component and KEL reflection as the cla
   assert.match(kel, /openKelOnEntry/);
 });
 
-test('KEL creates subject slides only for selected domains or released discussion notes', () => {
+test('KEL automatically prepares documented subjects and skips empty detail slides', () => {
   assert.match(presentation, /\| 'subject'/);
   assert.match(presentation, /subjectPages: true/);
   assert.match(presentation, /for \(const subject of subjectsWithDetails\)/);
   assert.match(presentation, /detail\?\.areas\.length \|\| detail\?\.note/);
+  assert.match(presentation, /learning: true/);
+  assert.match(presentation, /selectedSubjects = subjectSelection \?\? automaticSubjects/);
   assert.match(presentation, /type: 'subject', subject: subject\.fach/);
   assert.match(presentation, /<KELSubjectPage/);
   assert.doesNotMatch(presentation, /if \(!hasData\) return \[\]/);
@@ -74,7 +76,7 @@ test('KEL configuration stays scoped to child, class, year, semester and KEL mee
 test('PowerPoint uses the same selected subject slides and only explicitly released notes', () => {
   assert.match(presentation, /for \(const slideData of slides\)/);
   assert.match(presentation, /slideData\.type === 'subject'/);
-  assert.match(presentation, /getStudentAssessmentDomainPerformance\(app, student\.id, subject\.fach/);
+  assert.match(presentation, /getStudentAssessmentDomainPerformance\(app, student\.id, fach/);
   assert.match(presentation, /subjectAreaSelection\[subject\.fach\]/);
   assert.match(presentation, /subjectNoteVisible\[subject\.fach\]/);
   assert.match(presentation, /pptx\.ChartType\.bar/);
