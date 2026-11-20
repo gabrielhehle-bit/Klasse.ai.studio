@@ -138,24 +138,31 @@ try {
     await client.send('Emulation.setDeviceMetricsOverride', viewport);
     await client.send('Emulation.setTouchEmulationEnabled', { enabled: viewport.mobile });
     await client.send('Page.navigate', { url: homeUrl });
-    await waitFor(client, `the free price and both first steps fit the opening screen at ${viewport.width}px`, `(() => {
+    const landingLayout = `(() => {
       const hero = document.querySelector('[data-public-landing-hero]');
       const price = hero?.querySelector('[data-public-free-promise]');
       const buttons = [...(hero?.querySelectorAll('button') || [])];
-      const visible = element => {
-        if (!element) return false;
+      const measure = element => {
+        if (!element) return null;
         const { left, top, right, bottom, width, height } = element.getBoundingClientRect();
         const hit = document.elementFromPoint(left + width / 2, top + height / 2);
-        return width > 0 && height > 0 && top >= 0 && left >= 0 &&
-          right <= innerWidth + 1 && bottom <= innerHeight && element.contains(hit);
+        return { text: element.textContent.trim(), left, top, right, bottom, hit: element.contains(hit),
+          visible: width > 0 && height > 0 && top >= 0 && left >= 0 &&
+            right <= innerWidth + 1 && bottom <= innerHeight && element.contains(hit) };
       };
-      return location.pathname === '/' && innerWidth === ${viewport.width} && window.scrollY === 0 &&
-        document.documentElement.scrollWidth <= innerWidth + 1 &&
-        visible(hero?.querySelector('h1')) && visible(price) && price.textContent.includes('0 €') &&
-        price.textContent.includes('Dauerhaft kostenlos') && price.textContent.includes('Alle Funktionen inklusive.') &&
-        visible(buttons.find(button => button.textContent.trim() === 'Demo ausprobieren')) &&
-        visible(buttons.find(button => button.textContent.trim() === 'Mit KLASSIO starten'));
-    })()`);
+      return { path: location.pathname, width: innerWidth, height: innerHeight,
+        scrollY: window.scrollY, scrollWidth: document.documentElement.scrollWidth,
+        heading: measure(hero?.querySelector('h1')), price: measure(price), buttons: buttons.map(measure) };
+    })()`;
+    await waitFor(client, `the landing page opens at ${viewport.width}px`, 'Boolean(document.querySelector("[data-public-landing-hero]"))');
+    const layout = await evaluate(client, landingLayout);
+    if (layout.path !== '/' || layout.width !== viewport.width || layout.scrollY !== 0 ||
+        layout.scrollWidth > layout.width + 1 || !layout.heading?.visible || !layout.price?.visible ||
+        !['0 €', 'Dauerhaft kostenlos', 'Alle Funktionen inklusive.'].every(text => layout.price.text.includes(text)) ||
+        !['Demo ausprobieren', 'Mit KLASSIO starten'].every(label => layout.buttons.some(button => button.text === label && button.visible))) {
+      throw new Error(`The first screen at ${viewport.width}px does not show the price and both actions: ${JSON.stringify(layout)}`);
+    }
+    console.log(`PASS the free price and both first steps fit the opening screen at ${viewport.width}px`);
   }
   await clickButton(client, 'Demo ausprobieren', { exact: true });
   await waitFor(client, 'the first-time visitor can open the demo without an account',
