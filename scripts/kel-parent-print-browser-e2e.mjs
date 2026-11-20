@@ -564,8 +564,17 @@ try {
     await waitFor(client, `${title} is grouped under ${area} on the parent sheet`,
       `document.querySelector('[data-kel-parent-report] [data-kel-learning-area=' + ${q(q(area))} + ']')?.textContent.includes(${q(title)})`);
   }
-  await evaluate(client, 'document.body.classList.add("print-center-active","print-center-kel-parent-active")');
+  await evaluate(client, 'window.print = () => { window.learningPrintRequested = true; }');
+  await clickSelector(client, '[data-testid="print-center-primary-print"]');
+  await waitFor(client, 'print command activates the selected pupil’s parent report',
+    'window.learningPrintRequested===true && document.body.classList.contains("print-center-kel-parent-active")');
   await client.send('Emulation.setEmulatedMedia', { media: 'print' });
+  await waitFor(client, 'learning section is visible in the print layout', `(() => {
+    const report = document.querySelector('.print-center-overlay [data-kel-parent-report]');
+    const learning = report?.querySelector('[data-kel-learning-section]');
+    return learning?.getBoundingClientRect().width>0 && learning.getBoundingClientRect().height>0 &&
+      learning.textContent.includes('Leseflüssigkeit') && learning.textContent.includes('Geld');
+  })()`);
   const learningPdf = await client.send('Page.printToPDF', { printBackground: true, preferCSSPageSize: true });
   const learningDocument = await getDocument({
     data: new Uint8Array(Buffer.from(learningPdf.data, 'base64')), useSystemFonts: true, disableFontFace: true,
@@ -575,9 +584,13 @@ try {
     const pageText = await (await learningDocument.getPage(page)).getTextContent();
     learningText += pageText.items.map(item => ('str' in item ? item.str : '')).join(' ');
   }
+  learningText = learningText.normalize('NFKC').replace(/\s+/g, ' ');
   for (const { area, title } of cases) {
-    if (!learningText.includes(area) || !learningText.includes(title)) throw new Error('Printed PDF lacks ' + area + ' or ' + title);
+    if (!learningText.includes(area) || !learningText.includes(title)) {
+      throw new Error('Printed PDF lacks ' + area + ' or ' + title + ': ' + learningText.slice(0, 1600));
+    }
   }
+  await evaluate(client, 'window.dispatchEvent(new Event("afterprint"))');
   console.log('PASS Real A4 parent PDF includes both learning areas and their recorded underpoints');
 
 } finally {
