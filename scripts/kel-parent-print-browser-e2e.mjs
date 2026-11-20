@@ -150,14 +150,21 @@ try {
           visible: width > 0 && height > 0 && top >= 0 && left >= 0 &&
             right <= innerWidth + 1 && bottom <= innerHeight && element.contains(hit) };
       };
+      const mobileShell = document.getElementById('klassio-mobile-quick-mode');
       return { path: location.pathname, width: innerWidth, height: innerHeight,
         scrollY: window.scrollY, scrollWidth: document.documentElement.scrollWidth,
+        mobileShellVisible: Boolean(mobileShell && getComputedStyle(mobileShell).display !== 'none'),
         heading: measure(hero?.querySelector('h1')), price: measure(price), buttons: buttons.map(measure) };
     })()`;
-    await waitFor(client, `the landing page opens at ${viewport.width}px`, 'Boolean(document.querySelector("[data-public-landing-hero]"))');
+    await waitFor(client, `the landing page opens at ${viewport.width}px`, `(() => {
+      const hero = document.querySelector('[data-public-landing-hero]');
+      if (!hero) return false;
+      return !matchMedia('(pointer: coarse)').matches ||
+        Boolean(document.documentElement.dataset.klassioMobileQuick);
+    })()`);
     const layout = await evaluate(client, landingLayout);
     if (layout.path !== '/' || layout.width !== viewport.width || layout.scrollY !== 0 ||
-        layout.scrollWidth > layout.width + 1 || !layout.heading?.visible || !layout.price?.visible ||
+        layout.scrollWidth > layout.width + 1 || layout.mobileShellVisible || !layout.heading?.visible || !layout.price?.visible ||
         !['0 €', 'Dauerhaft kostenlos', 'Alle Funktionen inklusive.'].every(text => layout.price.text.includes(text)) ||
         !['Demo ausprobieren', 'Mit KLASSIO starten'].every(label => layout.buttons.some(button => button.text === label && button.visible))) {
       throw new Error(`The first screen at ${viewport.width}px does not show the price and both actions: ${JSON.stringify(layout)}`);

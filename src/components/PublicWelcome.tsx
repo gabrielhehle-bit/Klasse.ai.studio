@@ -204,14 +204,14 @@ function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDe
 
       <main>
         <section data-public-landing-hero aria-labelledby="klassio-start-heading" className="border-b border-slate-200">
-          <div className="mx-auto grid max-w-[1240px] items-center gap-8 px-5 py-9 sm:px-7 sm:py-14 lg:grid-cols-[0.94fr_1.06fr] lg:gap-12 lg:px-8 lg:py-17">
+          <div className="mx-auto grid max-w-[1240px] items-center gap-8 px-5 py-7 sm:px-7 sm:py-14 lg:grid-cols-[0.94fr_1.06fr] lg:gap-12 lg:px-8 lg:py-17">
             <div>
               <p className="text-sm font-bold text-indigo-700">Die App für Lehrpersonen</p>
-              <h1 id="klassio-start-heading" className="mt-3 max-w-xl text-balance text-[clamp(2.45rem,8.7vw,3.3rem)] font-black leading-[1.03] tracking-[-0.06em] text-slate-950 lg:text-[clamp(3.2rem,5.1vw,4.35rem)]">
+              <h1 id="klassio-start-heading" className="mt-3 max-w-xl text-balance text-[clamp(2.2rem,8.7vw,3.3rem)] font-black leading-[1.05] tracking-[-0.055em] text-slate-950 lg:text-[clamp(3.2rem,5.1vw,4.35rem)]">
                 Dein Schulalltag, gut organisiert.
               </h1>
               <p className="mt-4 max-w-lg text-base leading-7 text-slate-700 sm:text-lg">
-                Plane deine Woche, behalte deine Klasse im Blick und bereite KEL-Gespräche mit den Daten vor, die du schon erfasst hast.
+                Plane deine Woche, behalte deine Klasse im Blick und nutze vorhandene Einträge für deine KEL-Gespräche.
               </p>
               <div data-public-free-promise className="mt-5 flex max-w-max flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-emerald-200 bg-[#eaf6ed] px-4 py-2.5 sm:mt-6 sm:px-5">
                 <span className="whitespace-nowrap text-[2.75rem] font-black leading-none tracking-[-0.08em] text-emerald-900 sm:text-5xl">0 €</span>

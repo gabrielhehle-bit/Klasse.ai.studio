@@ -38,7 +38,7 @@ function ensureStyles() {
         padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
       }
 
-      #${SHELL_ID} {
+      html[data-klassio-mobile-quick='true'] #${SHELL_ID} {
         display: block;
         position: fixed;
         inset: 0;
@@ -297,9 +297,7 @@ function getDesktopSidebar(): HTMLElement | null {
   return dashboardButton?.closest('aside') as HTMLElement | null;
 }
 
-function markDesktopNavigation() {
-  const sidebar = getDesktopSidebar();
-  if (!sidebar) return;
+function markDesktopNavigation(sidebar: HTMLElement) {
   sidebar.dataset.klassioDesktopSidebar = 'true';
   const overlay = sidebar.previousElementSibling as HTMLElement | null;
   if (overlay && overlay.tagName === 'DIV') overlay.dataset.klassioSidebarOverlay = 'true';
@@ -563,15 +561,15 @@ function updateShellState() {
 
 function refreshMobileMode() {
   refreshScheduled = false;
-  const mobile = window.matchMedia(MOBILE_QUERY).matches;
-  document.documentElement.dataset.klassioMobileQuick = mobile ? 'true' : 'false';
-  if (!mobile) {
+  const sidebar = window.matchMedia(MOBILE_QUERY).matches ? getDesktopSidebar() : null;
+  document.documentElement.dataset.klassioMobileQuick = sidebar ? 'true' : 'false';
+  if (!sidebar) {
     closeSheets();
     return;
   }
 
   ensureStyles();
-  markDesktopNavigation();
+  markDesktopNavigation(sidebar);
   ensureShell();
   updateShellState();
 }

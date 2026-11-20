@@ -1084,9 +1084,8 @@ function AppContent() {
 
 export default function App() {
   return (
-    <>
+    <AccessGuard>
       <ReleaseUpdateNotice />
-      <AccessGuard>
       <AppProvider>
         <ToastProvider>
           <ErrorBoundary>
@@ -1097,6 +1096,5 @@ export default function App() {
         </ToastProvider>
       </AppProvider>
     </AccessGuard>
-    </>
   );
 }
