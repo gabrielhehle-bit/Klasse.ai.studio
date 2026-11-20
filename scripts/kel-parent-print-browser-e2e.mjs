@@ -428,19 +428,24 @@ try {
   await clickSelector(client, '[data-kel-child=' + q(nextChildId) + ']');
   await waitFor(client, 'direct conversation preparation', 'Array.from(document.querySelectorAll("h1")).some(h=>h.textContent==="Gespräch vorbereiten")');
 
-  // A selected subject without a released note or selected learning areas may
-  // still have a reportable overall grade, but must never get an empty slide.
-  const emptySubjectLabel = await evaluate(client,
-    'Array.from(document.querySelectorAll("[data-testid=kel-gradebook-preparation] label")).find(l=>l.textContent.includes(": noch keine Gesamtbewertung"))?.textContent.trim()');
-  if (!emptySubjectLabel) throw new Error('No ungraded sample subject available');
-  const emptySubject = emptySubjectLabel.split(':')[0];
-  await clickCheckbox(client, emptySubjectLabel);
+  const subjectCheckbox = 'Array.from(document.querySelectorAll("[data-testid=kel-gradebook-preparation] label")).find(label=>label.textContent.trim().startsWith("Deutsch:"))?.querySelector("input[type=checkbox]")';
+  await waitFor(client, 'documented German subject is automatically chosen', `(${subjectCheckbox})?.checked===true`);
+  await clickButton(client, 'Vorschau ansehen');
+  await clickSelector(client, '[aria-label^="Folie"][aria-label$=": Deutsch"]');
+  await waitFor(client, 'automatic subject page shows data from the gradebook',
+    'document.querySelector("[data-kel-subject-page=Deutsch]")?.textContent.includes("Mitarbeit dokumentiert")');
+  await clickButton(client, 'Vorbereiten');
+
+  await evaluate(client, `(${subjectCheckbox})?.click()`);
+  await clickButton(client, 'Vorschau ansehen');
+  await waitFor(client, 'teacher can hide an automatically selected subject',
+    '!document.querySelector(\'[aria-label^="Folie"][aria-label$=": Deutsch"]\')');
+  await clickButton(client, 'Vorbereiten');
+  await clickButton(client, 'Fächer automatisch auswählen');
+  await waitFor(client, 'automatic selection can be restored', `(${subjectCheckbox})?.checked===true`);
   await clickButton(client, 'Vorschau ansehen');
   await waitFor(client, 'child prompt slide available',
     'Boolean(Array.from(document.querySelectorAll("[aria-label^=Folie]")).find(b=>b.getAttribute("aria-label").includes("So sehen wir es")))');
-  if (await evaluate(client, 'Array.from(document.querySelectorAll("[aria-label^=Folie]")).some(b=>b.getAttribute("aria-label").endsWith(' + q(': ' + emptySubject) + '))')) {
-    throw new Error('A subject without selected conversation material generated a slide');
-  }
   await clickSelector(client, '[aria-label^="Folie"][aria-label$="So sehen wir es"]');
   await waitFor(client, 'undocumented child perspective becomes a live prompt',
     'document.body.innerText.includes("Worauf bist du stolz? Was möchtest du uns zeigen?")');

@@ -6,7 +6,7 @@ import { getStudentAssessmentDomainPerformance } from '../../lib/assessmentDomai
 const PALETTE = ['#047857', '#2563eb', '#a16207', '#7c3aed', '#0f766e', '#be185d'] as const;
 
 export default function AssessmentDomainDonuts({
-  studentId, subject, semester = '1', compact = false, hideWhenEmpty = false, selectedAreas,
+  studentId, subject, semester = '1', compact = false, hideWhenEmpty = false, selectedAreas, showAll = false,
 }: {
   studentId: string;
   subject: string;
@@ -15,13 +15,14 @@ export default function AssessmentDomainDonuts({
   hideWhenEmpty?: boolean;
   /** Optional explicit subset for the KEL presentation; dossier defaults to all areas. */
   selectedAreas?: string[];
+  showAll?: boolean;
 }) {
   const { app } = useApp();
   const areas = useMemo(() =>
     getStudentAssessmentDomainPerformance(app, studentId, subject, semester),
     [app, studentId, subject, semester]);
   const filteredAreas = selectedAreas ? areas.filter(row => selectedAreas.includes(row.area)) : areas;
-  const maxVisible = compact ? 4 : 8;
+  const maxVisible = showAll ? filteredAreas.length : compact ? 4 : 8;
   const visible = filteredAreas.slice(0, maxVisible);
 
   if (filteredAreas.length === 0 && hideWhenEmpty) return null;
