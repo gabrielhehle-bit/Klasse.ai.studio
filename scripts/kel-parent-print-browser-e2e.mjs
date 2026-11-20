@@ -127,6 +127,21 @@ async function clickSelector(c, selector) {
 
 const client = await createClient();
 try {
+  await client.send('Page.navigate', { url: new URL('/demo', BASE_URL).href });
+  await waitFor(client, 'public demo exposes the complete example journey without signing in',
+    'Boolean(document.querySelector("[data-demo-learning-path] select"))');
+  await waitFor(client, 'the public offer banner does not cover the demo heading', `(() => {
+    const banner = [...document.querySelectorAll('span')].find(span => span.textContent === '0 € dauerhaft');
+    const h1 = document.querySelector('h1');
+    return banner && h1 && banner.parentElement.getBoundingClientRect().bottom <= h1.getBoundingClientRect().top;
+  })()`);
+  await setControl(client, '[data-demo-learning-path] select', '3');
+  await clickButton(client, 'Lernnachweis erfassen');
+  await waitFor(client, 'the chosen grade carries through to the demo dossier',
+    'document.querySelector("[data-demo-learning-path]").textContent.includes("Leseflüssigkeit · Note 3")');
+  await clickButton(client, 'Elternblatt öffnen');
+  await waitFor(client, 'the demo parent sheet carries through the recorded evidence',
+    'document.querySelector("[data-demo-learning-path] article")?.textContent.includes("Leseflüssigkeit · 1 Nachweis · 60 %")');
   await client.send('Page.navigate', { url: BASE_URL });
   await waitFor(client, 'access code gate', 'document.body?.innerText.toLowerCase().includes("geschützter zugang")');
   await fillInput(client, 'Zugangscode', ACCESS_CODE);
@@ -520,9 +535,34 @@ try {
   await clickButton(client, 'KEL-Gespräch vorbereiten');
   await waitFor(client, 'KEL preparation from the pupil dossier', 'Array.from(document.querySelectorAll("h1")).some(h=>h.textContent==="Gespräch vorbereiten")');
 
+  await setControl(client, '#kel-preparation-date', '2026-10-29');
+  await fillInput(client, 'Was machen wir?', 'Wir lesen im Oktober Silben.');
+  await clickButton(client, 'Gespräch speichern');
+  await waitFor(client, 'the October conversation has its own saved protocol',
+    'Array.from(document.querySelector("#kel-preparation-meeting").options).some(option=>option.textContent.includes("29.10.2026 · Protokoll"))');
+  const octoberMeeting = await evaluate(client,
+    'Array.from(document.querySelector("#kel-preparation-meeting").options).find(option=>option.textContent.includes("29.10.2026 · Protokoll")).value');
+
+  await setControl(client, '#kel-preparation-meeting', '');
+  await waitFor(client, 'new conversation opens as a separate empty draft',
+    'document.querySelector("#kel-preparation-meeting")?.value === "" && !Array.from(document.querySelectorAll("textarea")).some(field=>field.value.includes("Wir lesen im Oktober Silben."))');
+  await setControl(client, '#kel-preparation-date', '2026-11-25');
+  await fillInput(client, 'Was machen wir?', 'Wir spielen zusammen Anlautspiele.');
+  await clickSelector(client, 'button[title="KEL schließen"]');
+  await clickButton(client, 'KEL-Gespräch vorbereiten');
+  const hasNovemberDraft = 'document.querySelector("#kel-preparation-date")?.value==="2026-11-25" && Array.from(document.querySelectorAll("textarea")).some(field=>field.value==="Wir spielen zusammen Anlautspiele.")';
+  await waitFor(client, 'closing and reopening preserves the November draft and its date', hasNovemberDraft);
+  await clickButton(client, 'Elternblatt drucken');
+  await waitFor(client, 'a draft can be printed before creating a November protocol',
+    'document.querySelector("#kel-parent-meeting")?.value==="" && document.querySelector("#kel-parent-agreements")?.value.includes("Wir spielen zusammen Anlautspiele.") && document.querySelector("[data-kel-parent-report]")?.textContent.includes("25.11.2026")');
+  await clickSelector(client, '[data-menu-id="kel"]');
+  await waitFor(client, 'KEL child picker opens after the draft preview', 'Boolean(document.querySelector("[data-kel-shared-dossier-portal]"))');
+  await clickSelector(client, '[data-kel-child=' + q(nextChildId) + ']');
+  await waitFor(client, 'the same dated draft resumes from the child picker', hasNovemberDraft);
+
   const subjectCheckbox = 'Array.from(document.querySelectorAll("[data-testid=kel-gradebook-preparation] label")).find(label=>label.textContent.trim().startsWith("Deutsch:"))?.querySelector("input[type=checkbox]")';
   await waitFor(client, 'documented German subject is automatically chosen', `(${subjectCheckbox})?.checked===true`);
-  await clickButton(client, 'Vorschau ansehen');
+  await clickButton(client, 'Präsentieren');
   await clickSelector(client, '[aria-label^="Folie"][aria-label$=": Deutsch"]');
   await waitFor(client, 'automatic subject page shows data from the gradebook',
     'document.querySelector("[data-kel-subject-page=Deutsch]")?.textContent.includes("Mitarbeit dokumentiert")');
@@ -534,13 +574,13 @@ try {
   await clickButton(client, 'Vorbereiten');
 
   await evaluate(client, `(${subjectCheckbox})?.click()`);
-  await clickButton(client, 'Vorschau ansehen');
+  await clickButton(client, 'Präsentieren');
   await waitFor(client, 'teacher can hide an automatically selected subject',
     '!document.querySelector(\'[aria-label^="Folie"][aria-label$=": Deutsch"]\')');
   await clickButton(client, 'Vorbereiten');
   await clickButton(client, 'Fächer automatisch auswählen');
   await waitFor(client, 'automatic selection can be restored', `(${subjectCheckbox})?.checked===true`);
-  await clickButton(client, 'Vorschau ansehen');
+  await clickButton(client, 'Präsentieren');
   await waitFor(client, 'child prompt slide available',
     'Boolean(Array.from(document.querySelectorAll("[aria-label^=Folie]")).find(b=>b.getAttribute("aria-label").includes("So sehen wir es")))');
   await clickSelector(client, '[aria-label^="Folie"][aria-label$="So sehen wir es"]');
@@ -553,11 +593,20 @@ try {
   await fillInput(client, 'Wann schauen wir wieder darauf?', '25.11.2026');
   await clickButton(client, 'Gespräch speichern');
   await waitFor(client, 'conversation saved before printing',
-    'Array.from(document.querySelectorAll("button")).some(b=>b.textContent.trim()==="Elternblatt ansehen"&&!b.disabled)');
+    'Array.from(document.querySelectorAll("button")).some(b=>b.textContent.trim()==="Elternblatt drucken"&&!b.disabled)');
   await clickSelector(client, '[aria-label^="Folie"][aria-label$="Das nehmen wir mit"]');
   await waitFor(client, 'closing slide shows the saved agreement and follow-up',
     'document.body.innerText.includes("Wir spielen zusammen Anlautspiele.") && document.body.innerText.includes("25.11.2026")');
-  await clickButton(client, 'Elternblatt ansehen');
+  await clickButton(client, 'Vorbereiten');
+  const novemberMeeting = await evaluate(client,
+    'Array.from(document.querySelector("#kel-preparation-meeting").options).find(option=>option.textContent.includes("25.11.2026 · Protokoll"))?.value');
+  if (!novemberMeeting || novemberMeeting === octoberMeeting) throw new Error('October and November need separate saved protocols');
+  await setControl(client, '#kel-preparation-meeting', octoberMeeting);
+  await waitFor(client, 'earlier October agreement is intact after the November meeting is saved',
+    'document.querySelector("#kel-preparation-date")?.value==="2026-10-29" && Array.from(document.querySelectorAll("textarea")).some(field=>field.value==="Wir lesen im Oktober Silben.")');
+  await setControl(client, '#kel-preparation-meeting', novemberMeeting);
+  await waitFor(client, 'November agreement remains assigned to its own date', hasNovemberDraft);
+  await clickButton(client, 'Elternblatt drucken');
   await waitFor(client, 'same child and agreement copied into the parent sheet',
     'document.querySelector("#kel-parent-student")?.value===' + q(nextChildId) + ' && document.querySelector("#kel-parent-agreements")?.value.includes("Die Lehrperson legt die Karten bereit.") && document.querySelector("#kel-parent-agreements")?.value.includes("25.11.2026")');
   for (const { area, title } of cases) {

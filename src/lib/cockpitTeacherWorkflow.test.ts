@@ -23,7 +23,7 @@ test('Canva image is shown on the board itself and paper patterns never cover it
 test('Grouped primary widget entries expose legacy widget variants without deleting original renderers', () => {
   const source = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
   assert.match(source, /useState<string>\("core"\)/);
-  assert.match(source, /regularGroups\.map\(\(group\)/);
+  assert.match(source, /regularGroups\.map\(\(group, groupIndex\)/);
   assert.match(source, /label: "▦ Weitere Widgets"/);
   assert.match(source, /label: "🕘 Zuletzt verwendet"/);
   assert.match(source, /group\.sources/);

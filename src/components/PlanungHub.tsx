@@ -6,7 +6,6 @@ import { resolveWeeklyPlanOpeningWeek } from '../lib/planningWeekNavigation';
 import { buildSchoolYearWeekList } from '../lib/weeklyPlanData';
 import { getFachThemeStyles } from '../lib/fachColorUtils';
 import {
-  LayoutDashboard,
   CalendarDays,
   CalendarRange,
   Folder,
@@ -37,12 +36,6 @@ const coreItems: PlanningItem[] = [
     label: 'Jahresplanung',
     description: 'Themen und Lernziele über das Schuljahr verteilen.',
     icon: CalendarRange,
-  },
-  {
-    id: 'planungszentrale',
-    label: 'Wochen-Check',
-    description: 'Offene Vorbereitungen erkennen und im Wochenplan ergänzen.',
-    icon: LayoutDashboard,
   },
 ];
 
@@ -115,6 +108,14 @@ export default function PlanungHub() {
   const unlabelledLessons = weekOverview.reduce((sum, day) => sum + day.missingTopics, 0);
   const preparation = summarizePlanningWeekPreparation(weekOverview);
   const isCurrentCalendarWeek = currentWeek?.kw === activeKW;
+  const openLesson = (day: string, index: number) => {
+    setApp(previous => ({
+      ...previous,
+      currentKW: activeKW,
+      weeklyPlanTarget: { classId: previous.activeClassId, schoolYear: previous.schuljahr, week: activeKW, day, index },
+    }));
+    setPage('wochenplanung');
+  };
 
   return (
     <div data-planning-hub className="mx-auto w-full max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
@@ -173,12 +174,12 @@ export default function PlanungHub() {
             </button>
           )}
         </div>
-        <div data-testid="planning-preparation-status" role="status"
+        <div data-testid="planning-preparation-status"
           className="flex flex-wrap items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface2)] p-3">
           <span aria-hidden="true" className="mt-0.5 shrink-0 text-[var(--text2)]">
             {preparation.kind === 'topics-entered' ? <CheckCircle2 size={19} /> : <AlertCircle size={19} />}
           </span>
-          <div className="min-w-0 flex-1">
+          <div role="status" className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-[var(--text)]">{preparation.label}</p>
             <p className="mt-1 text-xs leading-relaxed text-[var(--text2)]">{preparation.explanation}</p>
             {!isCurrentCalendarWeek && (
@@ -187,6 +188,10 @@ export default function PlanungHub() {
               </p>
             )}
           </div>
+          <button type="button" onClick={() => setPage('planungszentrale')}
+            className="min-h-11 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)]">
+            Wochen-Check öffnen
+          </button>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {weekOverview.map(day => {
@@ -204,19 +209,22 @@ export default function PlanungHub() {
                 </p>
                 {day.lessons.length ? (
                   <ul className="mt-2 space-y-1 text-xs text-[var(--text2)]">
-                    {day.lessons.slice(0, 2).map(lesson => {
+                    {day.lessons.map(lesson => {
                       const fachTheme = getFachThemeStyles(lesson.subject, app.fachConfig);
                       return (
-                        <li key={lesson.hour} data-klassio-subject-card={lesson.subject} data-klassio-subject-stripe="true"
-                          style={{ '--fach-card-bg': fachTheme.bgLight, '--fach-card-stripe': fachTheme.hex } as React.CSSProperties}
-                          className="min-w-0 rounded-md border-l-4 border-solid px-2 py-1.5"
-                          title={`${lesson.hour}. ${lesson.subject}: ${lesson.topic || 'Thema fehlt'}`}>
-                          <span className="block break-words font-semibold text-[var(--text)]">{lesson.hour}. {lesson.subject}</span>
-                          <span className="mt-0.5 line-clamp-2 break-words">{lesson.topic || 'Thema fehlt'}</span>
+                        <li key={lesson.hour}>
+                          <button type="button" data-klassio-subject-card={lesson.subject} data-klassio-subject-stripe="true"
+                            data-planning-lesson={`${day.day}-${lesson.hour}`}
+                            aria-label={`${day.day}, ${lesson.hour}. Stunde, ${lesson.subject}: ${lesson.topic || 'Thema fehlt'}, bearbeiten`}
+                            onClick={() => openLesson(day.day, lesson.hour - 1)}
+                            style={{ '--fach-card-bg': fachTheme.bgLight, '--fach-card-stripe': fachTheme.hex } as React.CSSProperties}
+                            className="min-h-11 w-full min-w-0 rounded-md border-l-4 border-solid px-2 py-1.5 text-left hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+                            <span className="block break-words font-semibold text-[var(--text)]">{lesson.hour}. {lesson.subject}</span>
+                            <span className="mt-0.5 line-clamp-2 break-words">{lesson.topic || 'Thema fehlt'}</span>
+                          </button>
                         </li>
                       );
                     })}
-                    {day.lessons.length > 2 && <li className="text-[var(--text3)]">+ {day.lessons.length - 2} weitere</li>}
                   </ul>
                 ) : (
                   <p className="mt-2 text-xs text-[var(--text3)]">Noch keine Stunden eingetragen</p>
@@ -228,9 +236,6 @@ export default function PlanungHub() {
             );
           })}
         </div>
-        <p className="text-xs text-[var(--text3)]">
-          Hier siehst du die gespeicherten Einträge. Zum Bearbeiten öffne den Wochenplan.
-        </p>
       </section>
 
       <section className="space-y-3" aria-labelledby="planung-kern">
@@ -241,7 +246,7 @@ export default function PlanungHub() {
             </h2>
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {coreItems.map(item => (
             <PlanningCard key={item.id} item={item} onOpen={setPage} />
           ))}

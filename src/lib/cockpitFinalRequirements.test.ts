@@ -27,7 +27,8 @@ test("Cockpit: Widgetbibliothek hält Kernwidgets und Alt-Layouts erreichbar", (
   assert.match(teachingSurface, /\{ id: "core", label: "🧩 Kernwidgets" \}/);
   assert.match(teachingSurface, /\{ id: "legacy", label: "▦ Weitere Widgets" \}/);
   assert.match(teachingSurface, /\{ id: "recent", label: "🕘 Zuletzt verwendet" \}/);
-  assert.match(teachingSurface, /regularGroups\.map\(\(group\)/);
+  assert.match(teachingSurface, /regularGroups\.map\(\(group, groupIndex\)/);
+  assert.match(teachingSurface, /data-widget-favorite-start/);
   assert.match(teachingSurface, /aria-label="Widget-Bibliothek"/);
   assert.match(teachingSurface, /placeholder="Widget suchen … z\. B\. Timer, Gruppen, Brüche"/);
   assert.doesNotMatch(teachingSurface, /Wähle oben eine Kategorie/);

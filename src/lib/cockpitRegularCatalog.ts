@@ -46,6 +46,17 @@ const allWidgetGroups: readonly CockpitWidgetGroup[] = [
     .map(item => ({ id: item.type, label: getCockpitWidgetCanonicalDisplayLabel(item.type), sources: [item.type] })),
 ];
 
+export function getCockpitFavoriteGroups(types: readonly string[]): CockpitWidgetGroup[] {
+  const coreIds = new Set(COCKPIT_CORE_WIDGETS.map(group => group.id));
+  const byType = new Map(allWidgetGroups.flatMap(group => group.sources.map(type => [type, group] as const)));
+  const chosen = new Map<string, CockpitWidgetGroup>();
+  for (const type of types) {
+    const group = byType.get(type as CockpitWidgetLibraryId);
+    if (group && !coreIds.has(group.id)) chosen.set(group.id, group);
+  }
+  return [...chosen.values()];
+}
+
 const timeAliases: Record<TimeToolMode, readonly string[]> = {
   timer: ['Countdown', 'Sanduhr'],
   stopwatch: ['Stopwatch', 'Stop Uhr'],

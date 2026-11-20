@@ -222,7 +222,7 @@ import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
 import { BoardInk, type BoardInkHandle, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
-import { COCKPIT_CORE_WIDGETS, getRegularCockpitGroups, type CockpitWidgetModeTarget } from "../lib/cockpitRegularCatalog";
+import { COCKPIT_CORE_WIDGETS, getCockpitFavoriteGroups, getRegularCockpitGroups, type CockpitWidgetModeTarget } from "../lib/cockpitRegularCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
 import HomeworkWidget from "./cockpit/widgets/HomeworkWidget";
 import StarsReviewWidget from "./cockpit/widgets/StarsReviewWidget";
@@ -3462,9 +3462,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     return selectedFavFolder;
   };
 
-  const toggleFavorite = (type: string, e: React.MouseEvent) => {
+  const toggleFavorite = (type: string, e: React.MouseEvent, folder = getResolvedFavFolder()) => {
     e.stopPropagation();
-    const folder = getResolvedFavFolder();
     setFavoritesBySubject((prev) => {
       const currentList = prev[folder] || [];
       const updatedList = currentList.includes(type)
@@ -9642,7 +9641,12 @@ ${content}
                                       .toLowerCase()
                                       .trim();
                                     if (activeWidgetCategory !== "legacy" && (query || !["favorites", "recent"].includes(activeWidgetCategory))) {
-                                      const regularGroups = getRegularCockpitGroups(activeWidgetCategory, query);
+                                      const isStart = activeWidgetCategory === "core" && !query;
+                                      const folders = [favoritesBySubject?.[currentResolvedFolder], favoritesBySubject?.Allgemein];
+                                      const quickFavorites = isStart
+                                        ? getCockpitFavoriteGroups(folders.flatMap(items => Array.isArray(items) ? items : [])).slice(0, 6)
+                                        : [];
+                                      const regularGroups = [...getRegularCockpitGroups(activeWidgetCategory, query), ...quickFavorites];
                                       return (
                                         <>
                                           {query && (
@@ -9655,7 +9659,7 @@ ${content}
                                               Keine passenden Widgets gefunden
                                             </div>
                                           )}
-                                          {regularGroups.map((group) => {
+                                          {regularGroups.map((group, groupIndex) => {
                                             const searchMode = group.openMode;
                                             const title = searchMode && searchMode.label !== group.label
                                               ? `${searchMode.label} · ${group.label}` : group.label;
@@ -9671,14 +9675,18 @@ ${content}
                                               : "Unterrichts-Widget");
                                             const hasSeparateVariants = variants.length > 1 && !["timer", "randomname", "klassenglas", "trafficlight", "clockpuzzle"].includes(group.id);
                                             const expanded = expandedCoreWidget === group.id || Boolean(query);
-                                            const isFav = (favoritesBySubject[getResolvedFavFolder()] || []).includes(primaryType);
+                                            const isQuickFavorite = isStart && groupIndex >= COCKPIT_CORE_WIDGETS.length;
+                                            const favoriteSource = group.sources.find(type => favoritesBySubject?.[currentResolvedFolder]?.includes(type));
+                                            const generalSource = isQuickFavorite && group.sources.find(type => favoritesBySubject?.Allgemein?.includes(type));
+                                            const isFav = Boolean(favoriteSource || generalSource);
                                             const isPinned = quickBarSettings.itemIds.includes(primaryType as CockpitQuickbarId);
                                             const primaryWidget = cockpitWidgets.find(widget => widget.type === primaryType);
                                             const isActive = Boolean(primaryWidget?.visible);
                                             const isMinimized = Boolean(primaryWidget && minimizedWidgetIds.includes(primaryWidget.id));
                                             return (
                                               <div key={group.id} data-testid={`cockpit-core-group-${group.id}`}
-                                                data-widget-core-start={activeWidgetCategory === "core" && !query ? "true" : undefined}
+                                                data-widget-core-start={isStart && !isQuickFavorite ? "true" : undefined}
+                                                data-widget-favorite-start={isQuickFavorite ? "true" : undefined}
                                                 className={`klassio-widget-library-card relative flex min-h-[96px] flex-wrap items-center gap-3 rounded-2xl border p-3 transition-all ${
                                                   isActive
                                                     ? "border-emerald-200 bg-emerald-50/50"
@@ -9690,6 +9698,7 @@ ${content}
                                                 <div className="min-w-0 flex-1">
                                                   <div className="flex items-center gap-2">
                                                     <h3 className="truncate text-sm font-black text-slate-900">{title}</h3>
+                                                    {isQuickFavorite && <span className="text-xs font-semibold text-amber-800">Favorit</span>}
                                                     {isMinimized
                                                       ? <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">minimiert</span>
                                                       : isActive && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">offen</span>}
@@ -9698,7 +9707,8 @@ ${content}
                                                 </div>
                                                 <div className="klassio-widget-card-actions flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                                                   <button type="button" data-widget-card-action="favorite"
-                                                    onClick={(event) => toggleFavorite(primaryType, event)}
+                                                    onClick={(event) => toggleFavorite(favoriteSource || generalSource || primaryType, event,
+                                                      !favoriteSource && generalSource ? "Allgemein" : currentResolvedFolder)}
                                                     aria-label={isFav ? `${group.label} aus Favoriten entfernen` : `${group.label} zu Favoriten hinzufügen`}
                                                     title={isFav ? "Von Favoriten entfernen" : "Zu Favoriten hinzufügen"}
                                                     className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl border transition-colors ${

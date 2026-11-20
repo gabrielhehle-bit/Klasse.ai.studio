@@ -12,14 +12,14 @@ test('KEL subject preview waits until the actual subject slide exists', () => {
   assert.match(presentation, /setSlideIndex\(target\);\s*setView\('slides'\);\s*setSubjectPreviewRequest\(null\)/);
   assert.match(presentation, /setSubjectPreviewRequest\(item.fach\)/);
   assert.doesNotMatch(presentation, /setSlideIndex\(Math.max\(0, position\)\); setView\('slides'\)/);
-  assert.match(presentation, /setSubjectPreviewRequest\(null\);\s*\/\/ A fresh meeting/);
+  assert.match(presentation, /setSubjectPreviewRequest\(null\);[\s\S]*?\}, \[selectionScope\]\);/);
 });
 
 test('preview activates the selected subject but marks the configuration as unsaved', () => {
   const start = presentation.indexOf('setVisible(previous => ({ ...previous, learning: true, subjectPages: true }));');
   assert.ok(start >= 0);
   const action = presentation.slice(start, start + 250);
-  assert.match(action, /setSelectionSaved\(false\)/);
+  assert.match(action, /markSelectionEdited\(\)/);
   assert.match(action, /setSubjectPreviewRequest\(item.fach\)/);
   assert.doesNotMatch(action, /setApp\(/);
 });
