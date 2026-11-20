@@ -135,7 +135,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
   const areaFields = (
     <div className="space-y-2">
       <label htmlFor="assessment-item-area" className="block text-sm font-bold text-slate-700">
-        {learningAreaQuickEntry ? 'Lernbereich' : `Teilbereich in ${subject} (optional)`}
+        {learningAreaQuickEntry ? 'Lernbereich' : <>Teilbereich in {subject} (optional)</>}
       </label>
       <input id="assessment-item-area" list="assessment-area-options" value={area}
         autoFocus={learningAreaQuickEntry} required={learningAreaQuickEntry}
