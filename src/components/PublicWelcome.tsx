@@ -19,6 +19,7 @@ import {
   Users,
 } from 'lucide-react';
 import { getNormalizedAssessmentPercent } from '../lib/GradeUtils';
+import PublicFreePromise from './PublicFreePromise';
 
 export type PublicEntryMode = 'landing' | 'demo';
 
@@ -218,6 +219,7 @@ function ProductPreviewSection({ onDemo }: Pick<PublicWelcomeProps, 'onDemo'>) {
 function Landing({ onLogin, onDemo }: Pick<PublicWelcomeProps, 'onLogin' | 'onDemo'>) {
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f7f8fb] text-slate-950">
+      <PublicFreePromise />
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-[#f7f8fb]/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-3 px-4 py-3.5 sm:px-7 sm:py-4 lg:px-8">
           <KlassioMark />
@@ -737,7 +739,7 @@ function Demo({ onLogin, onHome }: Pick<PublicWelcomeProps, 'onLogin' | 'onHome'
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
-      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
+      <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <button
@@ -824,6 +826,9 @@ function Demo({ onLogin, onHome }: Pick<PublicWelcomeProps, 'onLogin' | 'onHome'
           </button>
         </div>
       </main>
+      <footer>
+        <PublicFreePromise />
+      </footer>
     </div>
   );
 }

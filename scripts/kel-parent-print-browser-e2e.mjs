@@ -128,14 +128,41 @@ async function clickSelector(c, selector) {
 
 const client = await createClient();
 try {
-  await client.send('Page.navigate', { url: new URL('/demo', BASE_URL).href });
-  await waitFor(client, 'public demo exposes the complete example journey without signing in',
-    'Boolean(document.querySelector("[data-demo-learning-path] select"))');
-  await waitFor(client, 'the public offer banner does not cover the demo heading', `(() => {
-    const banner = [...document.querySelectorAll('span')].find(span => span.textContent === '0 € dauerhaft');
-    const h1 = document.querySelector('h1');
-    return banner && h1 && banner.parentElement.getBoundingClientRect().bottom <= h1.getBoundingClientRect().top;
-  })()`);
+  const demoUrl = new URL('/demo', BASE_URL).href;
+  for (const viewport of [
+    { width: 1360, height: 760, deviceScaleFactor: 1, mobile: false },
+    { width: 360, height: 740, deviceScaleFactor: 1, mobile: true },
+  ]) {
+    await client.send('Emulation.setDeviceMetricsOverride', viewport);
+    await client.send('Emulation.setTouchEmulationEnabled', { enabled: viewport.mobile });
+    await client.send('Page.navigate', { url: demoUrl });
+    await waitFor(client, `public demo opens without signing in at ${viewport.width}px`,
+      `window.innerWidth === ${viewport.width} && Boolean(document.querySelector("[data-demo-learning-path] select"))`);
+    await evaluate(client, 'window.scrollTo({ top: 0, behavior: "instant" })');
+    const initialTop = await evaluate(client, `(() => {
+      const price = document.querySelector('main + footer [data-public-free-promise]');
+      if (document.querySelectorAll('[data-public-free-promise]').length !== 1 ||
+          !price?.textContent.includes('0 € dauerhaft')) {
+        throw new Error('The demo must show the price once, in the footer.');
+      }
+      return price.getBoundingClientRect().top;
+    })()`);
+    await evaluate(client, 'window.scrollTo({ top: 240, behavior: "instant" })');
+    await waitFor(client, `demo header and price scroll with the page at ${viewport.width}px`, `(() => {
+      const header = document.querySelector('header').getBoundingClientRect();
+      const price = document.querySelector('main + footer [data-public-free-promise]').getBoundingClientRect();
+      return window.scrollY > 0 && header.bottom <= 0 &&
+        Math.abs(price.top + window.scrollY - ${initialTop}) < 2;
+    })()`);
+    await evaluate(client, 'window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })');
+    await waitFor(client, `demo price is readable at the end of the page at ${viewport.width}px`, `(() => {
+      const price = document.querySelector('main + footer [data-public-free-promise]').getBoundingClientRect();
+      return price.top >= 0 && price.bottom <= window.innerHeight + 1;
+    })()`);
+  }
+  await client.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+  await client.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await evaluate(client, 'window.scrollTo({ top: 0, behavior: "instant" })');
   await setControl(client, '[data-demo-learning-path] select', '3');
   await clickButton(client, 'Lernnachweis erfassen');
   await waitFor(client, 'the chosen grade carries through to the demo dossier',
@@ -143,6 +170,11 @@ try {
   await clickButton(client, 'Elternblatt öffnen');
   await waitFor(client, 'the demo parent sheet carries through the recorded evidence',
     'document.querySelector("[data-demo-learning-path] article")?.textContent.includes("Leseflüssigkeit · 1 Nachweis · 60 %")');
+  await clickSelector(client, 'header button[aria-label="Zur Startseite"]');
+  await waitFor(client, 'the public home page retains its original price banner', `(() => {
+    const banner = document.querySelector('[data-public-free-promise] + header')?.previousElementSibling;
+    return location.pathname === '/' && banner?.textContent.includes('0 € dauerhaft');
+  })()`);
   await client.send('Page.navigate', { url: BASE_URL });
   await waitFor(client, 'access code gate', 'document.body?.innerText.toLowerCase().includes("geschützter zugang")');
   await fillInput(client, 'Zugangscode', ACCESS_CODE);
