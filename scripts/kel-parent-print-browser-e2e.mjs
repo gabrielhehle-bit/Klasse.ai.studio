@@ -425,8 +425,100 @@ try {
   const nextChildId = await evaluate(client,
     'Array.from(document.querySelectorAll("[data-kel-child]")).map(b=>b.getAttribute("data-kel-child")).find(id=>id!==' + q(sampleStudentId) + ')');
   if (!nextChildId) throw new Error('A second sample child is required for the new conversation');
+  const childName = await evaluate(client, `document.querySelector('[data-kel-child=' + ${q(q(nextChildId))} + '] h2')?.textContent.trim()`);
+  if (!childName) throw new Error('No name for the synthetic test pupil');
+  if (!await evaluate(client, 'Boolean(document.querySelector("[data-menu-id=noten]"))')) {
+    await clickSelector(client, 'button[aria-label^="Mehr ("]');
+  }
+  await clickSelector(client, '[data-menu-id="noten"]');
+  await waitFor(client, 'gradebook opens for recording learning evidence', 'Boolean(document.querySelector("#gradebook-active-subject"))');
+
+  const cases = [
+    { subject: 'Deutsch', area: 'Lesen', title: 'Leseflüssigkeit', mode: 'grades', value: '2' },
+    { subject: 'Mathematik', area: 'Größen und Messen', title: 'Geld', mode: 'points', value: '16' },
+  ];
+  const openLearningAssessment = async () => {
+    await clickSelector(client, '#gradebook-add-assessment-trigger');
+    await waitFor(client, 'new gradebook assessment chooser', 'Boolean(document.querySelector("#gradebook-add-assessment-menu"))');
+    await clickButton(client, 'Lernbereich bewerten');
+    await waitFor(client, 'learning area editor opens with area focused',
+      'document.querySelector("#assessment-item-modal-title")?.textContent==="Lernbereich bewerten" && document.activeElement?.id==="assessment-item-area"');
+  };
+  const choosePreset = async (group, value) => {
+    const clicked = await evaluate(client, `(() => {
+      const button = [...document.querySelectorAll(${q(group + ' button')})].find(item => item.textContent.trim() === ${q(value)});
+      if (!button) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!clicked) throw new Error('Learning-area preset not available: ' + value);
+  };
+
+  await setControl(client, '#gradebook-active-subject', cases[0].subject);
+  const originalColumns = await evaluate(client, 'document.querySelectorAll("[data-gradebook-scroll-container] input[data-col]").length');
+  await openLearningAssessment();
+  await waitFor(client, 'learning-area assessment cannot be saved without an area',
+    'document.querySelector("#btn-save-assessment-modal")?.disabled===true');
+  await choosePreset('[aria-label="Lernbereiche"]', 'Lesen');
+  await clickSelector(client, '#btn-cancel-assessment-modal');
+  await waitFor(client, 'cancel closes the editor without creating a column',
+    `!document.querySelector("#assessment-item-modal-content") && document.querySelectorAll("[data-gradebook-scroll-container] input[data-col]").length===${originalColumns}`);
+
+  for (const { subject, area, title, mode, value } of cases) {
+    await setControl(client, '#gradebook-active-subject', subject);
+    if (mode === 'points') {
+      await client.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+      await client.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    }
+    await openLearningAssessment();
+    await choosePreset('[aria-label="Lernbereiche"]', area);
+    await choosePreset('[data-learning-area-skills]', title);
+    await waitFor(client, `${subject} underpoint becomes the assessment title`,
+      `document.querySelector("#assessment-item-title-input")?.value===${q(title)}`);
+    if (mode === 'points') {
+      await waitFor(client, 'learning area and underpoint buttons fit a phone and stay touch sized', `(() => {
+        const root = document.querySelector('#assessment-item-modal-content');
+        const buttons = [...root.querySelectorAll('[aria-label="Lernbereiche"] button, [data-learning-area-skills] button')];
+        return innerWidth===390 && buttons.length>0 && buttons.every(button => {
+          const box = button.getBoundingClientRect();
+          return box.height>=43.5 && box.left>=0 && box.right<=innerWidth+1;
+        });
+      })()`);
+    }
+    await clickSelector(client, `[name="assessment-item-mode"][value=${q(mode)}]`);
+    if (mode === 'points') await setControl(client, '#assessment-item-max-points-input', '20');
+    await clickSelector(client, '#btn-save-assessment-modal');
+    await waitFor(client, `${subject} opens its own single-column entry`,
+      `document.querySelector("[data-gradebook-column-entry] [data-gradebook-entry-heading]")?.textContent.includes(${q(title)})`);
+    const scoreSelector = `[data-gradebook-column-entry] input[data-col^="obj-"]`;
+    const scoreIndex = await evaluate(client,
+      `[...document.querySelectorAll(${q(scoreSelector)})].findIndex(input => input.getAttribute('aria-label')?.endsWith(${q(' für ' + childName)}) && input.getClientRects().length>0)`);
+    if (scoreIndex < 0) throw new Error('The synthetic pupil is missing from the assessment column');
+    const score = `[...document.querySelectorAll(${q(scoreSelector)})][${scoreIndex}]`;
+    await evaluate(client, `(() => {
+      const input = ${score};
+      input.focus();
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(input,${q(value)});
+      input.dispatchEvent(new Event("input",{bubbles:true}));
+    })()`);
+    await evaluate(client, `(${score}).dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}))`);
+    await waitFor(client, `${subject} grade is committed for the test pupil`, `(${score})?.value===${q(value)}`);
+    await clickButton(client, 'Zur Gesamtübersicht');
+  }
+  await client.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+  await client.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await clickSelector(client, '[data-menu-id="kel"]');
+  await waitFor(client, 'KEL child picker opens after grade entry', 'Boolean(document.querySelector("[data-kel-shared-dossier-portal]"))');
   await clickSelector(client, '[data-kel-child=' + q(nextChildId) + ']');
   await waitFor(client, 'direct conversation preparation', 'Array.from(document.querySelectorAll("h1")).some(h=>h.textContent==="Gespräch vorbereiten")');
+  await clickSelector(client, 'button[title="KEL schließen"]');
+  await choosePreset('[data-student-dossier-areas]', 'Überblick');
+  for (const { subject, area, title } of cases) {
+    await waitFor(client, `${title} is grouped under ${area} in the pupil dossier`,
+      `document.querySelector('[data-dossier-core-domains] [data-assessment-area=' + ${q(q(area))} + ']')?.textContent.includes(${q(title)})`);
+  }
+  await clickButton(client, 'KEL-Gespräch vorbereiten');
+  await waitFor(client, 'KEL preparation from the pupil dossier', 'Array.from(document.querySelectorAll("h1")).some(h=>h.textContent==="Gespräch vorbereiten")');
 
   const subjectCheckbox = 'Array.from(document.querySelectorAll("[data-testid=kel-gradebook-preparation] label")).find(label=>label.textContent.trim().startsWith("Deutsch:"))?.querySelector("input[type=checkbox]")';
   await waitFor(client, 'documented German subject is automatically chosen', `(${subjectCheckbox})?.checked===true`);
@@ -434,6 +526,11 @@ try {
   await clickSelector(client, '[aria-label^="Folie"][aria-label$=": Deutsch"]');
   await waitFor(client, 'automatic subject page shows data from the gradebook',
     'document.querySelector("[data-kel-subject-page=Deutsch]")?.textContent.includes("Mitarbeit dokumentiert")');
+  for (const { subject, area, title } of cases) {
+    await clickSelector(client, `[aria-label^="Folie"][aria-label$=${q(': ' + subject)}]`);
+    await waitFor(client, `${title} is grouped under ${area} on the KEL slide`,
+      `[...document.querySelectorAll("[data-kel-subject-evidence] dl > div")].some(row=>row.querySelector("dt")?.textContent===${q(area)} && row.querySelector("dd")?.textContent.includes(${q(title)}))`);
+  }
   await clickButton(client, 'Vorbereiten');
 
   await evaluate(client, `(${subjectCheckbox})?.click()`);
@@ -463,6 +560,25 @@ try {
   await clickButton(client, 'Elternblatt ansehen');
   await waitFor(client, 'same child and agreement copied into the parent sheet',
     'document.querySelector("#kel-parent-student")?.value===' + q(nextChildId) + ' && document.querySelector("#kel-parent-agreements")?.value.includes("Die Lehrperson legt die Karten bereit.") && document.querySelector("#kel-parent-agreements")?.value.includes("25.11.2026")');
+  for (const { area, title } of cases) {
+    await waitFor(client, `${title} is grouped under ${area} on the parent sheet`,
+      `document.querySelector('[data-kel-parent-report] [data-kel-learning-area=' + ${q(q(area))} + ']')?.textContent.includes(${q(title)})`);
+  }
+  await evaluate(client, 'document.body.classList.add("print-center-active","print-center-kel-parent-active")');
+  await client.send('Emulation.setEmulatedMedia', { media: 'print' });
+  const learningPdf = await client.send('Page.printToPDF', { printBackground: true, preferCSSPageSize: true });
+  const learningDocument = await getDocument({
+    data: new Uint8Array(Buffer.from(learningPdf.data, 'base64')), useSystemFonts: true, disableFontFace: true,
+  }).promise;
+  let learningText = '';
+  for (let page = 1; page <= learningDocument.numPages; page++) {
+    const pageText = await (await learningDocument.getPage(page)).getTextContent();
+    learningText += pageText.items.map(item => ('str' in item ? item.str : '')).join(' ');
+  }
+  for (const { area, title } of cases) {
+    if (!learningText.includes(area) || !learningText.includes(title)) throw new Error('Printed PDF lacks ' + area + ' or ' + title);
+  }
+  console.log('PASS Real A4 parent PDF includes both learning areas and their recorded underpoints');
 
 } finally {
   client.close();

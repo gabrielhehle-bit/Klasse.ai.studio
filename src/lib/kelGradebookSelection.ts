@@ -52,9 +52,13 @@ function resultText(value: number | string, mode: AssessmentMode, configuredMax:
 export function getKelGradebookAssessments(
   app: AppState,
   studentId: string,
-  semester: '1' | '2',
+  semester: '1' | '2' | 'both',
   allowedSubjects: readonly string[],
 ): KelSelectedAssessment[] {
+  if (semester === 'both') {
+    return (['1', '2'] as const).flatMap(period =>
+      getKelGradebookAssessments(app, studentId, period, allowedSubjects));
+  }
   if (!app.schueler?.some(student => student.id === studentId)) return [];
   const studentData = app.noten?.[studentId] || {};
   const uniqueSubjects = [...new Set(allowedSubjects)].filter(fach => typeof fach === 'string' && fach.trim());

@@ -4,6 +4,8 @@ import { getDossierOverviewStats } from '../lib/dossierOverviewStats';
 import { getStudentNotes } from '../lib/studentMetrics';
 import { getStudentSubjectYearParticipationSummary } from '../lib/studentParticipation';
 import { getStudentAssessmentDomainPerformance } from '../lib/assessmentDomainPerformance';
+import { getKelGradebookAssessments } from '../lib/kelGradebookSelection';
+import { getKelSubjectEvidence } from '../lib/kelPresentationSources';
 import { summarizeKelMood, summarizeKelBehavior } from '../lib/kelParentReportMetrics';
 import { selectKelParentLearningAreas } from '../lib/kelParentAreaSelection';
 import { buildKelParentTrend } from '../lib/kelParentTrend';
@@ -108,15 +110,20 @@ export default function KELParentReport({
     ...getStudentSubjectYearParticipationSummary(app, studentId, subject),
   })).filter(row => row.hasData);
 
+  const learningAssessments = options.showLearning
+    ? getKelGradebookAssessments(app, studentId, options.learningSemester ?? 'both', options.subjects)
+    : [];
   const learning = options.subjects.map(subject => {
     const documented = options.learningSemester
       ? getStudentAssessmentDomainPerformance(app, studentId, subject, options.learningSemester)
       : getStudentAssessmentDomainPerformance(app, studentId, subject, 'both');
     const selected = options.subjectAreas?.[subject];
+    const rows = selectKelParentLearningAreas(documented, selected);
     return {
       subject,
       documentedCount: documented.length,
-      rows: selectKelParentLearningAreas(documented, selected),
+      rows,
+      evidenceByArea: getKelSubjectEvidence(learningAssessments, subject, rows, true),
     };
   });
   const intentionallyHiddenAreas = learning.some(row => row.documentedCount > 0) &&
@@ -262,6 +269,7 @@ export default function KELParentReport({
                       {subject.rows.map((row, index) => {
                         const percentage = Math.min(100, Math.max(0, row.percent));
                         const color = COLORS[index % COLORS.length];
+                        const titles = [...(subject.evidenceByArea.get(row.area) ?? [])].filter(title => title !== row.area);
                         return (
                           <div key={row.area} data-kel-learning-item data-kel-learning-area={row.area}
                             className="flex items-center gap-1.5 break-inside-avoid">
@@ -278,6 +286,7 @@ export default function KELParentReport({
                             <div className="min-w-0">
                               <p className="break-words text-[11px] font-semibold leading-tight text-slate-700">{row.area}</p>
                               <p className="text-[11px] text-slate-500">{row.assessments} Nachweise</p>
+                              {titles.length > 0 && <p className="break-words text-[11px] leading-snug text-slate-600">{titles.join(' · ')}</p>}
                             </div>
                           </div>
                         );

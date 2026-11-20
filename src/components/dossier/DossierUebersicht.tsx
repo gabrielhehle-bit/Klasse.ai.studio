@@ -343,7 +343,7 @@ export default function DossierUebersicht({student,semester,onTabChange,onSubjec
 
     {assessedCoreDomains.length>0 && <section data-dossier-core-domains className="space-y-3" aria-label="Dokumentierte Lernteilbereiche">
       <div className="flex flex-wrap items-end justify-between gap-2"><div><h2 className="text-base font-black text-slate-900">Lernteilbereiche mit Nachweisen</h2><p className="mt-1 text-xs text-slate-500">Nur tatsächlich dokumentierte Leistungen in Deutsch und Mathematik – keine pauschale Kompetenzbewertung.</p></div><button type="button" onClick={()=>onTabChange('leistungen')} className="min-h-10 rounded-lg px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50">Details öffnen <ArrowRight size={14} className="inline"/></button></div>
-      <div className="grid gap-3 xl:grid-cols-2">{assessedCoreDomains.map(fach=><AssessmentDomainDonuts key={fach} studentId={student.id} subject={fach} semester={semester} compact hideWhenEmpty />)}</div>
+      <div className="grid gap-3 xl:grid-cols-2">{assessedCoreDomains.map(fach=><AssessmentDomainDonuts key={fach} studentId={student.id} subject={fach} semester={semester} compact hideWhenEmpty showEvidenceTitles />)}</div>
     </section>}
 
     <section className={card} aria-label="Aktuelle Notizen" data-klassio-area>

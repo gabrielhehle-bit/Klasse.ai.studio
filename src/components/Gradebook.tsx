@@ -232,6 +232,7 @@ export default function Gradebook({ initialSection = 'grades', initialSubject }:
     typ: 'sa' | 'lzk' | 'wp' | 'obj';
     idx: number;
     isNew?: boolean;
+    learningAreaQuickEntry?: boolean;
   } | null>(null);
   const [editingColLabel, setEditingColLabel] = useState<{typ: 'sa'|'lzk'|'wp'|'obj', idx: number} | null>(null);
   const [tempColLabel, setTempColLabel] = useState('');
@@ -863,7 +864,7 @@ export default function Gradebook({ initialSection = 'grades', initialSubject }:
     }));
   };
 
-  const addColumn = (e: React.MouseEvent, typ: 'sa' | 'lzk' | 'wp' | 'obj') => {
+  const addColumn = (e: React.MouseEvent, typ: 'sa' | 'lzk' | 'wp' | 'obj', learningAreaQuickEntry = false) => {
     e.stopPropagation();
     setActiveView('noten'); setShowWeights(false); setShowGradeCalculator(false);
     const dataKey: 'sa' | 'lzk' | 'wp' | 'aufgaben' = typ === 'obj' ? 'aufgaben' : typ;
@@ -903,7 +904,7 @@ export default function Gradebook({ initialSection = 'grades', initialSubject }:
     }
 
     const idx = reusableIndex >= 0 ? reusableIndex : currentCount;
-    setEditingAssessmentModal({ typ, idx, isNew: true });
+    setEditingAssessmentModal({ typ, idx, isNew: true, learningAreaQuickEntry });
   };
 
   const removeColumn = (e: React.MouseEvent, typ: 'lzk' | 'wp' | 'obj') => {
@@ -1547,11 +1548,6 @@ export default function Gradebook({ initialSection = 'grades', initialSubject }:
     if (!isolatedCol || editingAssessmentModal || activeView !== 'noten') return;
     focusColumnEntry(true);
   }, [isolatedCol, editingAssessmentModal, activeView]);
-
-  const updateColMeta = (typ: 'sa'|'lzk'|'wp'|'obj', idx: number, labelVal: string, dateVal: string, maxPointsVal?: number, area?: string, itemMode?: 'grades' | 'percent' | 'points') => {
-    setApp(prev => ({ ...prev, notenMeta: updateSubjectColumn(prev.notenMeta || {}, activeFach, typ, idx, labelVal, dateVal, maxPointsVal, area, itemMode) }));
-    setEditingColLabel(null);
-  };
 
   // Keep vertical and horizontal navigation in the same scroll area, while
   // preserving the sticky student names, column headers, and class-average row.
@@ -4423,7 +4419,7 @@ export default function Gradebook({ initialSection = 'grades', initialSubject }:
                   aria-modal="true"
                   aria-labelledby="gradebook-add-assessment-title"
                   aria-describedby="gradebook-add-assessment-description"
-                  className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg p-6"
+                  className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[90dvh] overflow-y-auto p-6"
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(event) => {
                     if (event.key === 'Escape') {
@@ -4466,6 +4462,18 @@ export default function Gradebook({ initialSection = 'grades', initialSubject }:
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        setShowAddAssessmentModal(false);
+                        addColumn(event, 'obj', true);
+                      }}
+                      className="rounded-2xl border border-sky-200 bg-sky-50/60 p-4 text-left transition-colors hover:bg-sky-100/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600"
+                    >
+                      <div className="text-sm font-black text-sky-950">Lernbereich bewerten</div>
+                      <div className="mt-1 text-xs text-sky-800">Lernbereich und Unterpunkt für eine Bewertung auswählen</div>
+                    </button>
+
                     <button
                       aria-label="Schularbeit für die Klasse anlegen"
                       onClick={(event) => {
@@ -4729,7 +4737,7 @@ export default function Gradebook({ initialSection = 'grades', initialSubject }:
               isOpen={editingAssessmentModal !== null}
               onClose={() => setEditingAssessmentModal(null)}
               onSave={(labelVal, dateVal, maxPointsVal, area, selectedMode) => {
-                const { typ, idx, isNew } = editingAssessmentModal;
+                const { typ, idx, isNew, learningAreaQuickEntry } = editingAssessmentModal;
                 const previousMode = getAssessmentItemMode(app, activeFach, typ, idx);
                 const nextMode = selectedMode || previousMode;
                 const dataKey = typ === 'obj' ? 'aufgaben' : typ;
@@ -4764,36 +4772,30 @@ export default function Gradebook({ initialSection = 'grades', initialSubject }:
                     )) return false;
                   }
                 }
-                if (editingAssessmentModal.isNew) {
-                  setApp(prev => {
-                    const meta = { ...(prev.notenMeta || {}) };
-                    const subjectMeta = { ...(meta[activeFach] || {}) };
-                    const counts = { ...(subjectMeta.colCounts || { lzk: 4, wp: 4, obj: 4 }) };
-                    return {
-                      ...prev,
-                      notenMeta: {
-                        ...meta,
-                        [activeFach]: {
-                          ...subjectMeta,
-                          ...(editingAssessmentModal.typ === 'sa' ? { saCount: Math.max(getFachCfg(prev, activeFach).saCount, editingAssessmentModal.idx + 1) } : {}),
-                          colCounts: {
-                            ...counts,
-                            [editingAssessmentModal.typ]: Math.max(
-                              counts[editingAssessmentModal.typ] || 0,
-                              editingAssessmentModal.idx + 1,
-                            ),
-                          },
-                        },
+                setApp(prev => {
+                  const notenMeta = updateSubjectColumn(prev.notenMeta || {}, activeFach, typ, idx, labelVal, dateVal, maxPointsVal, area, nextMode);
+                  if (!isNew) return { ...prev, notenMeta };
+                  const subjectMeta = notenMeta[activeFach];
+                  const counts = subjectMeta.colCounts || { lzk: 4, wp: 4, obj: 4 };
+                  return {
+                    ...prev,
+                    notenMeta: {
+                      ...notenMeta,
+                      [activeFach]: {
+                        ...subjectMeta,
+                        ...(learningAreaQuickEntry ? { enableObj: true } : {}),
+                        ...(typ === 'sa' ? { saCount: Math.max(getFachCfg(prev, activeFach).saCount, idx + 1) } : {}),
+                        colCounts: { ...counts, [typ]: Math.max(counts[typ] || 0, idx + 1) },
                       },
-                    };
-                  });
-                }
-                updateColMeta(editingAssessmentModal.typ, editingAssessmentModal.idx, labelVal, dateVal, maxPointsVal, area, nextMode);
-                if (editingAssessmentModal.isNew) {
+                    },
+                  };
+                });
+                setEditingColLabel(null);
+                if (isNew) {
                   setActiveView('noten'); setShowWeights(false); setFilterMissing(false);
                   setAssessmentFilter('all');
                   setSortBy('name'); setSortOrder('asc');
-                  setIsolatedCol({ typ: editingAssessmentModal.typ, idx: editingAssessmentModal.idx });
+                  setIsolatedCol({ typ, idx });
                 }
                 return true;
               }}
@@ -4817,6 +4819,7 @@ export default function Gradebook({ initialSection = 'grades', initialSubject }:
               subject={activeFach}
               semester={sem}
               isNew={editingAssessmentModal.isNew}
+              learningAreaQuickEntry={editingAssessmentModal.learningAreaQuickEntry}
             />
           )}
         </div>
