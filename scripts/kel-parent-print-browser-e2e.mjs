@@ -584,9 +584,11 @@ try {
     const pageText = await (await learningDocument.getPage(page)).getTextContent();
     learningText += pageText.items.map(item => ('str' in item ? item.str : '')).join(' ');
   }
-  learningText = learningText.normalize('NFKC').replace(/\s+/g, ' ');
+  // PDF.js may extract a font ligature as a separate item inside a word.
+  // The print-layout assertions above already verify the original grouping.
+  const compactLearningText = learningText.normalize('NFKC').replace(/\s+/g, '');
   for (const { area, title } of cases) {
-    if (!learningText.includes(area) || !learningText.includes(title)) {
+    if (![area, title].every(value => compactLearningText.includes(value.replace(/\s+/g, '')))) {
       throw new Error('Printed PDF lacks ' + area + ' or ' + title + ': ' + learningText.slice(0, 1600));
     }
   }
