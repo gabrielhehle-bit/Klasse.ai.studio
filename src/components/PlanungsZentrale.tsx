@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import WeeklyGoalsWidget from './WeeklyGoalsWidget';
 import DailyHomeworkButton from './DailyHomeworkButton';
+import { ChildWeekTaskFields } from './wochenplan/ChildWeekTaskFields';
+import { getClassroomWeeklyTaskDetails } from '../lib/classroomWeeklyPlan';
 import { getPlanningWeekOverview } from '../lib/planningWeekOverview';
 import { reconcileCopiedLessonYearlyStatus, transferQuickPlannedLesson, type QuickPlanTransferMode } from '../lib/quickPlanLessonTransfer';
 
@@ -69,6 +71,7 @@ export default function PlanungsZentrale() {
   const [lessonHomework, setLessonHomework] = useState<string>('');
   const [showInChildWeekPlan, setShowInChildWeekPlan] = useState(false);
   const [childWeekMaterial, setChildWeekMaterial] = useState('');
+  const [childWeekTask, setChildWeekTask] = useState(() => getClassroomWeeklyTaskDetails());
   
   // Didactic settings
   const [didacticType, setDidacticType] = useState<'Einführung' | 'Einzelarbeit mit Kind' | 'Frontalunterricht' | 'Projektunterricht / Freiarbeit'>('Einführung');
@@ -215,11 +218,14 @@ export default function PlanungsZentrale() {
     const expectedSubject = saved?.fach || defaultSubject || availableSubjects[0] || '';
     const expectedMaterials = Array.isArray(saved?.materialsList)
       ? saved.materialsList : saved?.material ? [saved.material] : [];
+    const savedChildWeekTask = getClassroomWeeklyTaskDetails(saved);
     return activeSubject !== expectedSubject ||
       lessonTopic !== (saved?.thema || '') ||
       lessonHomework !== (saved?.housework || '') ||
       showInChildWeekPlan !== (saved?.imKinderWochenplan === true) ||
       childWeekMaterial !== (saved?.wochenplanMaterial || '') ||
+      childWeekTask.wochenplanAufgabenart !== savedChildWeekTask.wochenplanAufgabenart ||
+      childWeekTask.wochenplanAuftrag !== savedChildWeekTask.wochenplanAuftrag ||
       didacticType !== (saved?.art || 'Einführung') ||
       socialForm !== (saved?.sozialform || 'Einzelarbeit') ||
       customMaterialText !== (saved?.customMaterial || '') ||
@@ -276,6 +282,7 @@ export default function PlanungsZentrale() {
       setLessonHomework(lesson.housework || '');
       setShowInChildWeekPlan(lesson.imKinderWochenplan === true);
       setChildWeekMaterial(lesson.wochenplanMaterial || '');
+      setChildWeekTask(getClassroomWeeklyTaskDetails(lesson));
       setDidacticType(lesson.art || 'Einführung');
       setSocialForm(lesson.sozialform || 'Einzelarbeit');
       
@@ -294,6 +301,7 @@ export default function PlanungsZentrale() {
       setLessonHomework('');
       setShowInChildWeekPlan(false);
       setChildWeekMaterial('');
+      setChildWeekTask(getClassroomWeeklyTaskDetails());
       setDidacticType('Einführung');
       setSocialForm('Einzelarbeit');
       setSelectedMaterials([]);
@@ -337,6 +345,7 @@ export default function PlanungsZentrale() {
         housework: lessonHomework,
         imKinderWochenplan: showInChildWeekPlan,
         wochenplanMaterial: childWeekMaterial.trim(),
+        ...getClassroomWeeklyTaskDetails(childWeekTask),
         art: didacticType,
         sozialform: socialForm,
         material: materialSummary,
@@ -1667,12 +1676,15 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                           className="h-5 w-5 accent-indigo-700" />
                         Im Wochenplan der Kinder anzeigen
                       </label>
-                      {showInChildWeekPlan && <label className="mt-2 block text-xs font-semibold text-slate-700">
-                        Was brauchen die Kinder? (optional, sonst Materialien der Stunde)
-                        <textarea value={childWeekMaterial} onChange={event => setChildWeekMaterial(event.target.value)}
-                          className="mt-2 w-full rounded-xl border border-indigo-200 bg-white p-3 text-xs"
-                          placeholder="z. B. Arbeitsheft S. 12, Bleistift" />
-                      </label>}
+                      {showInChildWeekPlan && <div className="mt-2 space-y-3">
+                        <ChildWeekTaskFields details={childWeekTask} onChange={setChildWeekTask} />
+                        <label className="block text-xs font-semibold text-slate-700">
+                          Was brauchen die Kinder? (optional, sonst Materialien der Stunde)
+                          <textarea value={childWeekMaterial} onChange={event => setChildWeekMaterial(event.target.value)}
+                            className="mt-2 w-full rounded-xl border border-indigo-200 bg-white p-3 text-xs"
+                            placeholder="z. B. Arbeitsheft S. 12, Bleistift" />
+                        </label>
+                      </div>}
                     </section>
                     {/* EXPANDABLE SECTION: MEHR DETAILS */}
                     <div className="border-t border-slate-100 pt-2">

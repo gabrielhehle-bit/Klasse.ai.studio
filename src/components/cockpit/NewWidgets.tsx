@@ -1,6 +1,6 @@
 import {readWidgetLifecycleState,usePersistedWidgetLifecycleState} from '../../lib/widgetLifecycleState';
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { TableCheckWidget } from './widgets/TableCheckWidget';
+import { TableCheckWidget, type TableCheckWidgetProps } from './widgets/TableCheckWidget';
 import { FairCallWidget } from './widgets/FairCallWidget';
 import { LernwoerterStudioWidget } from './widgets/LernwoerterStudioWidget';
 import { StoryEmojisWidget } from './widgets/StoryEmojisWidget';
@@ -480,14 +480,8 @@ export const AbcorderWidgetContent: React.FC<{ widget: any, currentIsLight: bool
 // ========================================================
 // 36. WIDGET: TISCH-CHECK (TischCheckWidgetContent)
 // ========================================================
-interface TischCheckWidgetProps {
-  widget: any;
-  onUpdate: (updates: any) => void;
-  currentIsLight: boolean;
-}
-
-export const TischCheckWidgetContent: React.FC<TischCheckWidgetProps> = ({ widget, onUpdate, currentIsLight }) => {
-  return <TableCheckWidget widget={widget} onUpdate={onUpdate} currentIsLight={currentIsLight} />;
+export const TischCheckWidgetContent: React.FC<TableCheckWidgetProps> = (props) => {
+  return <TableCheckWidget {...props} />;
 };
 
 // ========================================================

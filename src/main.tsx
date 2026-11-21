@@ -6,8 +6,6 @@ import './index.css';
 import './ui-polish.css';
 import './planning-dialog.css';
 import './weekly-plan-ux.css';
-import './dashboard-accent-contrast.css';
-import './dashboardTopbarEnhancements';
 import './studentFormStepGuard';
 import './teamTeachingDeviceBridge';
 

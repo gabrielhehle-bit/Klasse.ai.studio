@@ -232,7 +232,7 @@ test("Präsentationswidgets nutzen große Tafelflächen sichtbar aus", () => {
   assert.match(noiseMeterWidget, /const roomyMeter = size\.category === 'fullscreen' \|\| size\.width >= 760 && size\.height >= 500/);
   assert.match(noiseMeterWidget, /roomyMeter \? 'h-9 p-1\.5'/);
 
-  assert.match(timelineWidget, /const roomyTimeline = isFullscreen \|\| \(size\.width >= 820 && size\.height >= 500\)/);
+  assert.match(timelineWidget, /const roomyTimeline = size\.width >= 700 && size\.height >= 340/);
   assert.match(timelineWidget, /roomyTimeline\s+\? 'text-4xl sm:text-5xl'/);
 
   assert.match(randomNameWidget, /const roomyPicker = widgetSize\.width >= 700 && widgetSize\.height >= 480/);

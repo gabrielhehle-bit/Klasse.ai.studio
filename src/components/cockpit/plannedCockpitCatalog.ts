@@ -1,13 +1,7 @@
 /**
- * Beschlossene Auswahl für den NEUEN regulären Unterrichts-Cockpit-Katalog.
- *
- * Noch nicht als Widget-Picker aktivieren: Bei Alias-Quellen ist zuerst die
- * fachliche Zusammenführung (inklusive vorhandener settings/Layout-Daten)
- * zu implementieren und mit alten Backups zu prüfen. Diese Datei führt
- * ausdrücklich KEINE automatische Datenmigration aus. Alte Widgets bleiben
- * bis dahin durch den bisherigen Layout-Renderer lesbar.
- *
- * Dashboard-Widgets und globale Einstellungen gehören nicht in diesen Katalog.
+ * Varianten und Suchbegriffe für zusammengehörige Unterrichtswerkzeuge.
+ * cockpitRegularCatalog.ts legt die aktive Auswahl fest. Alte Varianten
+ * bleiben mit ihren gespeicherten Einstellungen im Widget-Archiv zugänglich.
  */
 export interface PlannedCockpitWidget {
   id: string;

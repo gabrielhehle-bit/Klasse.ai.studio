@@ -502,6 +502,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   // KLEINE WIDGET-FLÄCHE: Übersicht statt abgeschnittene Schülerliste.
   // Das Kind tippt erst auf seine Karte in der vergrößerten Ansicht.
   // ==========================================
+  const openCountLabel = `${summary.open} offen · Offene Check-ins anzeigen`;
   if (showCompactSummary) {
     return (
       <div
@@ -517,23 +518,25 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           <span className="shrink-0 text-xs font-semibold tabular-nums opacity-70">{formattedToday}</span>
         </header>
 
-        <div className="grid shrink-0 grid-cols-3 gap-1.5 text-center" role="status" aria-live="polite"
+        <div className="grid shrink-0 grid-cols-3 gap-1.5 text-center" role="group"
           aria-label={`${summary.present} anwesend, ${summary.open} offen, ${summary.absent} abwesend`}>
           <div className="flex min-h-14 flex-col justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-1 text-emerald-900">
             <strong className="text-xl tabular-nums leading-none">{summary.present}</strong>
             <span className="mt-1 text-xs font-bold">Da</span>
           </div>
-          <div className="flex min-h-14 flex-col justify-center rounded-xl border border-amber-200 bg-amber-50 px-1 text-amber-900">
+          <button type="button" onClick={() => setIsFinalizeModalOpen(true)} disabled={summary.open === 0}
+            aria-label={summary.open ? openCountLabel : 'Keine offenen Check-ins'} aria-haspopup="dialog"
+            className="flex min-h-14 flex-col items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-1 text-amber-900 enabled:hover:bg-amber-100">
             <strong className="text-xl tabular-nums leading-none">{summary.open}</strong>
             <span className="mt-1 text-xs font-bold">Offen</span>
-          </div>
+          </button>
           <div className="flex min-h-14 flex-col justify-center rounded-xl border border-rose-200 bg-rose-50 px-1 text-rose-900">
             <strong className="text-xl tabular-nums leading-none">{summary.absent}</strong>
             <span className="mt-1 text-xs font-bold">Abwesend</span>
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 content-center text-center text-xs font-medium leading-snug">
+        <div className="min-h-0 flex-1 content-center text-center text-xs font-medium leading-snug" role="status">
           {summary.isComplete ? 'Alle Kinder sind erfasst.' : `${summary.open} von ${summary.total} Kindern noch offen.`}
         </div>
         <div className="flex w-full shrink-0 flex-col gap-1.5">
@@ -552,7 +555,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           </button>
         </div>
         {isTeacherModalOpen && createPortal(renderTeacherModal(), document.body)}
-        {isFinalizeModalOpen && renderFinalizeModal()}
+        {isFinalizeModalOpen && createPortal(renderFinalizeModal(), document.body)}
         {activeMoodStudent && renderChildMoodModal()}
       </div>
     );
@@ -578,13 +581,10 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
               <span className="text-[11px] font-bold tabular-nums opacity-70">{formattedToday}</span>
             </div>
           )}
-          <p className={`truncate font-semibold leading-tight ${compactControls ? 'text-[10px]' : 'mt-0.5 text-xs'}`}
-            aria-live="polite">
-            {compactControls
-              ? summary.isComplete ? `${summary.present}/${summary.total} da · vollständig` : `${summary.present}/${summary.total} da · ${summary.open} offen`
-              : summary.isComplete
-                ? `Alle ${summary.total} Kinder erfasst`
-                : `${summary.present} von ${summary.total} da · ${summary.open} noch offen`}
+          <p className={`truncate font-semibold leading-tight ${compactControls ? 'text-[10px]' : 'mt-0.5 text-xs'}`} aria-live="polite">
+            {summary.isComplete
+              ? compactControls ? `${summary.present}/${summary.total} da · vollständig` : `Alle ${summary.total} Kinder erfasst`
+              : compactControls ? `${summary.present}/${summary.total} da` : `${summary.present} von ${summary.total} da`}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -603,11 +603,11 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             <ShieldCheck size={16} className="inline-block" aria-hidden="true" />
             {!compactControls && <span>Anwesenheit bearbeiten</span>}
           </button>
-          {compactControls && !summary.isComplete && <button type="button"
+          {summary.open > 0 && <button type="button"
             onClick={() => setIsFinalizeModalOpen(true)}
-            className="min-h-11 min-w-11 rounded-lg bg-emerald-600 px-2 text-white"
-            title="Check-In abschließen" aria-label="Check-In abschließen">
-            <Check size={17} strokeWidth={3} className="inline-block" aria-hidden="true" />
+            className="min-h-11 shrink-0 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-2 text-xs font-bold tabular-nums text-amber-900 hover:bg-amber-100"
+            aria-haspopup="dialog" aria-label={openCountLabel}>
+            {summary.open} offen
           </button>}
         </div>
       </div>
@@ -728,7 +728,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
       {isTeacherModalOpen && createPortal(renderTeacherModal(), document.body)}
 
       {/* ABSCHLUSSDIALOG */}
-      {isFinalizeModalOpen && renderFinalizeModal()}
+      {isFinalizeModalOpen && createPortal(renderFinalizeModal(), document.body)}
     </div>
   );
 
@@ -1085,9 +1085,10 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   // ==========================================
   function renderFinalizeModal() {
     return (
-      <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs font-sans select-none animate-in fade-in-50">
+      <div role="dialog" aria-modal="true" aria-label="Offene Check-ins"
+        className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs font-sans select-none animate-in fade-in-50">
         <div
-          className={`w-full max-w-lg max-h-[85%] flex flex-col rounded-2xl border shadow-xl overflow-hidden ${
+          className={`w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl border shadow-xl overflow-hidden ${
             currentIsLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-900 border-zinc-700 text-zinc-100'
           }`}
         >
@@ -1111,6 +1112,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             <button
               type="button"
               onClick={() => setIsFinalizeModalOpen(false)}
+              aria-label="Offene Check-ins schließen"
               className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
             >
               <X size={20} />

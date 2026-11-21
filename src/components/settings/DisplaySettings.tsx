@@ -6,12 +6,13 @@ import {
   Type, 
   Sliders, 
   Check,
-  Clock,
   LayoutGrid,
-  Sparkles,
   ArrowRight,
   PenTool
 } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
+import { openDashboardCustomization } from '../../lib/dashboardCustomization';
+import { istSekundarstufe } from '../../lib/sek1Navigation';
 import { motion } from 'motion/react';
 import { AESTHETIC_THEMES } from '../../constants';
 import { MASCOT_OPTIONS, normalizeClassMascot, selectClassMascot } from '../../lib/classMascot';
@@ -28,6 +29,8 @@ export default function DisplaySettings({
   setApp,
   einfachModus
 }: DisplaySettingsProps) {
+  const { setPage } = useApp();
+  const hasTodayEditor = !istSekundarstufe(app.schulart);
   const currentZoom = app.settings?.zoomLevel || 'standard';
   const mascot = normalizeClassMascot(app.classMascot);
 
@@ -190,7 +193,31 @@ export default function DisplaySettings({
           <option value="serif">Serif</option>
           <option value="mono">Monospace</option>
         </select>
+        {hasTodayEditor && (
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold text-slate-800">Schriftstil der Heute-Ansicht</legend>
+            <div className="flex flex-wrap gap-2">
+              <label className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900">
+                <input type="checkbox" className="size-4 accent-accent" checked={app.settings?.fontWeight === 'bold'}
+                  onChange={event => {
+                    const fontWeight = event.target.checked ? 'bold' : 'normal';
+                    setApp(prev => ({ ...prev, settings: { ...prev.settings, fontWeight } }));
+                  }} />
+                Fett
+              </label>
+              <label className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 px-3 text-sm italic text-slate-900">
+                <input type="checkbox" className="size-4 accent-accent" checked={app.settings?.fontStyle === 'italic'}
+                  onChange={event => {
+                    const fontStyle = event.target.checked ? 'italic' : 'normal';
+                    setApp(prev => ({ ...prev, settings: { ...prev.settings, fontStyle } }));
+                  }} />
+                Kursiv
+              </label>
+            </div>
+          </fieldset>
+        )}
         <div className={`rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900 font-${app.settings?.fontFamily || 'standard'}`}
+          style={hasTodayEditor ? { fontWeight: app.settings?.fontWeight, fontStyle: app.settings?.fontStyle } : undefined}
           aria-label="Schriftart-Vorschau">Die Kinder lesen, schreiben und rechnen. 123 · ABC</div>
         <label htmlFor="klassio-board-font" className="block text-sm font-bold text-slate-800">Schriftart der digitalen Tafel</label>
         <select id="klassio-board-font" value={app.boardSettings?.activeFont || 'font-standard'}
@@ -270,55 +297,24 @@ export default function DisplaySettings({
         </div>
       </div>
 
-      {/* Dashboard: Struktur & Vorschau-Zeiten Card */}
-      <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-6 shadow-sm">
-        <div className="flex items-center justify-between border-b border-stone-150 pb-4">
+      {hasTodayEditor && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-[2.5rem] border border-stone-200/80 bg-white p-6 shadow-sm md:p-8">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center">
-              <LayoutGrid size={20} />
+            <div className="grid size-10 shrink-0 place-items-center rounded-2xl border border-indigo-100 bg-indigo-50 text-indigo-600">
+              <LayoutGrid size={20} aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-base font-black text-slate-900">Dashboard: Struktur &amp; Vorschau-Zeiten</h2>
-              <p className="text-xs text-slate-500 font-medium">Passe Zonen, Widgets und automatische Stundenplan-Vorschauen an.</p>
+              <h2 className="text-base font-black text-slate-900">Heute-Ansicht</h2>
+              <p className="text-sm text-slate-600">Ansicht und Tagesvorschau einstellen.</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setApp((prev: any) => ({ ...prev, currentPage: 'dashboard' }));
-              setTimeout(() => {
-                window.dispatchEvent(new CustomEvent('open-dashboard-customize'));
-              }, 100);
-            }}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-3xs active:scale-95 shrink-0"
-          >
-            <Sliders size={14} />
-            <span>Jetzt anpassen</span>
+          <button type="button" onClick={() => openDashboardCustomization('settings', setPage)}
+            className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-indigo-600 px-4 text-sm font-bold text-white hover:bg-indigo-700">
+            <Sliders size={16} aria-hidden="true" />
+            Heute bearbeiten
           </button>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="p-4 bg-slate-50 rounded-2xl border border-stone-200 space-y-2">
-            <div className="flex items-center gap-2 text-indigo-700 font-black text-xs">
-              <Clock size={15} />
-              <span>Vorschau-Verhalten</span>
-            </div>
-            <p className="text-[0.6875rem] text-slate-500 leading-relaxed font-medium">
-              Wähle, ob der Stundenplan starr Heute, starr Morgen oder zeitgesteuert automatisch auf den nächsten Tag wechselt.
-            </p>
-          </div>
-
-          <div className="p-4 bg-slate-50 rounded-2xl border border-stone-200 space-y-2">
-            <div className="flex items-center gap-2 text-indigo-700 font-black text-xs">
-              <Sparkles size={15} />
-              <span>Zonen &amp; Widgets</span>
-            </div>
-            <p className="text-[0.6875rem] text-slate-500 leading-relaxed font-medium">
-              Zone 1 (Unterricht &amp; Tag), Zone 2 (Fokus &amp; To-Dos) und Zone 3 (Planung &amp; Auswertungen) flexibel ein- und ausblenden.
-            </p>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

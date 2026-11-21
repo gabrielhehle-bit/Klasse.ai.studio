@@ -20,7 +20,7 @@ import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal'
 import { MobileDayLessonCards } from './wochenplan/MobileDayLessonCards';
 import { summarizeDailyPendingHelp } from '../lib/weeklyMobileChildProgress';
 import { GarageRestorePicker } from './wochenplan/GarageRestorePicker';
-import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
+import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared, MAX_TAFELHINWEIS_LENGTH, normalizeTafelhinweis } from '../lib/weeklyPlanData';
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
 import { getAttendanceSemester } from '../lib/attendanceData';
 import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
@@ -28,7 +28,8 @@ import { withClassbookNotes } from '../lib/classbookNotes';
 import { splitKlassenbuchCategoryKey } from '../lib/klassenbuchSubjects';
 import { EMPTY_LESSON_DRAFT, hasLessonDraftContent, lessonDraftFromMaterial, lessonDraftToText, normalizeLessonDraft, type LessonDraftFields } from '../lib/lessonDrafts';
 import { useMaterialLibrary } from './Materialbibliothek';
-import { getChildTaskProgress, toggleClassroomWeeklyLesson, weekTaskKey } from '../lib/classroomWeeklyPlan';
+import { getChildTaskProgress, getClassroomWeeklyTaskDetails, toggleClassroomWeeklyLesson, weekTaskKey } from '../lib/classroomWeeklyPlan';
+import { ChildWeekTaskFields } from './wochenplan/ChildWeekTaskFields';
 import { resolveWeeklyPlanOpeningWeek } from '../lib/planningWeekNavigation';
 import LessonPlannerAI from './LessonPlannerAI';
 import DailyHomeworkButton from './DailyHomeworkButton';
@@ -284,10 +285,12 @@ export default function WeeklyPlan() {
   const [repeatWeekly, setRepeatWeekly] = useState<boolean>(false);
   const [searchFach, setSearchFach] = useState('');
   const [tempThema, setTempThema] = useState('');
+  const [tempTafelhinweis, setTempTafelhinweis] = useState('');
   const [tempType, setTempType] = useState('standard');
   const [tempMaterial, setTempMaterial] = useState('');
   const [tempImKinderWochenplan, setTempImKinderWochenplan] = useState(false);
   const [tempKinderMaterial, setTempKinderMaterial] = useState('');
+  const [tempChildTask, setTempChildTask] = useState(() => getClassroomWeeklyTaskDetails());
   const [tempMaterialIds, setTempMaterialIds] = useState<string[]>([]);
   const [tempHUE, setTempHUE] = useState('');
   const [tempMethod, setTempMethod] = useState('');
@@ -1355,10 +1358,12 @@ export default function WeeklyPlan() {
       ? { ...EMPTY_LESSON_HALF, ...storedHalves.second }
       : { ...EMPTY_LESSON_HALF });
     setTempThema(current.thema || '');
+    setTempTafelhinweis(normalizeTafelhinweis(current.tafelhinweis));
     setTempType(current.type || 'standard');
     setTempMaterial(current.material || '');
     setTempImKinderWochenplan(current.imKinderWochenplan === true);
     setTempKinderMaterial(current.wochenplanMaterial || '');
+    setTempChildTask(getClassroomWeeklyTaskDetails(current));
     setTempMaterialIds(Array.isArray(current.materialIds) ? current.materialIds : []);
     setTempHUE(current.housework || current.hue || '');
     setTempMethod(current.method || '');
@@ -1505,10 +1510,11 @@ export default function WeeklyPlan() {
     alert(`Das Thema "${thema}" wurde erfolgreich für die Wiederholung in 14 Tagen (${naechsteWiederholung}) eingeplant.`);
   };
 
-  const saveCell = (fach: string, thema: string, type: string = 'standard', material: string = '', housework: string = '', method: string = '', social: string = 'single', reflexion: string = '', schwerpunkte: string[] = [], duration: number | 'all' = 1, materialIds: string[] = []) => {
+  const saveCell = (fach: string, thema: string, type: string = 'standard', material: string = '', housework: string = '', method: string = '', social: string = 'single', reflexion: string = '', schwerpunkte: string[] = [], duration: number | 'all' = 1, materialIds: string[] = [], tafelhinweis = '') => {
     if (!editingCell) return;
     const { tag, idx } = editingCell;
     const trimmedFach = fach.trim();
+    const boardHint = normalizeTafelhinweis(tafelhinweis);
 
     const futureWeeks: number[] = [];
     if (repeatWeekly) {
@@ -1532,7 +1538,7 @@ export default function WeeklyPlan() {
         
         if (!kwPlan[tag]) kwPlan[tag] = {};
         
-        if (!trimmedFach && !thema.trim()) {
+        if (!trimmedFach && !thema.trim() && !boardHint) {
           delete kwPlan[tag][idx];
           // Falls der Tag nun leer ist, könnte man ihn auch löschen, aber leeres Objekt schadet nicht.
         } else {
@@ -1543,10 +1549,12 @@ export default function WeeklyPlan() {
               ...(kwPlan[tag][idx] || {}),
               fach: trimmedFach, 
               thema: thema.trim(),
+              tafelhinweis: boardHint || undefined,
               type,
                material: material.trim(),
                imKinderWochenplan: tempImKinderWochenplan,
                wochenplanMaterial: tempKinderMaterial.trim(),
+               ...getClassroomWeeklyTaskDetails(tempChildTask),
                materialIds,
               housework: housework.trim(),
               method: method.trim(),
@@ -1595,6 +1603,7 @@ export default function WeeklyPlan() {
                      material: material.trim(),
                      imKinderWochenplan: tempImKinderWochenplan,
                      wochenplanMaterial: tempKinderMaterial.trim(),
+                     ...getClassroomWeeklyTaskDetails(tempChildTask),
                      materialIds,
                     housework: housework.trim(),
                     method: method.trim(),
@@ -4084,6 +4093,15 @@ export default function WeeklyPlan() {
                               placeholder="Was wird gelernt? (Thema/Lernziel)"
                               value={tempThema} onChange={e => setTempThema(e.target.value)}
                            />
+                           <label className="block space-y-1">
+                             <span className="text-sm font-bold text-slate-700">Tafelhinweis <span className="font-normal text-slate-500">(optional)</span></span>
+                             <input type="text" value={tempTafelhinweis} maxLength={MAX_TAFELHINWEIS_LENGTH}
+                               onChange={e => setTempTafelhinweis(e.target.value)}
+                               placeholder="z. B. Mathebuch auf Seite 24"
+                               aria-describedby="weekly-tafelhinweis-description"
+                               className="input-field min-h-11 px-4 text-sm" />
+                             <span id="weekly-tafelhinweis-description" className="block text-xs text-slate-600">Für die Klasse im Widget „Tagesablauf“ sichtbar.</span>
+                           </label>
                         </div>
 
                         {/* FACH SUCHE & BUTTONS */}
@@ -4613,15 +4631,15 @@ export default function WeeklyPlan() {
                        className="h-5 w-5 accent-indigo-600" />
                      Im Wochenplan der Kinder anzeigen
                    </label>
-                   <p className="text-xs text-slate-600">Das Thema und die Materialien erscheinen im gemeinsamen Wochenplan im Lehrercockpit. Abhaken und Einschätzung sind für jedes Kind getrennt.</p>
-                   {tempImKinderWochenplan && (
+                   {tempImKinderWochenplan && <>
+                     <ChildWeekTaskFields details={tempChildTask} onChange={setTempChildTask} />
                      <label className="block text-sm font-semibold text-slate-800">
                        Was brauchen die Kinder? (optional; sonst Material der Einheit)
                        <textarea value={tempKinderMaterial} onChange={event => setTempKinderMaterial(event.target.value)}
                          className="mt-2 min-h-20 w-full rounded-xl border border-indigo-200 bg-white p-3 text-sm"
                          placeholder="z. B. Arbeitsheft S. 12, Bleistift" />
                      </label>
-                   )}
+                   </>}
                  </section>
                  {/* SECTION 4: FEINSCHLIFF */}
                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
@@ -4715,7 +4733,7 @@ export default function WeeklyPlan() {
                  <div className="hidden flex-1 px-2 text-[0.625rem] font-semibold text-slate-400 lg:block">
                    Änderungen werden erst mit „Einheit speichern“ übernommen.
                  </div>
-                 <button onClick={() => saveCell(searchFach, tempThema, tempType, tempMaterial, tempHUE, tempMethod, tempSocial, tempReflexion, tempSchwerpunkte, tempDuration, tempMaterialIds)} className="btn btn-accent sm:min-w-[260px]">Einheit speichern</button>
+                 <button onClick={() => saveCell(searchFach, tempThema, tempType, tempMaterial, tempHUE, tempMethod, tempSocial, tempReflexion, tempSchwerpunkte, tempDuration, tempMaterialIds, tempTafelhinweis)} className="btn btn-accent sm:min-w-[260px]">Einheit speichern</button>
               </div>
            </motion.div>
         </div>,

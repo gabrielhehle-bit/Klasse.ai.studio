@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { Leseanfang } from './Leseanfang';
 import {
   WortSatzMode,
   WordTask,
@@ -50,6 +51,11 @@ export interface WortSatzWerkstattWidgetProps {
   onCloseSettings?: () => void;
 }
 
+function opensInLeseanfang(widget: WortSatzWerkstattWidgetProps['widget']): boolean {
+  return widget?.type === 'wortsatzwerkstatt' && (widget.settings?.readingView === 'beginner' ||
+    (!widget.settings?.readingView && !widget.settings?.mode && !widget.settings?.wordTasks && !widget.settings?.sentenceTasks));
+}
+
 export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = ({
   widget,
   onUpdate,
@@ -73,6 +79,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
   });
 
   const [editorOpen, setEditorOpen] = useState(false);
+  const [showBeginner, setShowBeginner] = useState(() => opensInLeseanfang(widget));
   const [newWordTarget, setNewWordTarget] = useState('');
   const [newWordParts, setNewWordParts] = useState('');
   const [newCompoundWord, setNewCompoundWord] = useState('');
@@ -88,7 +95,21 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
     setState(migrateLegacyWortSatzWidgetSettings(widget?.type || 'wordbuilder', widget?.settings));
     setTaskError('');
     setEditorOpen(false);
+    setShowBeginner(opensInLeseanfang(widget));
   }, [currentWidgetKey]);
+
+  const switchReadingView = (beginner: boolean) => {
+    setShowBeginner(beginner);
+    onUpdate?.({ settings: { ...(widget?.settings || {}), readingView: beginner ? 'beginner' : 'all' } });
+    requestAnimationFrame(() => containerRef.current?.focus());
+  };
+
+  const savedReadingView = widget?.settings?.readingView;
+  useEffect(() => {
+    if (widget?.type === 'wortsatzwerkstatt' && (savedReadingView === 'beginner' || savedReadingView === 'all')) {
+      setShowBeginner(savedReadingView === 'beginner');
+    }
+  }, [savedReadingView, widget?.type]);
 
   // Persistenz über bestehenden verschlüsselten Pfad (widget.settings)
   const persistState = useCallback(
@@ -97,6 +118,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         onUpdate({
           settings: {
             ...(widget?.settings || {}),
+            ...(widget?.type === 'wortsatzwerkstatt' ? { readingView: showBeginner ? 'beginner' : 'all' } : {}),
             mode: nextState.mode,
             wordTasks: nextState.wordTasks,
             compoundTasks: nextState.compoundTasks,
@@ -110,7 +132,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
         });
       }
     },
-    [onUpdate, widget?.settings]
+    [onUpdate, widget?.settings, widget?.type, showBeginner]
   );
 
   const stateRef = useRef(state);
@@ -279,7 +301,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
   // Tastaturbedienung für Barrierefreiheit (Links/Rechts-Pfeile)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (state.selectedIndex === null || editorOpen || !containerRef.current ||
+      if (showBeginner || state.selectedIndex === null || editorOpen || !containerRef.current ||
           !containerRef.current.contains(document.activeElement) ||
           !containerRef.current.contains(e.target as Node) ||
           (e.target as HTMLElement)?.closest('button, input, select, textarea, [contenteditable="true"]')) return;
@@ -293,7 +315,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.selectedIndex, state.currentItems, editorOpen, currentWidgetKey]);
+  }, [state.selectedIndex, state.currentItems, editorOpen, currentWidgetKey, showBeginner]);
 
   // Prüfen (nur "Passt." oder "Noch nicht ganz.", absolut keine Gamification)
   const handleCheck = () => {
@@ -455,13 +477,18 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
       data-language-workshop-mode={state.mode}
       data-language-task-index={state.currentTaskIndex}
       tabIndex={0}
-      aria-label="Wörter und Sätze: die Werkstatt auswählen, dann Karten mit den Pfeiltasten bewegen"
+      aria-label={showBeginner ? 'Wörter und Sätze: Leseanfang' : 'Wörter und Sätze: die Werkstatt auswählen, dann Karten mit den Pfeiltasten bewegen'}
       className={`relative flex flex-col w-full h-full min-h-0 overflow-hidden select-none transition-colors duration-150 ${
         currentIsLight
           ? 'bg-slate-50/90 text-slate-900'
           : 'bg-neutral-900 text-neutral-100'
       } ${size.isCompact ? 'p-2 gap-1.5' : size.isLarge ? 'p-4 gap-3' : 'p-3 gap-2'}`}
     >
+      {showBeginner ? (
+        <Leseanfang key={currentWidgetKey} saved={widget?.settings?.readingExercise} light={currentIsLight}
+          onShowAll={() => switchReadingView(false)}
+          onChange={readingExercise => onUpdate?.({ settings: { ...(widget?.settings || {}), readingView: 'beginner', readingExercise } })} />
+      ) : <>
       {/* 1. Header mit Modus-Tabs & Werkstatt-Navigation */}
       <div className="flex flex-wrap items-center justify-between gap-2 shrink-0 border-b border-slate-200 dark:border-neutral-800 pb-2">
         {/* Modus-Auswahl (3 Zielmodi) */}
@@ -527,6 +554,10 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
 
         {/* Aufgaben-Navigation & Editor-Toggle */}
         <div className="flex items-center gap-1.5 ml-auto">
+          {widget?.type === 'wortsatzwerkstatt' && (
+            <button type="button" onClick={() => switchReadingView(true)}
+              className="min-h-11 rounded-lg border border-slate-300 px-2 text-xs font-bold hover:bg-accent-soft hover:text-accent dark:border-neutral-700">Leseanfang</button>
+          )}
           <div className="flex items-center bg-slate-100 dark:bg-neutral-800 rounded-lg px-2 py-1 border border-slate-200 dark:border-neutral-700 text-xs font-semibold">
             <button
               id="btn-prev-task"
@@ -828,6 +859,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
           </button>
         </div>
       </div>
+      </>}
 
       {/* 5. Aufgaben-Editor (Aufgaben verwalten & Presets) */}
       {editorOpen && createPortal(

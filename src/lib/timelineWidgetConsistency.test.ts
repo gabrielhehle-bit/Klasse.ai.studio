@@ -13,8 +13,8 @@ test('Widget-Neustart beginnt mit dem Tagesablauf als erstem Bibliotheks-Widget'
 });
 
 test('Tagesablauf startet in einer kompakten, aber vollständig nutzbaren Größe', () => {
-  assert.match(cockpit, /id: "widget-timeline",[\s\S]{0,180}w: 40,[\s\S]{0,80}h: 30/);
-  assert.match(frame, /timeline: \{ w: 40, h: 30 \}/);
+  assert.match(cockpit, /id: "widget-timeline",[\s\S]{0,180}w: 46,[\s\S]{0,80}h: 42/);
+  assert.match(frame, /timeline: \{ w: 46, h: 42 \}/);
 });
 
 test('Tagesablauf bleibt ohne doppelten Innentitel und mit touch-sicheren Seitenbuttons', () => {
@@ -30,11 +30,11 @@ test('Tagesablauf-Hilfe erklärt Datenquelle, Seiten und Korrekturweg', () => {
   assert.match(help, /timeline: \['Öffne im Lehrercockpit „Widget hinzufügen“ → „Tagesablauf“/);
   assert.match(help, /Stundenplan/);
   assert.match(help, /Pfeiltasten/);
-  assert.match(help, /keinen eigenen zweiten Tagesplan/);
+  assert.match(help, /„Jetzt“ und „Danach“ zeigen der Klasse mit Symbolen und Uhrzeiten/);
 });
 
 test('Tagesablauf nutzt seine große Ansicht für lesbare Hauptinformation', () => {
-  assert.match(timeline, /const roomyTimeline = isFullscreen \|\| \(size\.width >= 820 && size\.height >= 500\)/);
+  assert.match(timeline, /const roomyTimeline = size\.width >= 700 && size\.height >= 340/);
   assert.match(timeline, /roomyTimeline[\s\S]*text-4xl sm:text-5xl/);
   assert.match(timeline, /leading-tight \[overflow-wrap:anywhere\]/);
 });

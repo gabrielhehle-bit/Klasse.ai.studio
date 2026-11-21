@@ -398,6 +398,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                     : currentIsLight ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' : 'bg-zinc-800 border-white/10 text-slate-300 hover:bg-zinc-700'
                 }`}
                 title="Ton umschalten"
+                aria-label={isMuted ? 'Signalton einschalten' : 'Signalton stummschalten'}
               >
                 {isMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
                 <span className="text-[10px] font-bold">{isMuted ? 'Stumm' : alarmSound === 'bell' ? 'Gong' : alarmSound === 'bowl' ? 'Schale' : 'Beep'}</span>
@@ -635,6 +636,7 @@ export const TimerWidget: React.FC<TimerWidgetProps> = ({
                     : currentIsLight ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' : 'bg-zinc-800 border-white/10 text-slate-300 hover:bg-zinc-700'
                 }`}
                 title="Ton ein/aus"
+                aria-label={isMuted ? 'Signalton einschalten' : 'Signalton stummschalten'}
               >
                 {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
                 <span>{isMuted ? 'Stumm' : alarmSound === 'bell' ? 'Gong' : alarmSound === 'bowl' ? 'Klangschale' : 'Beep'}</span>

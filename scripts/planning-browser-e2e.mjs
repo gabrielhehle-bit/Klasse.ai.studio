@@ -232,6 +232,8 @@ async function main() {
   const client = await createClient();
   const uncaught = [];
   const topic = 'E2E Planungscheck ' + Date.now();
+  const childInstruction = 'Lege 15 Plättchen und zeichne sie ins Heft.';
+  const requiredTopic = 'Lies drei Silben laut.';
 
   try {
     client.on('Runtime.exceptionThrown', params => {
@@ -333,6 +335,8 @@ async function main() {
     await waitFor(client, 'child weekly-plan option',
       'Boolean(document.querySelector("section[aria-label=\\\"Kinder-Wochenplan\\\"] input[type=checkbox]"))');
     await clickCheckboxNearText(client, 'Im Wochenplan der Kinder anzeigen');
+    await setInputByLabel(client, 'Aufgabenart', 'wahl');
+    await setInputByLabel(client, 'Auftrag für die Kinder', childInstruction);
     await setInputByPlaceholder(client, 'z. B. Arbeitsheft S. 12', 'Arbeitsheft Seite 12');
     await clickButton(client, 'Einheit speichern');
     await waitFor(client, 'weekly editor closed after save',
@@ -362,6 +366,17 @@ async function main() {
     if (!addedToBoard) throw new Error('One-click publishing from teacher weekly grid failed.');
     await waitFor(client, 'one-click published lesson visible in weekly plan',
       'Boolean((' + savedHourlyCell + ')?.querySelector("button[aria-label=\\\"Aus Kinderplan entfernen\\\"]"))');
+    await clickFirstSchedulableWeeklyCell(client);
+    await waitFor(client, 'a second weekly lesson can be published', `Boolean(document.querySelector('[data-weekly-lesson-editor]'))`);
+    await setInputByPlaceholder(client, 'Was wird gelernt?', requiredTopic);
+    if (religionVisible) await clickButton(client, 'Religion', true);
+    await clickButton(client, '4 · Ablauf & Optionen');
+    await clickCheckboxNearText(client, 'Im Wochenplan der Kinder anzeigen');
+    await waitFor(client, 'new tasks default to Pflichtaufgabe',
+      `document.querySelector('[aria-label="Kinder-Wochenplan"] select')?.value === 'pflicht'`);
+    await clickButton(client, 'Einheit speichern');
+    await waitFor(client, 'the required task was saved',
+      `!document.querySelector('[data-weekly-lesson-editor]') && document.body.innerText.includes(${q(requiredTopic)})`);
     // End-to-end teaching journey: one real synthetic pupil confirms one lesson
     // at the board; the shared plan never publishes individual feedback.
     await clickSidebar(client, 'Klassenliste');
@@ -396,18 +411,32 @@ async function main() {
       'Boolean(document.querySelector("[data-testid=\\"cockpit-core-group-classweeklyplan\\"] button[data-widget-card-action=\\"primary\\"]"))');
     const addedWidget = await evaluate(client, '(() => {const b=document.querySelector("[data-testid=\\"cockpit-core-group-classweeklyplan\\"] button[data-widget-card-action=\\"primary\\"]");if(!b)return false;b.click();return true;})()');
     if (!addedWidget) throw new Error('Could not add weekly-plan widget.');
-    // Current classroom widget: task → child → feedback, not the retired
-    // personal-plan dialog with public pupil-name buttons.
+    const board = `document.querySelector('[aria-label="Wochenplan der Klasse"]')`;
     await waitFor(client, 'published task visible on public board',
       '(() => {const b=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");return !!b&&b.textContent.includes(' + q(topic) + ')&&b.textContent.includes("Arbeitsheft Seite 12")&&!!b.querySelector("button")&&!b.textContent.includes("Das war sehr schwer");})()', 20000);
     await waitFor(client, 'standalone homework visible in weekly-plan widget',
       '(() => {const b=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");return !!b&&b.querySelector("[aria-label=\\\"Hausübungen im Wochenplan\\\"]")?.textContent.includes(' + q(dayHomework) + ');})()', 20000);
-    await clickButton(client, 'Ich bin fertig mit einer Aufgabe');
-    await waitFor(client, 'task selection dialog',
-      'Boolean(document.querySelector("[role=dialog][aria-label=\\\"Ich bin fertig mit einer Aufgabe\\\"] [aria-label=\\\"Aufgabe auswählen\\\"]"))');
-    const selectedTask = await evaluate(client,
-      '(() => {const b=Array.from(document.querySelectorAll("[aria-label=\\\"Aufgabe auswählen\\\"] button")).find(b=>b.textContent.includes(' + q(topic) + '));if(!b)return false;b.click();return true;})()');
-    if (!selectedTask) throw new Error('Could not select published classroom task.');
+    await waitFor(client, 'board groups required and optional tasks without displaying private feedback',
+      `${board}.querySelector('[aria-label="Pflichtaufgaben"]').textContent.includes(${q(requiredTopic)}) &&
+       ${board}.querySelector('[aria-label="Wahlaufgaben"]').textContent.includes(${q(topic)}) &&
+       !${board}.textContent.includes(${q(childInstruction)}) && !${board}.textContent.includes('Testkind')`);
+    await waitFor(client, 'required and optional tasks sit side by side on a wide board', `(() => {
+      const left = ${board}.querySelector('[aria-label="Pflichtaufgaben"]').getBoundingClientRect();
+      const right = ${board}.querySelector('[aria-label="Wahlaufgaben"]').getBoundingClientRect();
+      return left.right < right.left && Math.abs(left.top - right.top) < 2;
+    })()`);
+    await waitFor(client, 'the shared checkmark action is touchable above the widget dock', `(() => {
+      const button = ${board}.querySelector('[aria-label="Aufgabe abschließen"] button');
+      const rect = button.getBoundingClientRect();
+      return rect.height >= 44 && button.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+    })()`);
+    await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-kinderwochenplan.png'));
+    await evaluate(client, `Array.from(${board}.querySelectorAll('[aria-label="Wahlaufgaben"] button')).find(button => button.textContent.includes(${q(topic)})).click()`);
+    await waitFor(client, 'tapping a Wahlaufgabe reveals its actual instruction and materials',
+      `document.querySelector('dialog[open][aria-label="Auftrag lesen"]')?.textContent.includes(${q(childInstruction)}) &&
+       document.querySelector('dialog[open][aria-label="Auftrag lesen"]').textContent.includes('Arbeitsheft Seite 12')`);
+    await saveScreenshot(client, SCREENSHOT_PATH.replace(/\.png$/, '-kinderwochenplan-auftrag.png'));
+    await clickButton(client, 'Aufgabe abhaken', true);
     await waitFor(client, 'child selection',
       'Boolean(document.querySelector("[role=dialog] [aria-label=\\\"Kind auswählen\\\"]"))');
     const choseChild = await evaluate(client,
@@ -420,6 +449,22 @@ async function main() {
     if (!feedbackSaved) throw new Error('Could not submit synthetic pupil feedback.');
     await waitFor(client, 'public board restored without individual feedback',
       '(() => {const b=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");return !!b&&b.textContent.includes(' + q(topic) + ')&&!document.querySelector("[role=dialog][aria-label=\\\"Ich bin fertig mit einer Aufgabe\\\"]")&&!b.textContent.includes("Das war sehr schwer");})()');
+    await client.send('Emulation.setDeviceMetricsOverride', { width: 820, height: 720, deviceScaleFactor: 1, mobile: false });
+    await evaluate(client, `Array.from(${board}.querySelectorAll('[aria-label="Pflichtaufgaben"] button')).find(button => button.textContent.includes(${q(requiredTopic)})).click()`);
+    await waitFor(client, 'the Pflichtaufgabe opens as its own detail', `document.querySelector('dialog[open][aria-label="Auftrag lesen"]')?.textContent.includes(${q(requiredTopic)})`);
+    await waitFor(client, 'the reading dialog and its checkmark fit the tablet viewport', `(() => {
+      const dialog = document.querySelector('dialog[open][aria-label="Auftrag lesen"]');
+      const bounds = dialog.getBoundingClientRect();
+      const action = dialog.querySelector('footer button').getBoundingClientRect();
+      return bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0 && bounds.bottom <= innerHeight && action.height >= 44;
+    })()`);
+    await clickButton(client, 'Aufgabe abhaken', true);
+    await waitFor(client, 'name selection starts immediately from the assignment', `Boolean(document.querySelector('dialog[open] [aria-label="Kind auswählen"]'))`);
+    await evaluate(client, `Array.from(document.querySelectorAll('dialog[open] [aria-label="Kind auswählen"] button')).find(button => button.textContent.trim().startsWith('Testkind')).click()`);
+    await clickButton(client, 'Nur abhaken', true);
+    await waitFor(client, 'the pupil can check off a task without an assessment',
+      `!document.querySelector('dialog[open]') && ${board}.querySelector('header [role="status"]')?.textContent === 'Aufgabe abgehakt.'`);
+    await client.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
     // Save a different child's genuine help request through the same on-board
     // workflow, never by writing directly to local storage or mutating state.
     await clickButton(client, 'Ich bin fertig mit einer Aufgabe');
@@ -449,6 +494,9 @@ async function main() {
     await waitFor(client, 'saved selected week after cockpit journey', 'Boolean(' + savedHourlyCell + ')', 20000);
     await waitFor(client, 'individual child completion reflected in teacher weekly planning',
       '(() => {const cell=' + savedHourlyCell + ';const b=cell?.querySelector("button[aria-label=\\\"Aus Kinderplan entfernen\\\"]");return !!b&&b.textContent.includes("1/2 fertig");})()', 12000);
+    await waitFor(client, 'the simple checkmark also reaches the correct teacher lesson',
+      `Array.from(document.querySelectorAll('button[aria-label="Aus Kinderplan entfernen"]')).some(button =>
+        button.closest('[class~="group/cell"]')?.textContent.includes(${q(requiredTopic)}) && button.textContent.includes('1/2 fertig'))`);
     if (!await evaluate(client, '(() => {const cell=' + savedHourlyCell + ';if(!cell)return false;cell.click();return true;})()'))
       throw new Error('Could not open the saved hourly lesson.');
     try {

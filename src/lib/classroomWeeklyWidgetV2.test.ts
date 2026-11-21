@@ -47,8 +47,8 @@ test('Widget 3: central library gear and class-local settings do not rewrite an 
 test('Widget 3: all released tasks appear directly in widget with a persistent finish button', () => {
   assert.match(widget, /aria-label="Aufgaben dieser Woche"/);
   assert.match(widget, /overflow-y-auto overscroll-contain/);
-  assert.match(widget, /tasks\.map\(\(task, index\) => <article/);
-  assert.match(widget, /<TaskText task=\{task\} showMaterials=\{preferences\.showMaterials\} \/>/);
+  assert.match(widget, /groupTasks\.map\(task =>/);
+  assert.match(widget, /onClick=\{\(\) => openTask\(task\)\}/);
   assert.match(widget, /aria-label="Aufgabe abschließen"/);
   assert.match(widget, /✅ Ich bin fertig mit einer Aufgabe/);
   assert.match(widget, /disabled=\{!tasks\.length \|\| !pupils\.length\}/);
@@ -58,7 +58,7 @@ test('Widget 3: all released tasks appear directly in widget with a persistent f
 });
 
 test('Widget 3: child selects task, then name, then private outcome; records are scoped', () => {
-  assert.match(widget, /type FinishStep = 'task' \| 'child' \| 'feedback'/);
+  assert.match(widget, /type FinishStep = 'details' \| 'task' \| 'child' \| 'feedback'/);
   assert.match(widget, /aria-label="Aufgabe auswählen"/);
   assert.match(widget, /aria-label="Kind auswählen"/);
   assert.match(widget, /aria-label="Wie ist die Aufgabe gelaufen\?"/);

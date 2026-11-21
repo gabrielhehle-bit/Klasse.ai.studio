@@ -18,7 +18,7 @@ import {
   formatLocalDateKey,
 } from "../lib/utils";
 import { getFerien } from "../lib/ferienOesterreich";
-import { getDashboardDisplayDate, getDashboardLessonFocus, getDashboardFreeDayMessage } from "../lib/dashboardDayContext";
+import { getDashboardDisplayDate, getDashboardLessonFocus, getDashboardFreeDayMessage, type DashboardPreviewMode } from "../lib/dashboardDayContext";
 import type { Bundesland } from "../lib/ferienOesterreich";
 import { VM_ZEITEN, STUNDEN_INFO, FAECHER_ALLE, AESTHETIC_THEMES, DASHBOARD_CURATED_FONTS, DASHBOARD_FONT_SIZES, MAX_LESSON_SLOTS, LESSON_SLOT_NUMBERS } from "../constants";
 import { berechne } from "../lib/GradeUtils";
@@ -48,7 +48,6 @@ import {
   Activity,
   Check,
   StickyNote,
-  Settings2,
   Smartphone,
   QrCode,
   X,
@@ -100,7 +99,6 @@ import {
   Loader2,
   Grid,
   Sliders,
-  Palette,
   Type,
   Bold,
   Italic,
@@ -142,6 +140,9 @@ import { memo } from "react";
 import DashboardKlassenglasWidget from "./DashboardKlassenglasWidget";
 import FlowerPuzzleWidget from "./FlowerPuzzleWidget";
 import { DashboardInteractionWidget } from "./DashboardInteractionWidget";
+import DashboardCustomizeDialog from "./DashboardCustomizeDialog";
+import { DASHBOARD_CUSTOMIZE_EVENT, takeDashboardCustomizationRequest } from "../lib/dashboardCustomization";
+import { Button } from "./ui";
 import DashboardTodayOverview, { DashboardDayMode, type LessonSummary } from "./DashboardTodayOverview";
 import { useLehrerzimmerUnread } from "../hooks/useLehrerzimmerUnread";
 
@@ -1732,6 +1733,8 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
 
   // Customizer and Visibility States
   const [showCustomizePanel, setShowCustomizePanel] = useState(false);
+  const [arrangingCards, setArrangingCards] = useState(false);
+  const finishArrangingRef = React.useRef<HTMLButtonElement>(null);
   const [dashboardDayMode, setDashboardDayMode] = useState<DashboardDayMode>(() => {
     const saved = localStorage.getItem("dashboard_day_mode_v1");
     if (saved === "morning" || saved === "teaching" || saved === "review") return saved;
@@ -1743,15 +1746,17 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
   }, [dashboardDayMode]);
 
   useEffect(() => {
-    const handleOpenCustomize = () => setShowCustomizePanel(true);
-    window.addEventListener("open-dashboard-customize", handleOpenCustomize);
-    return () =>
-      window.removeEventListener(
-        "open-dashboard-customize",
-        handleOpenCustomize,
-      );
+    const handleOpenCustomize = () => {
+      if (takeDashboardCustomizationRequest()) setShowCustomizePanel(true);
+    };
+    window.addEventListener(DASHBOARD_CUSTOMIZE_EVENT, handleOpenCustomize);
+    handleOpenCustomize();
+    return () => window.removeEventListener(DASHBOARD_CUSTOMIZE_EVENT, handleOpenCustomize);
   }, []);
-  const isEditMode = showCustomizePanel;
+
+  useEffect(() => {
+    if (arrangingCards) finishArrangingRef.current?.focus();
+  }, [arrangingCards]);
 
   const [dashboardSettings, setDashboardSettings] = useState(() => {
     let saved = localStorage.getItem("dashboard_settings_v7");
@@ -1824,18 +1829,18 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
 
   const [vorschauStunde, setVorschauStunde] = useState<number>(() => {
     const saved = localStorage.getItem("dashboard_vorschau_stunde");
-    return saved ? parseInt(saved, 10) : 16;
+    const hour = saved === null ? NaN : Number(saved);
+    return Number.isInteger(hour) && hour >= 0 && hour < 24 ? hour : 16;
   });
-  const [vorschauModus, setVorschauModus] = useState<"automatik" | "heute" | "morgen">(() => {
+  const [vorschauModus, setVorschauModus] = useState<DashboardPreviewMode>(() => {
     const saved = localStorage.getItem("dashboard_vorschau_modus");
     if (saved === "heute" || saved === "morgen" || saved === "automatik") {
-      return saved as "automatik" | "heute" | "morgen";
+      return saved;
     }
     const oldSaved = localStorage.getItem("dashboard_vorschau_deaktiviert");
     if (oldSaved === "true") return "heute";
     return "automatik";
   });
-  const vorschauDeaktiviert = vorschauModus === "heute";
   const [manualDateOffset, setManualDateOffset] = useState<number>(0);
 
   useEffect(() => {
@@ -2833,6 +2838,12 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     return saved !== null ? saved === "true" : true;
   });
 
+  const isEditMode = arrangingCards && !simpleDashboardMode;
+  const updateDashboardView = (simple: boolean) => {
+    setSimpleDashboardMode(simple);
+    setArrangingCards(false);
+  };
+
   useEffect(() => {
     localStorage.setItem("dashboard_simple_mode", simpleDashboardMode.toString());
   }, [simpleDashboardMode]);
@@ -3790,17 +3801,14 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (active.id !== over?.id) {
-      setDashboardSettings((prev) => {
-        const layout = prev.layout || [];
-        const oldIndex = layout.indexOf(active.id);
-        const newIndex = layout.indexOf(over!.id);
-        return {
-          ...prev,
-          layout: arrayMove(layout, oldIndex, newIndex),
-        };
-      });
-    }
+    if (!over || active.id === over.id) return;
+    setDashboardSettings((prev) => {
+      const layout = prev.layout || [];
+      const oldIndex = layout.indexOf(active.id);
+      const newIndex = layout.indexOf(over.id);
+      if (oldIndex < 0 || newIndex < 0) return prev;
+      return { ...prev, layout: arrayMove(layout, oldIndex, newIndex) };
+    });
   };
 
   const handleResizeWidget = (id: string, newSpan: string) => {
@@ -4402,31 +4410,19 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     );
   };
 
-  const getVisibleLayout = () => {
-    const modeZones: Record<DashboardDayMode, string[]> = {
-      morning: ["group_zone1", "group_zone2"],
-      teaching: ["group_zone1", "group_zone3"],
-      review: ["group_zone2", "group_zone4"],
-    };
-    const base = (dashboardSettings.layout || []).filter((id) => {
-      if (!modeZones[dashboardDayMode].includes(id)) return false;
-      switch (id) {
-        case "group_zone1":
-          return dashboardSettings.showZone1;
-        case "group_zone2":
-          return dashboardSettings.showZone2;
-        case "group_zone3":
-          return dashboardSettings.showZone3;
-        case "group_zone4":
-          return dashboardSettings.showZone4;
-        default:
-          return false;
-      }
-    });
-
-    return base;
+  const sections = {
+    group_zone1: { setting: "showZone1", label: "Unterrichtsübersicht" },
+    group_zone2: { setting: "showZone2", label: "Heute & Morgen" },
+    group_zone3: { setting: "showZone3", label: "Pädagogische Impulse" },
+    group_zone4: { setting: "showZone4", label: "Klassen-Analyse" },
+  } as const;
+  const modeZones: Record<DashboardDayMode, (keyof typeof sections)[]> = {
+    morning: ["group_zone1", "group_zone2"],
+    teaching: ["group_zone1", "group_zone3"],
+    review: ["group_zone2", "group_zone4"],
   };
-  const visibleLayout = getVisibleLayout();
+  const allowedSections = modeZones[dashboardDayMode].filter(id => dashboardSettings[sections[id].setting]);
+  const visibleLayout = dashboardSettings.layout.filter((id: keyof typeof sections) => allowedSections.includes(id));
 
   const [showBackupBanner, setShowBackupBanner] = useState(() => {
     // Die erste Einführung soll ruhig bleiben. Eine Sicherungserinnerung
@@ -4685,6 +4681,22 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         )}
       </AnimatePresence>
 
+      {isEditMode && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3 text-sm text-text-primary">
+          <span>Karten anordnen und ihre Größe ändern</span>
+          <Button ref={finishArrangingRef} variant="primary" onClick={() => {
+            setArrangingCards(false);
+            setShowCustomizePanel(true);
+          }}>
+            Anordnung fertig
+          </Button>
+        </div>
+      )}
+      <div className="hidden justify-end [[data-klassio-mobile-quick=true]_&]:flex">
+        <Button variant="secondary" aria-label="Heute bearbeiten" onClick={() => setShowCustomizePanel(true)}>
+          Bearbeiten
+        </Button>
+      </div>
       <DashboardTodayOverview
         greeting={getGreeting()}
         dayLabel={dashboardDayLabel}
@@ -4701,7 +4713,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         privacyMode={false}
         onPrivacyModeChange={() => {}}
         simpleMode={simpleDashboardMode}
-        onSimpleModeToggle={() => setSimpleDashboardMode(!simpleDashboardMode)}
+        onSimpleModeToggle={() => updateDashboardView(!simpleDashboardMode)}
         onNavigate={setPage}
         onOpenRemoteSetup={() => setShowRemoteSetup(true)}
         onOpenBackup={handleDownloadBackup}
@@ -5347,7 +5359,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                           isEditMode={isEditMode}
                         >
                           <div className="relative flex flex-col bg-white border border-slate-200/80 text-slate-900 rounded-2xl shadow-sm min-w-0 transition-shadow hover:shadow-md">
-                            {renderEyeOffShortcut("showAgenda")}
+                            {renderEyeOffShortcut("showZone1")}
 
                             {/* HORIZONTAL TIMELINE BAR */}
                             {(() => {
@@ -7558,839 +7570,73 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         </SortableContext>
       </DndContext>
       )}
-      {/* ============================================== */}
-      {/* CONFIGURATION SIDEBAR OVERLAY PANEL             */}
-      {/* ============================================== */}
-      <AnimatePresence>
-        {showCustomizePanel && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[250] bg-black/60 backdrop-blur-sm flex justify-end"
-            onClick={() => setShowCustomizePanel(false)}
-          >
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className="w-full max-w-lg lg:max-w-4xl bg-neutral-950 border-l border-neutral-800 text-white flex flex-col h-full shadow-2xl relative"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="p-6 border-b border-neutral-800 flex items-center justify-between">
-                <div>
-                  <h3 className="text-[1.125rem] leading-normal font-black uppercase tracking-tight text-white flex items-center gap-2">
-                    <Settings2 size={20} className="text-accent" />
-                    <span>Dashboard anpassen</span>
-                  </h3>
-                  <p className="text-[0.6875rem] text-neutral-400 font-bold uppercase tracking-widest mt-1">
-                    Struktur & Vorschau-Zeiten
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowCustomizePanel(false)}
-                  className="w-8 h-8 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-400 hover:text-white transition-all hover:scale-105"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 custom-scrollbar">
-                {/* Section: Darstellung & Typografie (Farbe, Schriftart, Größe & Stil) */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-neutral-300">
-                    <Palette size={16} className="text-accent" />
-                    <span className="text-[0.6875rem] font-black uppercase tracking-wider text-white">
-                      Darstellung &amp; Schriftgestaltung
-                    </span>
-                  </div>
-                  <div className="p-4 bg-neutral-900/60 rounded-2xl border border-neutral-800 space-y-5">
-                    {/* 1. Farbschema */}
-                    <div>
-                      <label className="text-[0.65625rem] font-black uppercase text-neutral-400 block mb-2">
-                        Farbe &amp; Farb-Theme
-                      </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {AESTHETIC_THEMES.map((theme) => {
-                          const isSelected = (app?.theme || "classic_light") === theme.id;
-                          return (
-                            <button
-                              key={theme.id}
-                              type="button"
-                              onClick={() => setApp((prev: any) => ({ ...prev, theme: theme.id }))}
-                              className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
-                                isSelected
-                                  ? "bg-neutral-800 border-accent text-white ring-2 ring-accent/30 shadow-xs"
-                                  : "bg-neutral-950/70 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200"
-                              }`}
-                            >
-                              <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${theme.color}`} />
-                              <span className="text-[0.6875rem] font-bold truncate">{theme.label}</span>
-                              {isSelected && <Check size={12} className="ml-auto text-accent shrink-0" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* 2. Schriftart */}
-                    <div>
-                      <label className="text-[0.65625rem] font-black uppercase text-neutral-400 block mb-2 flex items-center gap-1.5">
-                        <Type size={13} className="text-accent" />
-                        <span>Schriftart</span>
-                      </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                        {DASHBOARD_CURATED_FONTS.map((f) => {
-                          const isCurrent = (app?.settings?.fontFamily || "standard") === f.id;
-                          return (
-                            <button
-                              key={f.id}
-                              type="button"
-                              onClick={() => {
-                                setApp((prev: any) => ({
-                                  ...prev,
-                                  settings: { ...prev.settings, fontFamily: f.id },
-                                }));
-                              }}
-                              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                                isCurrent
-                                  ? "bg-neutral-800 border-accent text-white ring-2 ring-accent/30 shadow-xs"
-                                  : "bg-neutral-950/70 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between w-full">
-                                <span className="text-[0.75rem] font-black text-white">{f.label}</span>
-                                {isCurrent && <Check size={12} className="text-accent" />}
-                              </div>
-                              <span className="text-[0.625rem] text-neutral-400 truncate mt-0.5">{f.sub}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* 3. Schriftgröße & Schriftstil */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-neutral-800">
-                      {/* Schriftgröße */}
-                      <div>
-                        <label className="text-[0.65625rem] font-black uppercase text-neutral-400 block mb-2">
-                          Schriftgröße
-                        </label>
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {DASHBOARD_FONT_SIZES.map((sz) => {
-                            const isSelected = (app?.settings?.zoomLevel || app?.settings?.fontSize || "standard") === sz.id;
-                            return (
-                              <button
-                                key={sz.id}
-                                type="button"
-                                onClick={() => {
-                                  setApp((prev: any) => ({
-                                    ...prev,
-                                    settings: { ...prev.settings, zoomLevel: sz.id, fontSize: sz.id },
-                                  }));
-                                }}
-                                className={`py-2 px-1 rounded-xl border text-center transition-all cursor-pointer ${
-                                  isSelected
-                                    ? "bg-accent/20 border-accent text-white font-black shadow-xs"
-                                    : "bg-neutral-950/70 border-neutral-800 text-neutral-400 font-bold hover:border-neutral-700"
-                                }`}
-                              >
-                                <div className="text-[0.6875rem] leading-tight">{sz.label}</div>
-                                <div className="text-[0.5625rem] text-neutral-400 mt-0.5">{sz.scale}</div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Schriftstil: Fett & Kursiv */}
-                      <div>
-                        <label className="text-[0.65625rem] font-black uppercase text-neutral-400 block mb-2">
-                          Schriftstil
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {/* Fett */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const nextWeight = (app?.settings?.fontWeight === "bold") ? "normal" : "bold";
-                              setApp((prev: any) => ({
-                                ...prev,
-                                settings: { ...prev.settings, fontWeight: nextWeight },
-                              }));
-                            }}
-                            className={`py-2 px-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                              app?.settings?.fontWeight === "bold"
-                                ? "bg-accent/20 border-accent text-white font-black ring-1 ring-accent/30 shadow-xs"
-                                : "bg-neutral-950/70 border-neutral-800 text-neutral-400 font-bold hover:border-neutral-700"
-                            }`}
-                          >
-                            <Bold size={13} />
-                            <span className="text-[0.6875rem]">{app?.settings?.fontWeight === "bold" ? "Fett (Aktiv)" : "Fett"}</span>
-                          </button>
-
-                          {/* Kursiv */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const nextStyle = (app?.settings?.fontStyle === "italic") ? "normal" : "italic";
-                              setApp((prev: any) => ({
-                                ...prev,
-                                settings: { ...prev.settings, fontStyle: nextStyle },
-                              }));
-                            }}
-                            className={`py-2 px-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                              app?.settings?.fontStyle === "italic"
-                                ? "bg-accent/20 border-accent text-white font-black italic ring-1 ring-accent/30 shadow-xs"
-                                : "bg-neutral-950/70 border-neutral-800 text-neutral-400 font-bold hover:border-neutral-700"
-                            }`}
-                          >
-                            <Italic size={13} />
-                            <span className="text-[0.6875rem]">{app?.settings?.fontStyle === "italic" ? "Kursiv (Aktiv)" : "Kursiv"}</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Schnell-Voreinstellungen (Presets) */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-neutral-300">
-                    <Sparkles size={16} className="text-accent" />
-                    <span className="text-[0.6875rem] font-black uppercase tracking-wider text-white">
-                      Dashboard aufräumen / Voreinstellungen
-                    </span>
-                  </div>
-                  <div className="p-4 bg-neutral-900/60 rounded-2xl border border-neutral-800 space-y-3">
-                    <p className="text-[0.65625rem] text-neutral-400 font-medium leading-relaxed">
-                      Wähle eine für deinen Kontext optimierte Voreinstellung.
-                      Die Module passen sich organisch (Tageszeit, Priorität) an
-                      die Situation an.
-                    </p>
-                    <div className="grid grid-cols-1 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDashboardSettings((prev) => ({
-                            ...prev,
-                            showZone1: true,
-                            showZone2: true,
-                            showZone3: false,
-                          }));
-                          showToast("Morgen-Briefing aktiviert!", "success");
-                        }}
-                        className={`p-4 hover:bg-neutral-850 active:scale-95 border hover:border-neutral-750 text-left rounded-xl transition-all ${dashboardSettings.showZone1 && dashboardSettings.showZone2 && !dashboardSettings.showZone3 ? "bg-neutral-850 border-neutral-700" : "bg-neutral-950 border-neutral-850"}`}
-                      >
-                        <div className="text-[0.875rem] leading-snug font-black text-amber-400 flex items-center gap-2 mb-1">
-                          <Sunrise size={16} /> <span>Morgen-Briefing</span>
-                        </div>
-                        <div className="text-[0.625rem] text-neutral-400 leading-tight">
-                          Vorbereitung auf den Tag. Zeigt Stundenplan,
-                          Fokus-Schüler und To-Dos für heute. (Zone 1 & 2)
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDashboardSettings((prev) => ({
-                            ...prev,
-                            showZone1: true,
-                            showZone2: false,
-                            showZone3: false,
-                          }));
-                          showToast(
-                            "Unterrichts-Fokus (Zen) aktiviert!",
-                            "success",
-                          );
-                        }}
-                        className={`p-4 hover:bg-neutral-850 active:scale-95 border hover:border-neutral-750 text-left rounded-xl transition-all ${dashboardSettings.showZone1 && !dashboardSettings.showZone2 && !dashboardSettings.showZone3 ? "bg-neutral-850 border-neutral-700" : "bg-neutral-950 border-neutral-850"}`}
-                      >
-                        <div className="text-[0.875rem] leading-snug font-black text-teal-400 flex items-center gap-2 mb-1">
-                          <Focus size={16} />{" "}
-                          <span>Unterrichts-Fokus (Zen)</span>
-                        </div>
-                        <div className="text-[0.625rem] text-neutral-400 leading-tight">
-                          Minimalistischer Zen-Modus während des Unterrichts.
-                          Reduziert auf den laufenden Stundenplan und
-                          Fokus-Notizen. (Nur Zone 1)
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDashboardSettings((prev) => ({
-                            ...prev,
-                            showZone1: false,
-                            showZone2: true,
-                            showZone3: true,
-                          }));
-                          showToast("Planungs-Ansicht aktiviert!", "success");
-                        }}
-                        className={`p-4 hover:bg-neutral-850 active:scale-95 border hover:border-neutral-750 text-left rounded-xl transition-all ${!dashboardSettings.showZone1 && dashboardSettings.showZone2 && dashboardSettings.showZone3 ? "bg-neutral-850 border-neutral-700" : "bg-neutral-950 border-neutral-850"}`}
-                      >
-                        <div className="text-[0.875rem] leading-snug font-black text-indigo-400 flex items-center gap-2 mb-1">
-                          <Brain size={16} />{" "}
-                          <span>Wochenplanung & Übersicht</span>
-                        </div>
-                        <div className="text-[0.625rem] text-neutral-400 leading-tight">
-                          Das große Ganze. Zeigt KI-Insights, Lehrplan-Abdeckung
-                          und organisatorische To-Dos. (Zone 2 & 3)
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-neutral-300">
-                    <Clock size={16} className="text-accent" />
-                    <span className="text-[0.6875rem] font-black uppercase tracking-wider">
-                      Stundenplan-Vorschau (Vorschau-Zeiten)
-                    </span>
-                  </div>
-                  <div className="p-5 bg-neutral-900/40 rounded-2xl border border-neutral-800 space-y-4">
-                    {/* 3-Way Mode Selector */}
-                    <div className="space-y-2">
-                      <span className="text-[0.6875rem] text-neutral-300 font-bold uppercase tracking-wider block">
-                        Stundenplan Vorschau-Verhalten:
-                      </span>
-                      <div className="grid grid-cols-3 gap-2 bg-neutral-950 p-1 rounded-2xl border border-neutral-800/60">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setVorschauModus("heute");
-                            showToast("Modus: Starr Heute aktiv", "info");
-                          }}
-                          className={`py-2 px-3 rounded-xl text-center text-xs font-black transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
-                            vorschauModus === "heute"
-                              ? "bg-neutral-800 text-white shadow ring-1 ring-neutral-700"
-                              : "text-neutral-400 hover:text-neutral-200"
-                          }`}
-                        >
-                          <Calendar size={14} className={vorschauModus === 'heute' ? 'text-emerald-400' : 'text-neutral-500'} />
-                          <span>Starr Heute</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setVorschauModus("automatik");
-                            showToast("Modus: Zeit-Automatik aktiv", "info");
-                          }}
-                          className={`py-2 px-3 rounded-xl text-center text-xs font-black transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
-                            vorschauModus === "automatik"
-                              ? "bg-neutral-800 text-white shadow ring-1 ring-neutral-700"
-                              : "text-neutral-400 hover:text-neutral-200"
-                          }`}
-                        >
-                          <Sparkles size={14} className={vorschauModus === 'automatik' ? 'text-indigo-400' : 'text-neutral-500'} />
-                          <span>Zeit-Automatik</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setVorschauModus("morgen");
-                            showToast("Modus: Starr Morgen aktiv", "info");
-                          }}
-                          className={`py-2 px-3 rounded-xl text-center text-xs font-black transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
-                            vorschauModus === "morgen"
-                              ? "bg-neutral-800 text-white shadow ring-1 ring-neutral-700"
-                              : "text-neutral-400 hover:text-neutral-200"
-                          }`}
-                        >
-                          <ArrowRight size={14} className={vorschauModus === 'morgen' ? 'text-amber-400' : 'text-neutral-500'} />
-                          <span>Starr Morgen</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {vorschauModus === "automatik" && (
-                      <div className="space-y-4 pt-2 border-t border-neutral-800/60">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[0.6875rem] text-neutral-300 font-bold">
-                              Uhrzeit für den automatischen Wechsel:
-                            </span>
-                            <span className="text-[0.75rem] leading-tight font-black text-amber-400">
-                              {vorschauStunde}:00 Uhr
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-7 gap-1 bg-neutral-950 p-1 rounded-xl border border-neutral-800/40 w-full overflow-hidden">
-                            {[12, 14, 15, 16, 17, 18, 20].map((hour) => (
-                              <button
-                                key={hour}
-                                type="button"
-                                onClick={() => setVorschauStunde(hour)}
-                                className={`py-1.5 px-0.5 text-[0.625rem] font-black rounded-lg transition-all text-center w-full min-w-0 whitespace-nowrap ${
-                                  vorschauStunde === hour
-                                    ? "bg-neutral-800 text-white shadow border border-neutral-700"
-                                    : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900 bg-transparent"
-                                }`}
-                              >
-                                {hour}h
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Dynamic Explainer Box */}
-                        <div className="p-3 bg-neutral-950 rounded-xl border border-neutral-800/60 text-[0.6875rem] text-neutral-400 leading-normal space-y-1">
-                          <div className="font-bold text-amber-400 flex items-center gap-1.5 mb-1 text-[0.71875rem]">
-                            <span>💡 So funktioniert die Zeit-Automatik:</span>
-                          </div>
-                          <div>• <span className="text-white font-medium">Montag bis Donnerstag</span> ab <span className="text-white font-black">{vorschauStunde}:00 Uhr</span> schaltet das Dashboard automatisch auf <span className="text-white font-medium">morgen</span> um.</div>
-                          <div>• Am <span className="text-white font-medium">Freitag</span> ab <span className="text-white font-black">{vorschauStunde}:00 Uhr</span> sowie am ganzen <span className="text-white font-medium">Wochenende</span> wird der Stundenplan für <span className="text-white font-medium">Montag</span> angezeigt.</div>
-                          <div>• Zu allen anderen Zeiten siehst du den Stundenplan von <span className="text-white">heute</span>.</div>
-                        </div>
-                      </div>
-                    )}
-
-                    {vorschauModus === "heute" && (
-                      <div className="p-3 bg-neutral-950 rounded-xl border border-neutral-800/60 text-[0.6875rem] text-emerald-400 leading-normal">
-                        ☀️ <strong>Starr Heute aktiv:</strong> Das Dashboard zeigt zu jeder Uhrzeit starr den aktuellen Tag an. Perfekt, wenn du am Nachmittag noch das aktuelle Tagesprogramm sehen möchtest.
-                      </div>
-                    )}
-
-                    {vorschauModus === "morgen" && (
-                      <div className="p-3 bg-neutral-950 rounded-xl border border-neutral-800/60 text-[0.6875rem] text-amber-400 leading-normal">
-                        🔮 <strong>Starr Morgen aktiv:</strong> Das Dashboard zeigt standardmäßig immer das Programm des nächsten Schultages an (Montag bis Donnerstag schaltet auf morgen, Freitag und am Wochenende auf Montag). Bestens geeignet für Lehrer, die am Vortag arbeiten.
-                      </div>
-                    )}
-
-                    {/* Info about manual controls */}
-                    <div className="p-4 bg-indigo-950/40 rounded-xl border border-indigo-900/40 text-[0.6875rem] leading-normal text-indigo-300 space-y-1">
-                      <div className="font-black text-indigo-200 flex items-center gap-1.5 mb-1 text-[0.71875rem]">
-                        <span>📅 Manueller Planungs-Modus:</span>
-                      </div>
-                      <p className="font-semibold text-indigo-200/90 leading-relaxed">
-                        Zusätzlich kannst du auf dem Dashboard jederzeit manuell <strong>tageweise</strong> oder <strong>wochenweise</strong> blättern. 
-                        Nutze die Pfeiltasten (‹, ›, «, ») neben der Datumsanzeige im Header, um beliebig in der Zeit zu reisen – perfekt für deine tageweise und wochenweise Planung!
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Dashboard-Struktur (Zonen & Widgets) */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-neutral-300">
-                    <Grid size={16} className="text-accent" />
-                    <span className="text-[0.6875rem] font-black uppercase tracking-wider">
-                      Dashboard-Struktur & Zonen-Sichtbarkeit
-                    </span>
-                  </div>
-                  <div className="p-5 bg-neutral-900/40 rounded-2xl border border-neutral-800 space-y-4">
-                    <p className="text-[0.65625rem] text-neutral-400 font-medium leading-relaxed">
-                      Blende ganze Abschnitte (Zonen) des Dashboards aus oder ein, um die Oberfläche nach deinen Wünschen anzupassen.
-                    </p>
-
-                    <div className="space-y-2.5">
-                      {/* Zone 1 Toggle */}
-                      <div className="flex items-center justify-between p-3 bg-neutral-950 rounded-xl border border-neutral-850">
-                        <div>
-                          <span className="text-[0.75rem] font-bold text-neutral-200 block">Zone 1: Unterricht & Tag</span>
-                          <span className="text-[0.625rem] text-neutral-400 block">Stundenplan-Agenda, Morgenaufgaben & Tages-Fokus</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showZone1: !prev.showZone1 }))}
-                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showZone1 ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showZone1 ? "translate-x-4" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-
-                      {/* Zone 2 Toggle */}
-                      <div className="flex items-center justify-between p-3 bg-neutral-950 rounded-xl border border-neutral-850">
-                        <div>
-                          <span className="text-[0.75rem] font-bold text-neutral-200 block">Zone 2: Tägliche Organisation</span>
-                          <span className="text-[0.625rem] text-neutral-400 block">Persönliche To-Dos & Ankündigungen</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showZone2: !prev.showZone2 }))}
-                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showZone2 ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showZone2 ? "translate-x-4" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-
-                      {/* Zone 3 Toggle */}
-                      <div className="flex items-center justify-between p-3 bg-neutral-950 rounded-xl border border-neutral-850">
-                        <div>
-                          <span className="text-[0.75rem] font-bold text-neutral-200 block">Zone 3: Belohnung & Motivation</span>
-                          <span className="text-[0.625rem] text-neutral-400 block">Klassenglas & Schülerinteraktionen</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showZone3: !prev.showZone3 }))}
-                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showZone3 ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showZone3 ? "translate-x-4" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-
-                      {/* Zone 4 Toggle */}
-                      <div className="flex items-center justify-between p-3 bg-neutral-950 rounded-xl border border-neutral-850">
-                        <div>
-                          <span className="text-[0.75rem] font-bold text-neutral-200 block">Zone 4: Analysen & Statistiken</span>
-                          <span className="text-[0.625rem] text-neutral-400 block">Notenschnitt, Anwesenheit, Lehrplan & Diagnostik</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showZone4: !prev.showZone4 }))}
-                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showZone4 ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showZone4 ? "translate-x-4" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Widget-Feineinstellung (Granulare Toggles) */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-neutral-300">
-                    <Sliders size={16} className="text-accent" />
-                    <span className="text-[0.6875rem] font-black uppercase tracking-wider">
-                      Einzelne Widgets ein- & ausblenden
-                    </span>
-                  </div>
-                  <div className="p-5 bg-neutral-900/40 rounded-2xl border border-neutral-800 space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      
-                      {/* Klassenglas */}
-                      <div className="flex items-center justify-between p-2.5 bg-neutral-950 rounded-xl border border-neutral-850/60">
-                        <div>
-                          <span className="text-[0.71875rem] font-bold text-neutral-200 block">🏺 Klassenglas (Belohnung)</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showKlassenglas: !prev.showKlassenglas }))}
-                          className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showKlassenglas ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showKlassenglas ? "translate-x-3.5" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-
-                      {/* Countdowns / Events */}
-                      <div className="flex items-center justify-between p-2.5 bg-neutral-950 rounded-xl border border-neutral-850/60">
-                        <div>
-                          <span className="text-[0.71875rem] font-bold text-neutral-200 block">📅 Termine & Countdowns</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showEvents: !prev.showEvents }))}
-                          className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showEvents ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showEvents ? "translate-x-3.5" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-
-                      {/* To-Do Liste */}
-                      <div className="flex items-center justify-between p-2.5 bg-neutral-950 rounded-xl border border-neutral-850/60">
-                        <div>
-                          <span className="text-[0.71875rem] font-bold text-neutral-200 block">📝 Persönliche To-Dos</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showTodos: !prev.showTodos }))}
-                          className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showTodos ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showTodos ? "translate-x-3.5" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-
-                      {/* Schüler-Anwesenheit */}
-                      <div className="flex items-center justify-between p-2.5 bg-neutral-950 rounded-xl border border-neutral-850/60">
-                        <div>
-                          <span className="text-[0.71875rem] font-bold text-neutral-200 block">👥 Schüler-Anwesenheit</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showAnwesenheit: !prev.showAnwesenheit }))}
-                          className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showAnwesenheit ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showAnwesenheit ? "translate-x-3.5" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-
-                      {/* Schüler-Statistiken */}
-                      <div className="flex items-center justify-between p-2.5 bg-neutral-950 rounded-xl border border-neutral-850/60">
-                        <div>
-                          <span className="text-[0.71875rem] font-bold text-neutral-200 block">📊 Beteiligungs-Statistiken</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showSchuelerStats: !prev.showSchuelerStats }))}
-                          className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showSchuelerStats ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showSchuelerStats ? "translate-x-3.5" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-
-                      {/* Geburtstage */}
-                      <div className="flex items-center justify-between p-2.5 bg-neutral-950 rounded-xl border border-neutral-850/60">
-                        <div>
-                          <span className="text-[0.71875rem] font-bold text-neutral-200 block">🎂 Geburtstags-Anzeige</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showGeburtstage: !prev.showGeburtstage }))}
-                          className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showGeburtstage ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showGeburtstage ? "translate-x-3.5" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-
-                      {/* Lehrplan-Abdeckung */}
-                      <div className="flex items-center justify-between p-2.5 bg-neutral-950 rounded-xl border border-neutral-850/60">
-                        <div>
-                          <span className="text-[0.71875rem] font-bold text-neutral-200 block">📚 Lehrplanabdeckung</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showLehrplanAbdeckung: !prev.showLehrplanAbdeckung }))}
-                          className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showLehrplanAbdeckung ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showLehrplanAbdeckung ? "translate-x-3.5" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-
-                      {/* Morgenaufgabe */}
-                      <div className="flex items-center justify-between p-2.5 bg-neutral-950 rounded-xl border border-neutral-850/60">
-                        <div>
-                          <span className="text-[0.71875rem] font-bold text-neutral-200 block">🌅 Morgen-Aufgaben</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showMorgenAufgaben: !prev.showMorgenAufgaben }))}
-                          className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showMorgenAufgaben ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showMorgenAufgaben ? "translate-x-3.5" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-
-                      {/* Tages-Fokus */}
-                      <div className="flex items-center justify-between p-2.5 bg-neutral-950 rounded-xl border border-neutral-850/60">
-                        <div>
-                          <span className="text-[0.71875rem] font-bold text-neutral-200 block">🎯 Tages-Fokus Notiz</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showTagesFokus: !prev.showTagesFokus }))}
-                          className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showTagesFokus ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showTagesFokus ? "translate-x-3.5" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Wochenend-Geburtstage */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-neutral-300">
-                    <Cake size={16} className="text-accent" />
-                    <span className="text-[0.6875rem] font-black uppercase tracking-wider">
-                      Wochenend-Geburtstage
-                    </span>
-                  </div>
-                  <div className="p-5 bg-neutral-900/40 rounded-2xl border border-neutral-800 space-y-4">
-                    <div>
-                      <span className="text-[0.75rem] leading-tight font-bold text-neutral-200">
-                        Geburtstage vom Wochenende anzeigen:
-                      </span>
-                      <span className="block text-[0.6875rem] text-neutral-400 font-sans mt-0.5">
-                        Wann sollen Kinder gefeiert werden, die am Wochenende
-                        Geburtstag haben?
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-0.5 sm:gap-1 bg-neutral-950 p-0.5 sm:p-1 rounded-xl border border-neutral-800/40 w-full overflow-hidden">
-                      {[
-                        { id: "none", label: "Nicht verschieben" },
-                        { id: "friday", label: "Am Freitag davor" },
-                        { id: "monday", label: "Am Montag danach" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() =>
-                            setDashboardSettings((prev: any) => ({
-                              ...prev,
-                              moveWeekendBirthdays: opt.id,
-                            }))
-                          }
-                          className={`py-1 sm:py-1.5 px-0.5 text-[0.42rem] xs:text-[0.48rem] sm:text-[0.625rem] font-black rounded-md sm:rounded-lg transition-all text-center w-full min-w-0 leading-tight ${
-                            dashboardSettings.moveWeekendBirthdays === opt.id
-                              ? "bg-neutral-800 text-white shadow border border-neutral-700"
-                              : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900 bg-transparent"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Custom Events Countdowns */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-neutral-300">
-                    <Calendar size={16} className="text-accent" />
-                    <span className="text-[0.6875rem] font-black uppercase tracking-wider">
-                      Benutzerdefinierte Countdowns
-                    </span>
-                  </div>
-                  <div className="p-5 bg-neutral-900/40 rounded-2xl border border-neutral-800 space-y-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <span className="text-[0.75rem] leading-tight font-bold text-neutral-200">
-                          Countdowns anzeigen
-                        </span>
-                        <span className="block text-[0.6875rem] text-neutral-400 font-sans mt-0.5">
-                          Ferien, Schulausflüge oder andere Ereignisse
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setDashboardSettings((prev: any) => ({
-                            ...prev,
-                            showEvents: !prev.showEvents,
-                          }))
-                        }
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                          dashboardSettings.showEvents
-                            ? "bg-emerald-500"
-                            : "bg-neutral-800"
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showEvents
-                              ? "translate-x-5"
-                              : "translate-x-0"
-                          }`}
-                        />
-                      </button>
-                    </div>
-                    {dashboardSettings.showEvents && (
-                      <div className="space-y-3 pt-4 border-t border-neutral-800/80">
-                        {(dashboardSettings.customEvents || []).map((ev: any) => (
-                           <div key={ev.id} className="flex gap-3 items-center bg-neutral-950 p-2.5 rounded-xl border border-neutral-800">
-                             <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-                               <Calendar size={14} />
-                             </div>
-                             <div className="flex-1">
-                               <div className="text-[0.75rem] font-bold text-neutral-200">{ev.name}</div>
-                               <div className="text-[0.625rem] text-neutral-400 font-medium">{ev.date}</div>
-                             </div>
-                             <button
-                               type="button"
-                               onClick={() => setDashboardSettings((prev: any) => ({
-                                 ...prev,
-                                 customEvents: prev.customEvents.filter((c:any) => c.id !== ev.id)
-                               }))}
-                               className="text-neutral-500 hover:bg-rose-500/20 hover:text-rose-400 w-8 h-8 flex justify-center items-center rounded-lg transition-colors cursor-pointer"
-                             >
-                               <X size={14} />
-                             </button>
-                           </div>
-                        ))}
-                        <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
-                          <input type="text" id="new_ev_name" placeholder="Ereignis-Name (z.B. Sommerferien)" className="flex-1 px-3 py-2.5 rounded-xl bg-neutral-950 border border-neutral-800 font-semibold focus:border-neutral-600 focus:outline-none text-[0.75rem] text-white"/>
-                          <input type="date" id="new_ev_date" className="sm:w-36 px-3 py-2.5 rounded-xl bg-neutral-950 border border-neutral-800 font-medium focus:border-neutral-600 focus:outline-none text-[0.75rem] text-neutral-300 [&::-webkit-calendar-picker-indicator]:invert-[0.8]"/>
-                          <button type="button" onClick={() => {
-                            const nInput = document.getElementById('new_ev_name') as HTMLInputElement;
-                            const dInput = document.getElementById('new_ev_date') as HTMLInputElement;
-                            if (nInput?.value && dInput?.value) {
-                              const [yyyy, mm, dd] = dInput.value.split('-');
-                              const fmt = `${dd}.${mm}.${yyyy}`;
-                              setDashboardSettings((prev: any) => ({
-                                  ...prev,
-                                  customEvents: [...(prev.customEvents||[]), {id: Date.now().toString(), name: nInput.value, date: fmt}]
-                              }));
-                              nInput.value = '';
-                              dInput.value = '';
-                            }
-                          }} className="px-4 py-2.5 bg-white text-black hover:bg-neutral-200 transition-colors uppercase tracking-wider rounded-xl text-[0.6875rem] font-black cursor-pointer shadow-sm">Add</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="p-6 border-t border-neutral-800 bg-neutral-900/50 flex gap-4">
-                <button
-                  onClick={() => setShowCustomizePanel(false)}
-                  className="flex-1 py-3.5 bg-accent text-white rounded-xl font-black text-[0.75rem] uppercase tracking-widest shadow-lg hover:bg-accent/90 active:scale-95 transition-all text-center"
-                >
-                  Einstellungen sichern
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showCustomizePanel && (
+        <DashboardCustomizeDialog
+          simpleMode={simpleDashboardMode}
+          onSimpleModeChange={updateDashboardView}
+          previewMode={vorschauModus}
+          onPreviewModeChange={mode => {
+            setVorschauModus(mode);
+            setManualDateOffset(0);
+          }}
+          previewHour={vorschauStunde}
+          onPreviewHourChange={hour => {
+            setVorschauStunde(hour);
+            setManualDateOffset(0);
+          }}
+          onArrange={!simpleDashboardMode && visibleLayout.length > 0 ? () => setArrangingCards(true) : undefined}
+          onClose={() => setShowCustomizePanel(false)}
+        >
+          <details className="rounded-xl border border-border">
+            <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-bold">Bereiche der erweiterten Ansicht</summary>
+            <div className="space-y-3 border-t border-border p-3 text-sm">
+              <label className="block font-semibold">
+                Schwerpunkt
+                <select value={dashboardDayMode} className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-text-primary"
+                  onChange={event => setDashboardDayMode(event.target.value as DashboardDayMode)}>
+                  <option value="morning">Morgenstart</option>
+                  <option value="teaching">Unterricht</option>
+                  <option value="review">Tagesabschluss</option>
+                </select>
+              </label>
+              {[
+                ...modeZones[dashboardDayMode].map(id => sections[id]),
+                ...(dashboardDayMode !== "teaching" ? [
+                  { setting: "showEvents", label: "Anstehende Termine" },
+                  { setting: "showGeburtstage", label: "Geburtstage" },
+                ] : []),
+              ].map(({ setting, label }) => (
+                <label key={setting} className="flex min-h-11 items-center gap-3 rounded-xl border border-border px-3 py-2 font-semibold">
+                  <input type="checkbox" className="size-4 accent-accent" checked={Boolean(dashboardSettings[setting])}
+                    onChange={() => toggleSetting(setting)} />
+                  {label}
+                </label>
+              ))}
+              {dashboardDayMode !== "teaching" && dashboardSettings.showGeburtstage && (
+                <label className="block font-semibold">
+                  Wochenend-Geburtstage
+                  <select value={dashboardSettings.moveWeekendBirthdays} className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-text-primary"
+                    onChange={event => {
+                      const moveWeekendBirthdays = event.target.value;
+                      setDashboardSettings(prev => ({ ...prev, moveWeekendBirthdays }));
+                    }}>
+                    <option value="none">Am Geburtstag</option>
+                    <option value="friday">Am Freitag davor</option>
+                    <option value="monday">Am Montag danach</option>
+                  </select>
+                </label>
+              )}
+              {dashboardDayMode === "teaching" && dashboardSettings.showZone3 && (
+                <label className="flex min-h-11 items-center gap-3 rounded-xl border border-border px-3 py-2 font-semibold">
+                  <input type="checkbox" className="size-4 accent-accent" checked={Boolean(dashboardSettings.showKlassenglas)}
+                    onChange={() => toggleSetting("showKlassenglas")} />
+                  Klassenglas
+                </label>
+              )}
+            </div>
+          </details>
+        </DashboardCustomizeDialog>
+      )}
 
       {/* ============================================== */}
       {/* ADD STICKY NOTE FOR FOCUS STUDENT MODAL         */}

@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { instructionChecklistWindow, instructionTextPages } from '../../../lib/instructionPaging';
+import { getInstructionCountdownMinutes } from '../../../lib/classTimerInput';
+import { INSTRUCTION_MATERIAL_COLORS, hasInstructionReference, normalizeInstructionReference } from '../../../lib/instructionReference';
 import { 
   Edit3, Eye, Check, Trash2, Plus, X, 
   Clock, Users, BookOpen, Sparkles, CheckSquare, 
-  Square, AlignLeft, AlignCenter, Type, RotateCcw
+  Square, AlignLeft, AlignCenter, Type, RotateCcw, FileText, ListChecks
 } from 'lucide-react';
 import { CockpitWidgetConfig } from '../../../types';
 import { STANDARD_MATERIALS } from '../materialOptions';
@@ -18,7 +20,7 @@ export interface InstructionWidgetProps {
   isSplit?: boolean;
   showSettings?: boolean;
   onCloseSettings?: () => void;
-  onStartCountdown?: () => void;
+  onStartCountdown?: (seconds: number) => void;
   hasActiveCountdown?: boolean;
 }
 
@@ -37,7 +39,13 @@ export const COMMON_MATERIALS = STANDARD_MATERIALS.slice(0, 9);
 const QUICK_SUBJECTS = ['Deutsch', 'Mathematik', 'Sachunterricht', 'Englisch', 'Musik', 'Kunst'];
 
 // Quick Time Presets
-const QUICK_TIMES = ['5 Min', '10 Min', '15 Min', '20 Min', '30 Min'];
+const QUICK_TIMES = [2, 5, 10, 15, 20, 30];
+
+const REFERENCE_FIELDS = [
+  { key: 'material', label: 'Heft oder Buch', placeholder: 'z. B. TRAX-Arbeitsheft', icon: BookOpen },
+  { key: 'page', label: 'Seite', placeholder: 'z. B. 12', icon: FileText },
+  { key: 'exercises', label: 'Aufgabe', placeholder: 'z. B. 1–3', icon: ListChecks },
+] as const;
 
 // Available Themes for Classroom Display
 const DISPLAY_THEMES = [
@@ -62,6 +70,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
 
   // Resolve initial values from widget.settings or fallback to app.vertretungHinweise
   const initialTaskText = settings.taskText ?? (app?.vertretungHinweise || '');
+  const initialReference = normalizeInstructionReference(settings.assignmentReference);
   const initialSubject = settings.subject ?? '';
   const initialDetails = settings.details ?? '';
   const initialSocialForm = settings.socialForm ?? '';
@@ -79,9 +88,10 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 400, height: 300 });
 
-  // Mode: 'view' (Student Smartboard) or 'edit' (Teacher Compact Form)
-  // If there is literally zero task text, start in edit mode so the teacher can type immediately
-  const [isEditing, setIsEditing] = useState<boolean>(!initialTaskText.trim());
+  // Start in the editor when the board has no assignment yet.
+  const hasSavedTask = Boolean(initialTaskText.trim() || hasInstructionReference(initialReference) ||
+    initialDetails || initialBonusTask || initialChecklist.length);
+  const [isEditing, setIsEditing] = useState(!hasSavedTask);
 
   // In the cockpit the shared header gear opens the editor. If that gear is
   // toggled closed again, only an editor that was opened through the gear closes;
@@ -103,12 +113,21 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
   // Local draft state for performance isolation (does not trigger global App re-renders on keystrokes)
   const [draftSubject, setDraftSubject] = useState(initialSubject);
   const [draftTaskText, setDraftTaskText] = useState(initialTaskText);
+  const [draftReference, setDraftReference] = useState(initialReference);
+  const referenceInputId = useId();
+  const reference = normalizeInstructionReference(draftReference);
+  const referenceColor = INSTRUCTION_MATERIAL_COLORS.find(color => color.id === reference.color);
+  const showReference = hasInstructionReference(reference);
   const [draftDetails, setDraftDetails] = useState(initialDetails);
   const [draftSocialForm, setDraftSocialForm] = useState(initialSocialForm);
   const [draftMaterials, setDraftMaterials] = useState<string[]>(initialMaterials);
   const [draftTimeEstimate, setDraftTimeEstimate] = useState(initialTimeEstimate);
+  const timeInputId = useId();
+  const countdownMinutes = getInstructionCountdownMinutes(draftTimeEstimate);
   const [draftBonusTask, setDraftBonusTask] = useState(initialBonusTask);
   const [draftChecklist, setDraftChecklist] = useState<Array<{ id: string; text: string; done: boolean }>>(initialChecklist);
+  const hasDraftTask = Boolean(draftTaskText.trim() || showReference || draftDetails.trim() || draftBonusTask.trim() || draftChecklist.length);
+  const showMainContent = Boolean(!hasDraftTask || draftTaskText || draftDetails || draftChecklist.length);
   const [draftFontSizeScale, setDraftFontSizeScale] = useState<'small' | 'normal' | 'large' | 'xlarge'>(initialFontSizeScale);
   const [draftAlign, setDraftAlign] = useState<'left' | 'center'>(initialAlign);
   const [draftThemeId, setDraftThemeId] = useState(initialThemeId);
@@ -142,6 +161,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
     if (!isEditing) {
       setDraftSubject(settings.subject ?? '');
       setDraftTaskText(settings.taskText ?? (app?.vertretungHinweise || ''));
+      setDraftReference(normalizeInstructionReference(settings.assignmentReference));
       setDraftDetails(settings.details ?? '');
       setDraftSocialForm(settings.socialForm ?? '');
       setDraftMaterials(Array.isArray(settings.materials) ? settings.materials : []);
@@ -162,17 +182,19 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
   }, []);
 
   // Save changes & switch to student view
-  const handleSaveAndShow = useCallback((startTimer = false) => {
+  const handleSaveAndShow = useCallback((timerMinutes?: number) => {
     const trimmedTask = draftTaskText.trim();
 
     const updatedSettings = {
       ...settings,
       subject: draftSubject.trim(),
       taskText: trimmedTask,
+      assignmentReference: normalizeInstructionReference(draftReference),
       details: draftDetails.trim(),
       socialForm: draftSocialForm,
       materials: draftMaterials,
-      timeEstimate: startTimer ? "5 Minuten" : draftTimeEstimate.trim(),
+      timeEstimate: timerMinutes === undefined ? draftTimeEstimate.trim()
+        : `${timerMinutes} ${timerMinutes === 1 ? 'Minute' : 'Minuten'}`,
       bonusTask: draftBonusTask.trim(),
       checklist: draftChecklist,
       fontSizeScale: draftFontSizeScale,
@@ -193,13 +215,16 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
       }));
     }
 
-    if (startTimer) onStartCountdown?.();
+    if (timerMinutes !== undefined) onStartCountdown?.(timerMinutes * 60);
+    setTextPage(0);
+    setChecklistPage(0);
     setIsEditing(false);
     onCloseSettings?.();
   }, [
     settings,
     draftSubject,
     draftTaskText,
+    draftReference,
     draftDetails,
     draftSocialForm,
     draftMaterials,
@@ -220,6 +245,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
     // Revert draft states to saved settings
     setDraftSubject(settings.subject ?? '');
     setDraftTaskText(settings.taskText ?? (app?.vertretungHinweise || ''));
+    setDraftReference(normalizeInstructionReference(settings.assignmentReference));
     setDraftDetails(settings.details ?? '');
     setDraftSocialForm(settings.socialForm ?? '');
     setDraftMaterials(Array.isArray(settings.materials) ? settings.materials : []);
@@ -235,7 +261,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
 
   // Keyboard shortcut in edit mode: Ctrl/Cmd + Enter -> Show, Escape -> Cancel
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if (isEditing && (e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       handleSaveAndShow();
     } else if (e.key === 'Escape' && isEditing) {
@@ -298,6 +324,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
       // Confirmed clear
       setDraftSubject('');
       setDraftTaskText('');
+      setDraftReference(normalizeInstructionReference(null));
       setDraftDetails('');
       setDraftSocialForm('');
       setDraftMaterials([]);
@@ -313,6 +340,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
             ...settings,
             subject: '',
             taskText: '',
+            assignmentReference: normalizeInstructionReference(null),
             details: '',
             socialForm: '',
             materials: [],
@@ -332,6 +360,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
 
   // Responsive classification
   const isCompactHeight = containerSize.height < 260;
+  const isCompactReference = showReference && containerSize.height < 350;
   const isVerySmall = containerSize.width < 340 || containerSize.height < 220;
   const isLargeOrFullscreen = containerSize.width > 700 || containerSize.height > 550;
   const assignmentPages = instructionTextPages(draftTaskText,
@@ -403,7 +432,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
       {/* 1. ANZEIGEMODUS (Student Smartboard View)                                */}
       {/* ========================================================================= */}
       {!isEditing && (
-        <div className="flex flex-col justify-between w-full h-full p-2 sm:p-4 overflow-hidden">
+        <div className={`flex flex-col w-full h-full p-2 overflow-hidden ${isCompactHeight || isCompactReference ? '' : 'sm:p-4'}`}>
           {/* TOP BAR: Subject / Header & Teacher Controls */}
           <div className="flex items-center justify-between gap-3 shrink-0 pb-2 border-b border-black/5 dark:border-white/10">
             {/* Subject Badge or Placeholder */}
@@ -456,20 +485,50 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
             </div>
           </div>
 
-          {/* MAIN CONTENT AREA: Centered Dominant Task */}
-          <div className={`flex-grow flex flex-col justify-center my-3 min-h-0 w-full ${
+          <div data-instruction-board-content className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain">
+          {showReference && (
+            <dl aria-label="Heft, Seite und Aufgabe" className="mt-2 flex shrink-0 flex-wrap gap-2">
+              {REFERENCE_FIELDS.map(({ key, label, icon: Icon }) => {
+                const color = key === 'material' ? referenceColor : undefined;
+                const value = reference[key] || color?.label;
+                if (!value) return null;
+                return (
+                  <div key={key} className={`min-w-0 rounded-xl border px-2.5 py-2 sm:px-3 ${
+                    key === 'material' ? 'basis-40 grow-[3]' : 'basis-24 grow'
+                  } ${isDarkCanvas ? 'border-white/15 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-950'}`}>
+                    <dt className="flex items-center gap-1.5 text-xs font-semibold">
+                      <Icon size={15} className="shrink-0" aria-hidden="true" />{label}
+                    </dt>
+                    <dd className="mt-0.5 flex items-center gap-2 font-black leading-tight" data-instruction-reference={key}>
+                      {color && <span role="img" aria-label={`Heftfarbe ${color.label}`}
+                        className="size-5 shrink-0 rounded-full ring-1 ring-inset ring-black/20 sm:size-6"
+                        style={{ backgroundColor: color.swatch }} />}
+                      <span className={`min-w-0 [overflow-wrap:anywhere] ${key === 'material'
+                        ? 'text-[clamp(1.125rem,3.4cqw,2.5rem)]'
+                        : isCompactReference ? 'text-[clamp(1.375rem,6cqw,2.25rem)]'
+                          : 'text-[clamp(1.375rem,6cqw,3.25rem)]'}`}>{value}</span>
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+          )}
+
+          {/* Task text and steps */}
+          {showMainContent && (
+          <div className={`flex flex-col justify-center w-full ${showReference ? 'my-2' : 'grow my-3'} ${
             draftAlign === 'center' ? 'items-center text-center' : 'items-start text-left'
           }`}>
-            {draftTaskText ? (
+            {hasDraftTask ? (
               <div className="w-full max-w-4xl space-y-2">
                 {/* Visual Task Text (Clean, multi-line, readable from far away) */}
-                <div
+                {draftTaskText && <div
                   className={`font-black tracking-tight leading-snug whitespace-pre-line break-words ${getTaskFontSizeClass()} ${
                     isDarkCanvas ? 'text-white drop-shadow-sm' : 'text-slate-900'
                   }`}
                 >
                   <span data-instruction-text-page>{assignmentPages[safeTextPage]}</span>
-                </div>
+                </div>}
                 {assignmentPages.length > 1 && <div role="group" aria-label="Arbeitsauftrag-Textseiten"
                   className="mt-2 flex items-center justify-center gap-2">
                   <button type="button" disabled={safeTextPage === 0}
@@ -555,9 +614,10 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
               </div>
             )}
           </div>
+          )}
 
           {/* BOTTOM BAR: Metadata (Social Form, Material, Time) & Bonus Task */}
-          <div className="shrink-0 space-y-2.5 pt-2 border-t border-black/5 dark:border-white/10">
+          {(draftBonusTask || hasMetaInfo) && <div className={`shrink-0 space-y-2.5 pt-2 border-t border-black/5 dark:border-white/10 ${showReference ? 'mt-2' : ''}`}>
             {/* Optional Bonus Task Box ("⭐ Wenn du fertig bist") */}
             {draftBonusTask && (
               <div className={`p-2.5 sm:p-3 rounded-xl border flex items-start gap-2.5 ${
@@ -567,10 +627,12 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
               }`}>
                 <Sparkles size={18} className="shrink-0 mt-0.5 text-amber-400" />
                 <div className="min-w-0">
-                  <span className="text-xs font-black uppercase tracking-wider block opacity-75">
-                    Wenn du fertig bist:
+                  <span className="text-xs font-bold block">
+                    Schon fertig?
                   </span>
-                  <p className="text-sm sm:text-base font-extrabold tracking-tight">
+                  <p className={`font-bold tracking-tight [overflow-wrap:anywhere] ${isCompactReference
+                    ? 'text-[clamp(1rem,3.3cqw,1.25rem)]'
+                    : showReference ? 'text-[clamp(1rem,3.3cqw,1.75rem)]' : 'text-sm sm:text-base'}`}>
                     {draftBonusTask}
                   </p>
                 </div>
@@ -617,6 +679,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                 )}
               </div>
             )}
+          </div>}
           </div>
         </div>
       )}
@@ -640,7 +703,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                {draftTaskText && (
+                {hasSavedTask && (
                   <button
                     type="button"
                     onClick={handleCancelEdit}
@@ -659,13 +722,6 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                 </button>
               </div>
             </div>
-
-            {onStartCountdown && (
-              <button type="button" onClick={() => handleSaveAndShow(true)} disabled={!draftTaskText.trim()}
-                className="min-h-11 rounded-xl border border-accent bg-accent-soft px-3 text-sm font-bold text-accent hover:bg-accent/10 disabled:opacity-50">
-                {hasActiveCountdown ? 'Anzeigen und Timer auf 5 Min. neu starten' : 'Anzeigen und 5 Min. starten'}
-              </button>
-            )}
 
             {/* Subject (Optional) + Quick Chips */}
             <div>
@@ -710,7 +766,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-black uppercase tracking-wider text-accent dark:text-accent">
-                  Arbeitsauftrag (Haupttext) *
+                  Arbeitsauftrag (Haupttext)
                 </label>
                 <span className="text-[10px] font-bold text-slate-400">
                   Tipp: Strg+Enter zum Anzeigen
@@ -729,16 +785,108 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
               />
             </div>
 
-            {/* Subtitle / Details (Seiten, Aufgaben) */}
+            <fieldset className="rounded-xl border border-slate-200 px-3 pb-3 dark:border-white/10">
+              <legend className="px-1.5 text-xs font-bold text-accent">Heft, Seite und Aufgabe (optional)</legend>
+              <div className="mt-1 grid gap-2 sm:grid-cols-[2fr_1fr_1fr]">
+                {REFERENCE_FIELDS.map(({ key, label, placeholder }) => (
+                  <label key={key} className="block min-w-0 text-sm font-semibold">
+                    {label}
+                    <input type="text" value={draftReference[key]} placeholder={placeholder}
+                      onChange={event => setDraftReference(previous => ({ ...previous, [key]: event.target.value }))}
+                      className={`mt-1 min-h-11 w-full rounded-lg border px-2.5 text-sm outline-none focus:border-accent ${
+                        currentIsLight ? 'border-slate-300 bg-white' : 'border-white/10 bg-zinc-900 text-white'
+                      }`} />
+                  </label>
+                ))}
+              </div>
+              <div className="mt-2" role="group" aria-labelledby={referenceInputId}>
+                <p id={referenceInputId} className="mb-1 text-sm font-semibold">Heftfarbe</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {INSTRUCTION_MATERIAL_COLORS.map(color => (
+                    <button key={color.id} type="button" aria-pressed={draftReference.color === color.id}
+                      onClick={() => setDraftReference(previous => ({ ...previous, color: previous.color === color.id ? '' : color.id }))}
+                      className={`flex min-h-11 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold ${
+                        draftReference.color === color.id ? 'border-accent bg-accent-soft text-accent'
+                          : currentIsLight ? 'border-slate-200 bg-white hover:bg-slate-100' : 'border-white/10 bg-zinc-900 hover:bg-zinc-800'
+                      }`}>
+                      <span className="size-4 shrink-0 rounded-full ring-1 ring-inset ring-black/20" style={{ backgroundColor: color.swatch }} aria-hidden="true" />
+                      {color.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </fieldset>
+
+            <label className="block text-sm font-bold text-amber-700 dark:text-amber-300">
+              Schon fertig? (optional)
+              <input type="text" value={draftBonusTask} onChange={event => setDraftBonusTask(event.target.value)}
+                placeholder="z. B. Zeig deinem Partner, wie du gerechnet hast."
+                className={`mt-1 min-h-11 w-full rounded-xl border px-3 text-sm font-semibold outline-none focus:border-amber-500 ${
+                  currentIsLight ? 'border-slate-300 bg-white text-slate-900' : 'border-white/10 bg-zinc-900 text-white'
+                }`} />
+            </label>
+
+            <div>
+              <label htmlFor={timeInputId} className="mb-1 block text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Geplante Zeit (optional)
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  id={timeInputId}
+                  type="text"
+                  value={draftTimeEstimate}
+                  onChange={e => setDraftTimeEstimate(e.target.value)}
+                  placeholder="z. B. 10 Minuten"
+                  aria-describedby={onStartCountdown && countdownMinutes === null ? timeInputId + '-hint' : undefined}
+                  className={`min-h-11 min-w-36 flex-1 rounded-xl border px-3 text-sm font-bold outline-none focus:border-accent ${
+                    currentIsLight ? 'bg-white border-slate-300' : 'bg-zinc-900 border-white/10 text-white'
+                  }`}
+                />
+                {onStartCountdown && (
+                  <button type="button"
+                    onClick={() => countdownMinutes !== null && handleSaveAndShow(countdownMinutes)}
+                    disabled={countdownMinutes === null || !hasDraftTask}
+                    className="min-h-11 rounded-xl border border-accent bg-accent-soft px-3 text-sm font-bold text-accent hover:bg-accent/10 disabled:opacity-50">
+                    {countdownMinutes === null ? 'Anzeigen und Timer starten'
+                      : hasActiveCountdown ? `Anzeigen und Timer auf ${countdownMinutes} Min. neu starten`
+                      : `Anzeigen und ${countdownMinutes} Min. starten`}
+                  </button>
+                )}
+              </div>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {QUICK_TIMES.map(minutes => {
+                  const isSelected = draftTimeEstimate.trim() !== '' && countdownMinutes === minutes;
+                  return (
+                    <button key={minutes} type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => setDraftTimeEstimate(`${minutes} Min.`)}
+                      className={`min-h-11 rounded-lg border px-2.5 py-1 text-xs font-bold transition-colors ${
+                        isSelected ? 'bg-accent text-accent-text border-accent'
+                          : currentIsLight ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                          : 'bg-zinc-900 border-white/10 text-slate-300 hover:bg-zinc-800'
+                      }`}>
+                      {minutes} Min.
+                    </button>
+                  );
+                })}
+              </div>
+              {onStartCountdown && countdownMinutes === null && (
+                <p id={timeInputId + '-hint'} className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                  Für den Timer eine einzelne Dauer zwischen 1 und 720 Minuten eingeben.
+                </p>
+              )}
+            </div>
+
+            {/* Additional notes, including free-text details from earlier versions */}
             <div>
               <label className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                Zusatz / Seiten / Aufgaben (optional)
+                Weitere Hinweise (optional)
               </label>
               <input
                 type="text"
                 value={draftDetails}
                 onChange={(e) => setDraftDetails(e.target.value)}
-                placeholder="z.B. Buch S. 24 Nr. 1–4"
+                placeholder="z. B. Rechne ins Heft."
                 className={`w-full px-3 py-2 rounded-xl text-sm font-bold border outline-none focus:border-accent ${
                   currentIsLight ? 'bg-white border-slate-300' : 'bg-zinc-900 border-white/10 text-white'
                 }`}
@@ -801,59 +949,6 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
                   );
                 })}
               </div>
-            </div>
-
-            {/* Time Estimate (Optional) */}
-            <div>
-              <label className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                Geplante Zeit (optional)
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={draftTimeEstimate}
-                  onChange={(e) => setDraftTimeEstimate(e.target.value)}
-                  placeholder="z.B. 10 Minuten"
-                  className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border outline-none focus:border-accent ${
-                    currentIsLight ? 'bg-white border-slate-300' : 'bg-zinc-900 border-white/10 text-white'
-                  }`}
-                />
-              </div>
-              {/* Quick Time Presets */}
-              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                {QUICK_TIMES.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setDraftTimeEstimate(t)}
-                    className={`min-h-11 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
-                      draftTimeEstimate === t
-                        ? 'bg-amber-500 text-white border-amber-500'
-                        : currentIsLight
-                          ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                          : 'bg-zinc-900 border-white/10 text-slate-300 hover:bg-zinc-800'
-                    }`}
-                  >
-                    ⏱️ {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Bonus Task ("⭐ Wenn du fertig bist") */}
-            <div>
-              <label className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 block mb-1">
-                ⭐ Wenn du fertig bist (Zusatzaufgabe)
-              </label>
-              <input
-                type="text"
-                value={draftBonusTask}
-                onChange={(e) => setDraftBonusTask(e.target.value)}
-                placeholder="z.B. Nr. 5 und 6 im Heft oder Leseecke..."
-                className={`w-full px-3 py-2 rounded-xl text-sm font-bold border outline-none focus:border-amber-500 ${
-                  currentIsLight ? 'bg-white border-slate-300' : 'bg-zinc-900 border-white/10 text-white'
-                }`}
-              />
             </div>
 
             {/* Optional Checklist Editor */}

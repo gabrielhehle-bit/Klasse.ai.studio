@@ -1,6 +1,7 @@
 import { PLANNED_COCKPIT_WIDGETS } from '../components/cockpit/plannedCockpitCatalog';
 import {
-  COCKPIT_WIDGET_LIBRARY_ITEMS, getCockpitWidgetCanonicalDisplayLabel,
+  COCKPIT_WIDGET_LIBRARY_ITEMS,
+  getCockpitWidgetCanonicalDisplayLabel,
   getCockpitWidgetLibraryItem, matchesCockpitWidgetSearch, normalizeWidgetSearch,
   type CockpitWidgetLibraryId,
 } from './cockpitWidgetCatalog';
@@ -19,40 +20,63 @@ interface CockpitWidgetGroup {
   openMode?: WidgetModeSearchMatch;
 }
 
-// Only the picker groups these entries. Saved widget IDs and settings stay intact.
-export const COCKPIT_REGULAR_WIDGETS: readonly CockpitWidgetGroup[] = [
-  ...PLANNED_COCKPIT_WIDGETS.map(group => ({
-    ...group,
-    label: group.id === 'groups' ? 'Gruppen & Zufall' : group.id === 'timer' ? 'Timer' : group.label,
-    sources: group.id === 'vocabulary' ? [...group.sources, 'spellingdetective'] as const : group.sources,
-  })),
-  { id: 'homework', label: 'Hausübungen', sources: ['homework'] },
-  { id: 'starsreview', label: 'Sterne der Woche', sources: ['starsreview'] },
-  { id: 'dictionary', label: 'Bildwörterbuch', sources: ['dictionary'] },
-  { id: 'waldruhe', label: getCockpitWidgetCanonicalDisplayLabel('waldruhe'), sources: ['waldruhe'] },
-  { id: 'breathing', label: 'Atempause', sources: ['breathing'] },
-];
+export const COCKPIT_TEACHING_WIDGET_SECTIONS = [
+  { id: 'core', label: 'Kernwidgets', icon: '🧩', widgets: ['kidattendance', 'waldruhe', 'timeline', 'instruction', 'timer', 'groups'] },
+  { id: 'classroom', label: 'Klassenalltag', icon: '🎒', widgets: ['tischcheck', 'classweeklyplan', 'homework', 'dienste', 'image', 'qrcode'] },
+  { id: 'mathe', label: 'Mathe', icon: '🔢', widgets: ['zahlenraum', 'kopfrechnen'] },
+  { id: 'deutsch', label: 'Deutsch', icon: '📖', widgets: ['vocabulary', 'wortsatzwerkstatt'] },
+  { id: 'sachunterricht', label: 'Sachunterricht', icon: '🌍', widgets: ['compass', 'watercycle'] },
+  { id: 'musik', label: 'Musik', icon: '🎵', widgets: ['sounds'] },
+  { id: 'play', label: 'Spiele', icon: '🎲', widgets: ['dice'] },
+] as const satisfies readonly { id: string; label: string; icon: string; widgets: readonly CockpitWidgetLibraryId[] }[];
 
-const coreWidgetIds = ['kidattendance', 'waldruhe', 'timeline', 'instruction', 'timer', 'groups'] as const;
-export const COCKPIT_CORE_WIDGETS = coreWidgetIds.map(id =>
-  COCKPIT_REGULAR_WIDGETS.find(group => group.id === id)!,
+const integratedWidgetIds = new Set<CockpitWidgetLibraryId>(['timer', 'zahlenraum', 'sounds']);
+
+function makeWidgetGroup(id: CockpitWidgetLibraryId): CockpitWidgetGroup {
+  const planned = PLANNED_COCKPIT_WIDGETS.find(group => group.id === id);
+  return {
+    id,
+    label: id === 'groups' ? 'Gruppen & Zufall' : id === 'timer' ? 'Timer' : planned?.label ?? getCockpitWidgetCanonicalDisplayLabel(id),
+    sources: id === 'groups' ? ['groups', 'randomname', 'wheel', 'faircall']
+      : planned && integratedWidgetIds.has(id) ? planned.sources : [id],
+  };
+}
+
+const teachingGroups = new Map<string, readonly CockpitWidgetGroup[]>(
+  COCKPIT_TEACHING_WIDGET_SECTIONS.map(section => [section.id, section.widgets.map(makeWidgetGroup)]),
+);
+export const COCKPIT_CORE_WIDGETS = teachingGroups.get('core')!;
+export const COCKPIT_REGULAR_WIDGETS = Array.from(teachingGroups.values()).flat();
+const addableWidgetIds = new Set<string>(COCKPIT_REGULAR_WIDGETS.map(group => group.id));
+const sectionsByWidgetId = new Map<string, string>(
+  COCKPIT_TEACHING_WIDGET_SECTIONS.flatMap(section => section.widgets.map(id => [id, section.label] as const)),
 );
 
-const groupedTypes = new Set(COCKPIT_REGULAR_WIDGETS.flatMap(group => group.sources));
-const allWidgetGroups: readonly CockpitWidgetGroup[] = [
-  ...COCKPIT_REGULAR_WIDGETS,
-  ...COCKPIT_WIDGET_LIBRARY_ITEMS
-    .filter(item => !groupedTypes.has(item.type))
-    .map(item => ({ id: item.type, label: getCockpitWidgetCanonicalDisplayLabel(item.type), sources: [item.type] })),
-];
+export function getCockpitTeachingSectionLabel(type: string): string | undefined {
+  return sectionsByWidgetId.get(type);
+}
+const groupsBySource = new Map<string, CockpitWidgetGroup>(
+  COCKPIT_REGULAR_WIDGETS.flatMap(group => group.sources.map(type => [type, group] as const)),
+);
 
-export function getCockpitFavoriteGroups(types: readonly string[]): CockpitWidgetGroup[] {
-  const coreIds = new Set(COCKPIT_CORE_WIDGETS.map(group => group.id));
-  const byType = new Map(allWidgetGroups.flatMap(group => group.sources.map(type => [type, group] as const)));
+export function isCockpitWidgetAddable(type: string): boolean {
+  return addableWidgetIds.has(type);
+}
+
+export function isCockpitTeachingBoardWidget(type: string): boolean {
+  // These tools are opened from the group card and the mascot control.
+  return isCockpitWidgetAddable(type) || type === 'randomname' || type === 'pet';
+}
+
+export const COCKPIT_ARCHIVED_WIDGETS = COCKPIT_WIDGET_LIBRARY_ITEMS.filter(
+  item => !isCockpitTeachingBoardWidget(item.type),
+);
+
+export function getCockpitGroupsForTypes(types: readonly string[]): CockpitWidgetGroup[] {
   const chosen = new Map<string, CockpitWidgetGroup>();
   for (const type of types) {
-    const group = byType.get(type as CockpitWidgetLibraryId);
-    if (group && !coreIds.has(group.id)) chosen.set(group.id, group);
+    const group = groupsBySource.get(type);
+    if (group) chosen.set(group.id, group);
   }
   return [...chosen.values()];
 }
@@ -63,7 +87,7 @@ const timeAliases: Record<TimeToolMode, readonly string[]> = {
   clock: ['Uhr', 'Digitale Uhr'],
 };
 const selectionAliases: Record<RandomSelectionMode, readonly string[]> = {
-  names: ['Zufälliges Kind', 'Namensziehung'],
+  names: ['Zufallsauswahl', 'Zufälliges Kind', 'Namensziehung'],
   wheel: ['Glücks Rad', 'Drehrad'],
   fair: ['Fair Call', 'Faire Namensrunde'],
 };
@@ -93,16 +117,18 @@ function getWidgetModeMatch(type: CockpitWidgetLibraryId, normalized: string): W
 export function getRegularCockpitGroups(category = 'core', query = '') {
   if (query.trim()) {
     const normalized = normalizeWidgetSearch(query);
-    return allWidgetGroups.flatMap(group => {
-      const openMode = getWidgetModeMatch(group.id, normalized);
+    return COCKPIT_REGULAR_WIDGETS.flatMap(group => {
+      const openMode = getWidgetModeMatch(group.id === 'groups' ? 'randomname' : group.id, normalized);
       if (openMode) return [{ ...group, openMode }];
       const matchesGroup = group.sources.some(type => {
         const item = getCockpitWidgetLibraryItem(type);
-        return item && matchesCockpitWidgetSearch({ ...item, label: `${item.label} ${group.label}` }, query);
+        return item && matchesCockpitWidgetSearch({
+          ...item,
+          label: `${item.label} ${group.label} ${getCockpitTeachingSectionLabel(group.id) ?? ''}`,
+        }, query);
       });
       return matchesGroup ? [group] : [];
     });
   }
-  if (category === 'core') return COCKPIT_CORE_WIDGETS;
-  return allWidgetGroups.filter(group => getCockpitWidgetLibraryItem(group.id)?.category === category);
+  return teachingGroups.get(category) ?? [];
 }

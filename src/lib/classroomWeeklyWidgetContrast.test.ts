@@ -9,7 +9,7 @@ const css = readFileSync('src/index.css', 'utf8');
 // Tailwind text utilities. The children's primary action needs its own
 // contrast-safe foreground, including Chromium/WebKit text painting.
 test('Wochenplan: finished button keeps white text on dark blue under every app theme', () => {
-  assert.match(widget, /className=\{\`weekly-plan-dark-action w-full/);
+  assert.match(widget, /className=\{\`weekly-plan-dark-action min-h-11 w-full/);
   assert.match(widget, /<span className="weekly-plan-action-label">✅ Ich bin fertig mit einer Aufgabe<\/span>/);
   assert.match(css, /html body \[data-style\] \.classroom-weekly-plan button\.weekly-plan-dark-action \{/);
   assert.match(css, /-webkit-text-fill-color: #ffffff !important;/);
@@ -30,10 +30,10 @@ test('Wochenplan: narrow or short widgets prioritize task space and keep the act
   assert.match(widget, /aria-label="Aufgaben dieser Woche"/);
   assert.match(widget, /overflow-y-auto overscroll-contain/);
   assert.match(widget, /compactBoard \? "p-1\.5" : "p-3 sm:p-4"/);
-  assert.match(widget, /compactBoard \? "p-1\.5" : "p-3 sm:px-5"/);
+  assert.match(widget, /<header[\s\S]*?aria-label="Aufgabe abschließen"/);
   assert.match(widget, /aria-label="Wochenplan groß anzeigen"/);
   assert.match(widget, /aria-label="Aktuelle Woche anzeigen"/);
-  assert.match(widget, /className=\{\`weekly-plan-dark-action w-full rounded-xl/);
+  assert.match(widget, /className=\{\`weekly-plan-dark-action min-h-11 w-full rounded-xl/);
   assert.match(widget, /const taskColumns = size\.width >= 1320 \? 3 : size\.width >= 820 \? 2 : 1/);
   assert.match(widget, /gridTemplateColumns:/);
   assert.match(widget, /selectionScope === scope/);

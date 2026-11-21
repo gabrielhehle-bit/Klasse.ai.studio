@@ -8,38 +8,37 @@ const css = readFileSync('src/index.css', 'utf8');
 test('widget library is a focused modal with search, settings and close in one header', () => {
   assert.match(surface, /aria-label="Widget-Bibliothek"/);
   assert.match(surface, /klassio-widget-library-header/);
-  assert.match(surface, /placeholder="Widget suchen … z\. B\. Timer, Gruppen, Brüche"/);
+  assert.match(surface, /placeholder="Widget suchen … z\. B\. Timer, Gruppen, Lernwörter"/);
   assert.match(surface, /aria-label="Widget-Voreinstellungen öffnen"/);
   assert.match(surface, /aria-label="Widget-Bibliothek schließen"/);
   assert.doesNotMatch(surface, />Auswahl schließen<\/button>/);
   assert.match(surface, /isWidgetConfigurationOpen \? "flex" : "hidden"/);
 });
 
-test('core, favorites and recent appear before subject navigation', () => {
+test('teaching categories lead the sidebar, followed by favorites and recent', () => {
   const start = surface.indexOf('klassio-widget-library-sidebar');
-  const end = surface.indexOf('const allAvailableWidgets = COCKPIT_WIDGET_LIBRARY_ITEMS;', start);
+  const end = surface.indexOf('klassio-widget-library-content', start);
   assert.ok(start >= 0 && end > start);
   const sidebar = surface.slice(start, end);
-  const favorites = sidebar.indexOf('⭐ Favoriten');
-  const recent = sidebar.indexOf('🕘 Zuletzt verwendet');
-  const core = sidebar.indexOf('🧩 Kernwidgets');
-  const all = sidebar.indexOf('▦ Weitere Widgets');
-  assert.ok(core >= 0 && favorites > core && recent > favorites && all > recent);
+  const favorites = sidebar.indexOf('label: "Favoriten"');
+  const recent = sidebar.indexOf('label: "Zuletzt verwendet"');
+  const sections = sidebar.indexOf('...COCKPIT_TEACHING_WIDGET_SECTIONS');
+  assert.ok(sections >= 0 && favorites > sections && recent > favorites);
+  assert.doesNotMatch(sidebar, /Weitere Widgets/);
   assert.match(surface, /activeWidgetCategory === "recent"/);
-  assert.match(surface, /recentWidgetTypes\.includes\(item\.type\)/);
+  assert.match(surface, /getCockpitGroupsForTypes\(\(showFavorites \? folderItems : recentWidgetTypes\)\.filter\(isCockpitTeachingBoardWidget\)\)/);
   assert.match(surface, /Noch keine zuletzt verwendeten Widgets/);
 });
 
 test('widget cards expose favorite, safe quick-bar pinning and a clear board action', () => {
-  assert.match(surface, /const icon = parts\.length > 1 \? parts\[0\] : "🧩"/);
-  assert.match(surface, /const name = parts\.length > 1 \? parts\.slice\(1\)\.join\(" "\) : item\.label/);
+  assert.match(surface, /getCockpitWidgetLibraryItem\(group\.id\)/);
   assert.match(surface, /line-clamp-2 text-xs leading-relaxed text-slate-500/);
   assert.match(surface, /Von Favoriten entfernen/);
   assert.match(surface, /Zu Favoriten hinzufügen/);
   assert.match(surface, /auf der Tafel anzeigen/);
   assert.match(surface, /wiederherstellen/);
   assert.match(surface, /An die untere Widget-Leiste heften/);
-  assert.match(surface, /addCockpitQuickbarItem\(settings, item\.type as CockpitQuickbarId\)/);
+  assert.match(surface, /addCockpitQuickbarItem\(settings, group\.id\)/);
   assert.match(surface, /data-widget-card-action="dock"/);
   assert.match(surface, /data-widget-card-action="primary"/);
   assert.match(surface, /<span>Leiste<\/span>/);

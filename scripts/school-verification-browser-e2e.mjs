@@ -329,11 +329,11 @@ async function verifyRandomPickerInRealBrowser(client) {
 
   await setInputByLabel(client, 'Widget suchen', 'Zufallsauswahl');
   await waitFor(client, 'grouped widget search selects one relevant core entry',
-    String.raw`(() => {const status=document.querySelector('.klassio-widget-library-content [role="status"]');const core=[...document.querySelectorAll('.klassio-widget-library-sidebar button')].find(b=>b.textContent.includes('Kernwidgets'));return !!status&&status.textContent.includes('1 Treffer')&&document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===1&&!!document.querySelector('[data-testid="cockpit-core-group-randomname"]')&&!!core;})()`);
+    String.raw`(() => {const status=document.querySelector('.klassio-widget-library-content [role="status"]');const core=[...document.querySelectorAll('.klassio-widget-library-sidebar button')].find(b=>b.textContent.includes('Kernwidgets'));return !!status&&status.textContent.includes('1 Treffer')&&document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===1&&!!document.querySelector('[data-testid="cockpit-core-group-groups"]')&&!!core;})()`);
   await waitFor(client, 'random widget catalogue entry',
-    String.raw`Boolean(document.querySelector('button[aria-label="Zufallsauswahl öffnen"]:not(:disabled)'))`);
+    String.raw`Boolean(document.querySelector('button[aria-label="Namen ziehen öffnen"]:not(:disabled)'))`);
   const addedRandomWidget = await evaluate(client,
-    String.raw`(() => {const b=document.querySelector('button[aria-label="Zufallsauswahl öffnen"]:not(:disabled)');if(!b)return false;b.click();return true;})()`);
+    String.raw`(() => {const b=document.querySelector('button[aria-label="Namen ziehen öffnen"]:not(:disabled)');if(!b)return false;b.click();return true;})()`);
   if (!addedRandomWidget) throw new Error('Could not add random-name widget from redesigned library card.');
   await waitFor(client, 'empty class: random picker disabled and without demo pupils',
     String.raw`(() => {const button=document.querySelector('button[aria-label="Zufälliges Kind ziehen"]');return !!button && button.disabled && button.textContent.includes('noch keine Kinder angelegt') && !button.textContent.includes('Max M.');})()`);

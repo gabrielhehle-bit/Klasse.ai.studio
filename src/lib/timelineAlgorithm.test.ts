@@ -11,6 +11,7 @@ import {
   TimelineUnit,
 } from './timelineAlgorithm';
 import { WIDGET_MIN_SIZES, getWidgetSizeCategory } from '../components/cockpit/widgetLayout';
+import { getKW } from './utils';
 
 const MOCK_APP = {
   tageplan: {
@@ -131,6 +132,46 @@ test('Timeline: 5. Nächste Stunde korrekt bestimmt', () => {
   const nowL2 = new Date(2026, 8, 7, 9, 10, 0, 0);
   const stateL2 = getTimelineStatus(units, nowL2);
   assert.equal(stateL2.nextUnit?.isPause, true);
+});
+
+test('Timeline: Fach und Tafelhinweis bleiben bei der richtigen Stunde im lückenhaften Wochenplan', () => {
+  const now = new Date(2026, 10, 25, 8, 15);
+  const secondLesson = { fach: 'Mathematik', raum: 'Raum 2', tafelhinweis: '  Mathebuch\nauf Seite 24  ' };
+
+  for (const weeklyPlan of [
+    { Mittwoch: { 1: secondLesson } },
+    { 2: [null, secondLesson] },
+  ]) {
+    const units = buildDayTimeline({
+      tageplan: { Mittwoch: { stunden: [1, 2] } },
+      stammplan: { Mittwoch: { 1: 'Deutsch', 2: 'Sachunterricht' } },
+      stundenZeiten: { 1: '08:00–08:50', 2: '08:50–09:45' },
+      wochenplanung: { [getKW(now)]: weeklyPlan },
+    }, now);
+    const { currentUnit, nextUnit } = getTimelineStatus(units, now);
+
+    assert.equal(currentUnit?.fach, 'Deutsch');
+    assert.equal(currentUnit?.raum, undefined);
+    assert.equal(currentUnit?.tafelhinweis, undefined);
+    assert.equal(nextUnit?.fach, 'Mathematik');
+    assert.equal(nextUnit?.raum, 'Raum 2');
+    assert.equal(nextUnit?.tafelhinweis, 'Mathebuch auf Seite 24');
+  }
+});
+
+test('Timeline: Übernimmt nur den freigegebenen Tafelhinweis und nur bei Unterricht', () => {
+  const now = new Date(2026, 10, 25, 8, 15);
+  const units = buildDayTimeline({
+    tageplan: { Mittwoch: { stunden: [1, 2, 3, 4] } },
+    stundenZeiten: { 1: '08:00–08:50', 2: '08:50–09:45', 3: '10:00–10:50', 4: '10:50–11:45' },
+    wochenplanung: { [getKW(now)]: { Mittwoch: {
+      0: { fach: 'Deutsch', thema: 'Planungstext', material: 'Interne Liste', imKinderWochenplan: true, tafelhinweis: '  ' },
+      1: { fach: 'Sachunterricht', tafelhinweis: 'x'.repeat(100) },
+      2: { fach: 'Frei', tafelhinweis: 'Freistunde' },
+      3: { fach: 'Sport', tafelhinweis: [] },
+    } } },
+  }, now);
+  assert.deepEqual(units.map(unit => unit.tafelhinweis), [undefined, 'x'.repeat(80), undefined, undefined, undefined]);
 });
 
 test('Timeline: 6. Nach letzter Stunde korrekt erkannt', () => {

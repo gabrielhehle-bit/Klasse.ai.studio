@@ -4,7 +4,7 @@ import { getGroupPageLayout } from '../../../lib/groupsWidgetPages';
 import {
   Users, Sparkles, RotateCcw, ArrowLeftRight,
   UserX, UserCheck, Check, X, AlertCircle, Plus, Trash2,
-  MoveRight, CheckCircle2
+  MoveRight, CheckCircle2, UserPlus
 } from 'lucide-react';
 import { CockpitWidgetConfig, AppState } from '../../../types';
 import { useApp } from '../../../context/AppContext';
@@ -19,6 +19,7 @@ import {
   GroupConstraint,
   GroupingConfig,
   generateStudentGroups,
+  getLateStudentGroupOptions,
   getNewGroupRuleViolation,
   swapStudentsInGroups,
   moveStudentToGroup,
@@ -56,6 +57,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const groupBodyRef = useRef<HTMLDivElement>(null);
+  const lateDialogRef = useRef<HTMLDialogElement>(null);
   const size = useWidgetSize(containerRef);
   const groupBodySize = useWidgetSize(groupBodyRef);
   useWidgetOverflowGuard('GroupsWidget', containerRef);
@@ -114,10 +116,19 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
   const [selectedStudentForAction, setSelectedStudentForAction] = useState<string | null>(null);
   const [groupPage, setGroupPage] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showLateDialog, setShowLateDialog] = useState(false);
+  const [lateStudentId, setLateStudentId] = useState('');
+  const [lateGroupId, setLateGroupId] = useState('');
+  useEffect(() => {
+    const dialog = lateDialogRef.current;
+    if (!showLateDialog || !dialog) return;
+    dialog.showModal();
+    return () => { if (dialog.open) dialog.close(); };
+  }, [showLateDialog]);
   useEffect(() => {
     if (!isExpanded) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsExpanded(false);
+      if (event.key === 'Escape' && !lateDialogRef.current?.open) setIsExpanded(false);
     };
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
@@ -137,6 +148,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
   }, [widget?.settings?.pausedStudentIds, widget?.settings?.notTogether, widget?.settings?.keepTogether]);
   useEffect(() => {
     setIsExpanded(false);
+    setShowLateDialog(false);
     setPreviousGroups(null);
     setPairRulesAcknowledged(false);
     setOptionsTab('pause');
@@ -206,6 +218,28 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     const pausedSet = new Set(pausedStudentIds);
     return candidates.filter(s => !pausedSet.has(s.id)).map(s => s.id);
   }, [candidates, pausedStudentIds]);
+  const assignedIds = new Set(groups.flatMap(group => group.studentIds));
+  const lateStudents = groups.length > 0
+    ? getCockpitStudentPool(allStudents, app, 'checked-in').students.filter(student =>
+      !assignedIds.has(student.id) && !pausedStudentIds.includes(student.id))
+    : [];
+  const lateStudent = lateStudents.find(student => student.id === lateStudentId);
+  const lateGroupOptions = showLateDialog && lateStudent
+    ? getLateStudentGroupOptions(groups, lateStudent.id, notTogether, keepTogether)
+    : [];
+  const lateGroup = lateGroupId
+    ? lateGroupOptions.find(option => option.target.id === lateGroupId)
+    : lateGroupOptions[0];
+
+  const assignLateStudent = () => {
+    if (!lateStudent || !lateGroup) return;
+    setPreviousGroups(groups);
+    setGroups(lateGroup.updatedGroups);
+    persistState(lateGroup.updatedGroups, mode, targetValue, pausedStudentIds, notTogether, keepTogether, namingStyle);
+    const name = getDisplayStudentName(lateStudent, allStudents);
+    setFeedbackMessage({ text: `${name} ist jetzt in ${lateGroup.target.name}.`, type: 'success' });
+    lateDialogRef.current?.close();
+  };
 
   // Gruppen erstellen oder neu mischen
   const handleGenerate = useCallback((overrideMode?: GroupingMode, overrideVal?: number) => {
@@ -437,7 +471,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
             ? 'bg-accent text-accent-text'
             : 'bg-emerald-600 text-white'
         }`}>
-          <div className="flex items-center gap-1.5 truncate">
+          <div role="status" className="flex items-center gap-1.5 truncate">
             {feedbackMessage.type === 'error' ? (
               <AlertCircle size={14} className="shrink-0" />
             ) : (
@@ -492,13 +526,31 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
               {compactGroupWidget ? '⛶ Alle' : `Alle ${groups.length} Gruppen anzeigen`}
             </button>
           )}
-          {previousGroups && groups.length > 0 && (size.width >= 550 || isExpanded) && (
-            <button type="button" onClick={undoMix}
-              className="min-h-11 rounded-xl border border-accent px-3 text-xs font-bold text-accent dark:text-accent"
-              title="Vorherige Gruppeneinteilung wiederherstellen">↶ Rückgängig</button>
+          {lateStudents.length > 0 && (
+            <button type="button" aria-label="Kinder nachträglich zuteilen"
+              onClick={event => {
+                event.currentTarget.focus();
+                setLateStudentId(lateStudents[0].id);
+                setLateGroupId('');
+                setShowLateDialog(true);
+              }}
+              className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-accent px-2 text-xs font-bold text-accent-text hover:bg-accent-hover">
+              <UserPlus size={16} aria-hidden="true" />
+              {lateStudents.length} zuteilen
+            </button>
+          )}
+          {previousGroups && groups.length > 0 && (
+            <button type="button" onClick={undoMix} aria-label="Einteilung rückgängig machen"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-xl border border-accent px-2 text-xs font-bold text-accent dark:text-accent"
+              title="Vorherige Gruppeneinteilung wiederherstellen">
+              <RotateCcw size={16} aria-hidden="true" />
+              {!compactGroupWidget && 'Rückgängig'}
+            </button>
           )}
           <button type="button" onClick={() => handleGenerate()} disabled={activeStudentIds.length === 0}
-            className={`${compactGroupWidget ? 'min-h-11 px-3 py-1 text-xs' : 'min-h-11 px-4 py-2 text-sm'} shrink-0 rounded-xl bg-accent font-black text-accent-text hover:bg-accent-hover disabled:opacity-50`}>
+            className={`${compactGroupWidget ? 'min-h-11 px-3 py-1 text-xs' : 'min-h-11 px-4 py-2 text-sm'} shrink-0 rounded-xl font-black disabled:opacity-50 ${lateStudents.length > 0
+              ? 'border border-accent text-accent hover:bg-accent-soft'
+              : 'bg-accent text-accent-text hover:bg-accent-hover'}`}>
             {groups.length === 0 ? 'Gruppen bilden' : 'Neu mischen'}
           </button>
         </div>
@@ -936,7 +988,8 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
       )}
     </div>
   );
-  return isExpanded ? createPortal(
+  return <>
+    {isExpanded ? createPortal(
     <div role="dialog" aria-modal="true" aria-label="Gruppen groß anzeigen"
       className="fixed inset-0 z-[10000] flex min-h-0 flex-col bg-white p-2 text-slate-900 shadow-2xl sm:p-4 dark:bg-zinc-950 dark:text-white">
       <div className="mb-2 flex min-h-11 shrink-0 items-center justify-between gap-3">
@@ -950,7 +1003,49 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
         {widgetContent}
       </div>
     </div>, document.body,
-  ) : widgetContent;
+    ) : widgetContent}
+    {showLateDialog && createPortal(
+      <dialog ref={lateDialogRef} aria-label="Kinder nachträglich zuteilen"
+        onClose={() => setShowLateDialog(false)}
+        onKeyDown={event => { if (event.key === 'Escape') event.stopPropagation(); }}
+        className="fixed inset-0 m-auto max-h-[90dvh] w-[min(92vw,26rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 text-slate-900 shadow-2xl backdrop:bg-slate-950/60">
+        <form onSubmit={event => { event.preventDefault(); assignLateStudent(); }} className="space-y-3">
+          <h2 className="text-lg font-bold">Kinder nachträglich zuteilen</h2>
+          {lateStudents.length > 0 ? (
+            <>
+              <label className="block text-sm font-bold">Kind
+                <select autoFocus value={lateStudent?.id ?? ''} onChange={event => {
+                  setLateStudentId(event.target.value);
+                  setLateGroupId('');
+                }} className="mt-1 block min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3">
+                  {!lateStudent && <option value="" disabled>Kind auswählen</option>}
+                  {lateStudents.map(student => <option key={student.id} value={student.id}>{getDisplayStudentName(student, allStudents)}</option>)}
+                </select>
+              </label>
+              {lateGroupOptions.length > 0 ? (
+                <label className="block text-sm font-bold">Gruppe
+                  <select value={lateGroup?.target.id ?? ''} onChange={event => setLateGroupId(event.target.value)}
+                    className="mt-1 block min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3">
+                    {!lateGroup && <option value="" disabled>Gruppe auswählen</option>}
+                    {lateGroupOptions.map(({ target }, index) => (
+                      <option key={target.id} value={target.id}>
+                        {target.name} · {target.studentIds.length} {target.studentIds.length === 1 ? 'Kind' : 'Kinder'}{index === 0 ? ' (Vorschlag)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : lateStudent && <p role="status" className="text-sm">Mit den eingestellten Paar-Regeln ist keine Gruppe verfügbar.</p>}
+            </>
+          ) : <p role="status" className="text-sm">Alle eingecheckten Kinder, die mitmachen, sind eingeteilt.</p>}
+          <div className="flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={() => lateDialogRef.current?.close()}
+              className="min-h-11 rounded-xl border border-slate-300 px-3 text-sm font-bold">Abbrechen</button>
+            <button type="submit" disabled={!lateGroup}
+              className="min-h-11 rounded-xl bg-accent px-3 text-sm font-bold text-accent-text disabled:opacity-50">Zuteilen</button>
+          </div>
+        </form>
+      </dialog>, document.body)}
+  </>;
 };
 
 export default GroupsWidget;

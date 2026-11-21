@@ -51,7 +51,7 @@ test('right student list stays class-local, resizable, visible on touch, and use
 });
 
 test('existing widget layout and encrypted board settings remain the only source of truth', () => {
-  assert.match(board, /cockpitWidgets\.filter\(widget => widget\.visible\)/);
+  assert.match(board, /teachingBoardWidgets\.filter\(widget => widget\.visible\)/);
   assert.match(board, /cockpitLayout: updated/);
   assert.match(board, /loadAndSanitizeLayout\(app\.cockpitLayout\)/);
   assert.match(board, /\[boardTextClassKey\]: finalWidth/);

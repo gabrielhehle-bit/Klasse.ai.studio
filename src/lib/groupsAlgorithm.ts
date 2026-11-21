@@ -437,8 +437,8 @@ export function getNewGroupRuleViolation(
   const newlyBroken = (pair: GroupConstraint, together: boolean) => {
     const oldA = before.get(pair.studentIdA), oldB = before.get(pair.studentIdB);
     const newA = after.get(pair.studentIdA), newB = after.get(pair.studentIdB);
-    if (!oldA || !oldB || !newA || !newB) return false;
-    const wasBroken = together ? oldA !== oldB : oldA === oldB;
+    if (!newA || !newB) return false;
+    const wasBroken = Boolean(oldA && oldB && (together ? oldA !== oldB : oldA === oldB));
     const nowBroken = together ? newA !== newB : newA === newB;
     return nowBroken && !wasBroken;
   };
@@ -449,6 +449,24 @@ export function getNewGroupRuleViolation(
     return 'Diese Änderung würde ein Buddy-Paar trennen. Passe die Paar-Regel zuerst in den Widget-Einstellungen an.';
   }
   return null;
+}
+
+export function getLateStudentGroupOptions(
+  groups: GeneratedGroup[],
+  studentId: string,
+  notTogether: readonly GroupConstraint[] = [],
+  keepTogether: readonly GroupConstraint[] = [],
+) {
+  if (groups.some(group => group.studentIds.includes(studentId))) return [];
+
+  return groups.flatMap(target => {
+    const updatedGroups = groups.map(group => group.id === target.id
+      ? { ...group, studentIds: [...group.studentIds, studentId] }
+      : group);
+    return getNewGroupRuleViolation(groups, updatedGroups, notTogether, keepTogether)
+      ? []
+      : [{ target, updatedGroups }];
+  }).sort((first, second) => first.target.studentIds.length - second.target.studentIds.length);
 }
 
 /**

@@ -5,18 +5,17 @@ import { readFileSync } from 'node:fs';
 const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
 const css = readFileSync('src/index.css', 'utf8');
 
-test('Widget-Bibliothek: Suche ist fachübergreifend und der Bestandskatalog bleibt separat durchsuchbar', () => {
-  assert.match(cockpit, /if \(activeWidgetCategory !== "legacy" && \(query \|\|/);
+test('Widget-Bibliothek: Suche ist fachübergreifend und zeigt nur verfügbare Unterrichtswerkzeuge', () => {
+  assert.doesNotMatch(cockpit, /In weiteren Widgets suchen/);
   assert.match(cockpit, /setActiveWidgetCategory\(cat\.id\);\s*if \(widgetSearch\) setWidgetSearch\(""\)/);
   assert.match(cockpit, /getRegularCockpitGroups\(activeWidgetCategory, query\)/);
-  assert.match(cockpit, /if \(query\) return matchesCockpitWidgetSearch\(item, query\)/);
-  assert.match(cockpit, /\{filteredList\.length\} Treffer/);
+  assert.match(cockpit, /\$\{regularGroups\.length\} Treffer/);
 });
 
-test('Widget-Bibliothek: Such- und Variantenaktionen bleiben mindestens 44px hoch', () => {
+test('Widget-Bibliothek: Such- und Auswahlaktionen bleiben mindestens 44px hoch', () => {
   assert.match(cockpit, /aria-label="Widgetsuche leeren"[\s\S]*min-h-11 min-w-11/);
   assert.match(cockpit, /Favoriten-Ordner auswählen[\s\S]*min-h-11 max-w-52/);
-  assert.match(cockpit, /className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-xs font-semibold/);
+  assert.match(cockpit, /data-widget-card-action="selection"[\s\S]{0,720}min-h-11/);
   assert.doesNotMatch(cockpit, /aria-label="Widgetsuche leeren"[\s\S]{0,220}min-h-9 min-w-9/);
 });
 
@@ -27,9 +26,9 @@ test('Widget-Bibliothek: Laptop nutzt zwei Spalten, Mobilansicht behält horizon
 });
 
 test('Widget-Bibliothek: leere Zustände bleiben normal lesbar', () => {
-  assert.match(cockpit, /Ordner "\{currentResolvedFolder\}" ist leer/);
+  assert.match(cockpit, /Ordner „\$\{currentResolvedFolder\}“ ist leer/);
   assert.match(cockpit, /Keine passenden Widgets gefunden/);
-  assert.match(cockpit, /mt-1 max-w-sm text-xs leading-relaxed/);
+  assert.match(cockpit, /text-sm text-slate-600" role="status"/);
   assert.doesNotMatch(cockpit, /text-\[7\.5px\] mt-1 max-w-\[240px\]/);
 });
 

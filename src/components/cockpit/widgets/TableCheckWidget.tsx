@@ -1,21 +1,13 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { 
-  Check, Edit3, Eye, Plus, Trash2, ArrowUp, ArrowDown, 
-  RotateCcw, Backpack, CheckCircle2, ChevronDown, ChevronUp, X
-} from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { readWidgetLifecycleState, usePersistedWidgetLifecycleState } from '../../../lib/widgetLifecycleState';
-import { CockpitWidgetConfig } from '../../../types';
-import { 
-  STANDARD_MATERIALS, 
-  STANDARD_MATERIALS as STANDARD_OPTS,
-  resolveMaterialItem, 
-  MaterialOption 
-} from '../materialOptions';
+import type { CockpitWidgetConfig } from '../../../types';
+import { STANDARD_MATERIALS, resolveMaterialItem } from '../materialOptions';
 
 export interface TableCheckWidgetProps {
   widget: CockpitWidgetConfig;
   onUpdate: (updates: Partial<CockpitWidgetConfig>) => void;
   currentIsLight: boolean;
+  instructionMaterialIds?: readonly string[];
 }
 
 export interface CustomMaterialItem {
@@ -63,8 +55,12 @@ export const TableCheckWidget: React.FC<TableCheckWidgetProps> = ({
   widget,
   onUpdate,
   currentIsLight,
+  instructionMaterialIds,
 }) => {
   const settings = widget.settings || {};
+  const assignmentMaterials = Array.isArray(instructionMaterialIds)
+    ? [...new Set(instructionMaterialIds.filter((id): id is string => typeof id === 'string' && id.trim() !== ''))]
+    : [];
 
   // Persistierte Einstellungen
   const savedSelectedIds: string[] = useMemo(() => {
@@ -192,22 +188,22 @@ export const TableCheckWidget: React.FC<TableCheckWidgetProps> = ({
   };
 
   // Speichern und in den Anzeigemodus wechseln
-  const handleSaveAndShow = () => {
-    // Ungültige oder gelöschte IDs aus readyIds filtern
-    const nextReady = readyIds.filter((id) => draftSelectedIds.includes(id));
-
+  const showMaterials = (selectedIds: string[], nextReady: string[], customItems = draftCustomItems) => {
     onUpdate({
       settings: {
         ...settings,
-        selectedIds: draftSelectedIds,
-        customItems: draftCustomItems,
+        selectedIds,
+        customItems,
         readyIds: nextReady,
         activeTab: 'show',
       },
     });
 
+    setDraftSelectedIds(selectedIds);
+    setDraftCustomItems(customItems);
     setReadyIds(nextReady);
     setActiveTab('show');
+    setPage(0);
   };
 
   // Bearbeitung abbrechen
@@ -275,9 +271,11 @@ export const TableCheckWidget: React.FC<TableCheckWidgetProps> = ({
   const [editSection, setEditSection] = useState<'presets' | 'materials' | 'order' | 'custom'>(savedDraft.editSection);
   usePersistedWidgetLifecycleState(widget, onUpdate, 'tischcheck', {activeTab, draftSelectedIds, draftCustomItems, customName, customEmoji, showMoreSection, page, editSection});
   const pageItems = activeTab === 'show' ? resolvedActiveItems : editSection === 'materials' ? STANDARD_MATERIALS : editSection === 'order' ? resolvedActiveItems : draftCustomItems;
-  const pageSize = editSection === 'order' && activeTab === 'edit' ? 3 : 4;
+  const roomyBoard = activeTab === 'show' && containerSize.width >= 540 && containerSize.height >= 360;
+  const pageSize = roomyBoard ? 6 : activeTab === 'edit' && editSection === 'order' ? 3 : 4;
   const pages = Math.max(1, Math.ceil(pageItems.length / pageSize));
   const safePage = Math.min(page, pages - 1);
+  const readyCount = readyIds.filter(id => savedSelectedIds.includes(id)).length;
   const buttonClass = 'min-h-11 min-w-11 rounded-xl border px-3 py-2 text-sm font-bold disabled:opacity-30';
   const changeSection = (section: typeof editSection) => { setEditSection(section); setPage(0); };
   const pager = <div className="flex shrink-0 items-center justify-between gap-2">
@@ -287,13 +285,17 @@ export const TableCheckWidget: React.FC<TableCheckWidgetProps> = ({
   </div>;
   return <div ref={containerRef} role="region" aria-label="Tisch-Check" data-practice-root="tischcheck" className={`flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4 pb-6 ${currentIsLight ? 'bg-slate-50 text-slate-900' : 'bg-zinc-950 text-white'}`}>
     <div className="flex shrink-0 items-center justify-between gap-2">
-      <h2 className="text-base font-black">{activeTab === 'show' ? `🎒 ${readyIds.filter(id => savedSelectedIds.includes(id)).length}/${resolvedActiveItems.length} bereit` : 'Materialien auswählen'}</h2>
+      {activeTab === 'show' ? (
+        <h2 role="status" className="text-base font-black">{allAreReady ? 'Alles bereit!' : `${readyCount}/${resolvedActiveItems.length} bereit`}</h2>
+      ) : (
+        <h2 className="text-base font-black">Materialien auswählen</h2>
+      )}
       {activeTab === 'show' ? <div className="flex gap-2">
         <button type="button" onClick={handleResetReadyHooks} className={buttonClass} aria-label="Haken zurücksetzen">Haken zurücksetzen</button>
-        <button type="button" onClick={() => { setActiveTab('edit'); setPage(0); }} className={buttonClass}>Material wählen</button>
+        <button type="button" onClick={() => { setActiveTab('edit'); changeSection('presets'); }} className={buttonClass}>Material wählen</button>
       </div> : <div className="flex gap-2">
         <button type="button" onClick={handleCancelEdit} className={buttonClass}>Abbrechen</button>
-        <button type="button" onClick={() => { handleSaveAndShow(); setPage(0); }} className={buttonClass}>Anzeigen</button>
+        <button type="button" onClick={() => showMaterials(draftSelectedIds, readyIds.filter(id => draftSelectedIds.includes(id)))} className={buttonClass}>Anzeigen</button>
       </div>}
     </div>
     {activeTab === 'edit' && <div role="group" aria-label="Materialauswahl-Bereiche" className="grid shrink-0 grid-cols-4 gap-2">
@@ -301,12 +303,22 @@ export const TableCheckWidget: React.FC<TableCheckWidgetProps> = ({
     </div>}
     <div className="flex min-h-0 flex-1 flex-col justify-center gap-3">
       {activeTab === 'show' && <>
-        <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
-          {resolvedActiveItems.slice(safePage * pageSize, (safePage + 1) * pageSize).map(item => <button key={item.id} type="button" aria-label={`Material ${item.label}`} aria-pressed={readyIds.includes(item.id)} onClick={() => handleToggleReady(item.id)} className={`min-h-11 rounded-2xl border p-4 text-center text-lg font-bold ${readyIds.includes(item.id) ? 'border-emerald-500 bg-emerald-500/15' : 'border-slate-400/30'}`}><span className="block text-4xl">{item.icon}</span>{item.label}{readyIds.includes(item.id) && <span className="ml-2">✓</span>}</button>)}
-        </div>
-        <p role="status" className="text-center text-sm font-bold">{!resolvedActiveItems.length ? 'Noch kein Material ausgewählt.' : allAreReady ? 'Alles bereit! Gute Arbeit!' : 'Tippe auf einen Gegenstand, um ihn abzuhaken.'}</p>
+        {pages > 1 && pager}
+        {resolvedActiveItems.length > 0 ? (
+          <div className={`grid min-h-0 flex-1 gap-3 ${roomyBoard && resolvedActiveItems.length > 4 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            {resolvedActiveItems.slice(safePage * pageSize, (safePage + 1) * pageSize).map(item => <button key={item.id} type="button" aria-label={`Material ${item.label}`} aria-pressed={readyIds.includes(item.id)} onClick={() => handleToggleReady(item.id)} className={`min-h-11 rounded-2xl border p-4 text-center text-lg font-bold ${readyIds.includes(item.id) ? 'border-emerald-500 bg-emerald-500/15' : 'border-slate-400/30'}`}><span className="block text-4xl">{item.icon}</span>{item.label}{readyIds.includes(item.id) && <span className="ml-2">✓</span>}</button>)}
+          </div>
+        ) : (
+          <p className="text-center text-sm font-bold">Noch kein Material ausgewählt.</p>
+        )}
       </>}
       {activeTab === 'edit' && editSection === 'presets' && <>
+        {assignmentMaterials.length > 0 && (
+          <button type="button" className={`${buttonClass} border-accent bg-accent text-accent-text`}
+            onClick={() => showMaterials(assignmentMaterials, [], savedCustomItems)}>
+            Material aus Arbeitsauftrag anzeigen
+          </button>
+        )}
         <p className="text-sm">Die Schnellauswahl ersetzt den aktuellen Entwurf. Erst „Anzeigen“ übernimmt ihn.</p>
         <div className="grid grid-cols-2 gap-3">{QUICK_PRESETS.map(preset => <button key={preset.id} type="button" onClick={() => handleApplyPreset(preset.ids)} className={buttonClass}>{preset.icon} {preset.label}</button>)}</div>
         <p role="status" className="text-sm font-bold">{draftSelectedIds.length} Gegenstände im Entwurf</p>
@@ -326,6 +338,6 @@ export const TableCheckWidget: React.FC<TableCheckWidgetProps> = ({
         {draftCustomItems.slice(safePage * pageSize, (safePage + 1) * pageSize).map(item => <div key={item.id} className="flex gap-2"><button type="button" aria-pressed={draftSelectedIds.includes(item.id)} onClick={() => handleToggleMaterial(item.id)} className={`${buttonClass} flex-1`}>{item.emoji} {item.name}</button><button type="button" aria-label={`${item.name} löschen`} onClick={() => handleRemoveCustomItem(item.id)} className={buttonClass}>×</button></div>)}
       </>}
     </div>
-    {(activeTab === 'show' || editSection !== 'presets') && pager}
+    {activeTab === 'edit' && editSection !== 'presets' && pages > 1 && pager}
   </div>;
 };

@@ -5,7 +5,7 @@ import {
   Menu, Sun, Cloud, CloudSun, CloudRain, CloudSnow, CloudLightning, Wind,
   ChevronDown, ChevronRight, FlagTriangleLeft, Wifi, Smartphone, X, Copy, Search,
   Maximize, Minimize, Lock, ShieldAlert, ShieldCheck, ExternalLink, RefreshCw,
-  MoreHorizontal, Settings, LogOut, Heart, Bug, ArrowLeft, Save, HelpCircle
+  MoreHorizontal, Sliders, Settings, LogOut, Heart, Bug, ArrowLeft, Save, HelpCircle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -18,6 +18,8 @@ import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
 import { Button, IconButton, Badge } from './ui';
 import SupportModal from './SupportModal';
 import { getNavigationParent } from '../lib/navigationHierarchy';
+import { openDashboardCustomization } from '../lib/dashboardCustomization';
+import { istSekundarstufe } from '../lib/sek1Navigation';
 import { triggerBackupDownload } from '../utils/backupUtils';
 
 interface TopbarProps {
@@ -36,6 +38,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
 
   // Dropdown States
   const [showMehrMenu, setShowMehrMenu] = useState(false);
+  const moreButtonRef = React.useRef<HTMLButtonElement>(null);
   const [manualBackupBusy, setManualBackupBusy] = useState(false);
   const createManualBackup = async () => {
     if (manualBackupBusy || !isVaultUnlocked) return;
@@ -635,6 +638,8 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                 }}
                 leftIcon={<MoreHorizontal size={18} />}
                 rightIcon={<ChevronDown size={14} className={`transition-transform ${showMehrMenu ? 'rotate-180' : ''}`} />}
+                ref={moreButtonRef}
+                aria-expanded={showMehrMenu}
                 title="Weitere Optionen & Werkzeuge"
               >
                 <span className="hidden xs:inline">Mehr</span>
@@ -654,6 +659,16 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                       <div className="rounded-xl bg-[var(--surface-subtle,var(--surface2))] p-3"><span className="block text-[var(--text-muted)]">Wetter</span><strong>{weather ? `${Math.round(weather.temperature)}°C` : "Noch keine Wetterdaten"}</strong></div>
                       <div className="rounded-xl bg-[var(--surface-subtle,var(--surface2))] p-3"><span className="block text-[var(--text-muted)]">Schuljahr {app.schuljahr}</span><strong>{Math.round(schoolYearProgressPercent)} % vorbei</strong></div>
                     </div>
+                    {currentPage === 'dashboard' && !istSekundarstufe(app.schulart) && (
+                      <Button variant="secondary" className="w-full sm:hidden"
+                        leftIcon={<Sliders size={16} aria-hidden="true" />} onClick={() => {
+                          moreButtonRef.current?.focus();
+                          setShowMehrMenu(false);
+                          openDashboardCustomization(currentPage, setPage);
+                        }}>
+                        Heute bearbeiten
+                      </Button>
+                    )}
                     {/* Schnellauswahl: Suche */}
                     <div>
                       <button

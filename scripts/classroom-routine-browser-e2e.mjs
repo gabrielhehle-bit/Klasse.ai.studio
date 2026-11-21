@@ -799,16 +799,13 @@ async function main() {
     await saveScreenshot(client, SCREENSHOT_PATH.replace('.png', '-widget-catalog-compact.png'));
     await client.send('Emulation.setDeviceMetricsOverride', { width:1366, height:768, deviceScaleFactor:1, mobile:false });
     await sleep(250);
-    await setInputByLabel(client, 'Widget suchen', 'Bruch');
-    await waitFor(client, 'fraction search shows one group', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 1 && Boolean(document.querySelector('[data-testid="cockpit-core-group-fractionvisualizer"]'))`);
-    await waitFor(client, 'fraction variants are available inside their group', `Array.from(document.querySelectorAll('[data-testid="cockpit-core-group-fractionvisualizer"] button')).some(button => button.textContent.includes('Bruch-Kuchen'))`);
+    await setInputByLabel(client, 'Widget suchen', 'Zahlenstrahl');
+    await waitFor(client, 'number line search routes to the reusable number space',
+      `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length === 1 && Boolean(document.querySelector('[data-testid="cockpit-core-group-zahlenraum"]'))`);
     await setInputByLabel(client, 'Widget suchen', 'Zahnputz');
-    await waitFor(client, 'special topic appears in global search', `Boolean(document.querySelector('[data-testid="cockpit-core-group-toothbrush"]'))`);
-    await clickButton(client, 'Weitere Widgets');
-    await setInputByLabel(client, 'Widget suchen', 'Zahnputz');
-    await waitFor(client, 'special topic remains accessible', `Boolean(document.querySelector('button[aria-label="Zahnputz-Station öffnen"]'))`);
-    await evaluate(client, `document.querySelector('button[aria-label="Widgetsuche leeren"]').click()`);
-    await waitFor(client, 'all historical picker entries remain available', `document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] [data-widget-card-action="primary"]').length === 113`);
+    await waitFor(client, 'retired tools are not offered in the teaching picker',
+      `document.querySelector('.klassio-widget-library-content [role="status"]')?.textContent.includes('Keine passenden Widgets')
+        && !document.querySelector('.klassio-widget-library-sidebar')?.textContent.includes('Weitere Widgets')`);
     await evaluate(client, `document.querySelector('button[aria-label="Widget-Bibliothek schließen"]').click()`);
     await waitFor(client, 'student-list resize grip returns after closing the picker', `Boolean(document.querySelector('[aria-label="Breite der Schülerliste ändern"]'))`);
     await clickButton(client, 'Widget hinzufügen');
@@ -830,14 +827,44 @@ async function main() {
     await clickSelector(client, waldruheWidget + ' button[aria-label="Widget-Menü öffnen"]');
     await clickButton(client, 'Widget schließen', true);
     await waitFor(client, 'Waldruhe closes cleanly', `!${waldruhePanel}`);
-    const openAuditWidget = async (type, search, label) => {
-      await clickButton(client, 'Widget hinzufügen');
-      await clickButton(client, 'Weitere Widgets');
-      await waitFor(client, 'widget audit search field', `Boolean(document.querySelector('input[aria-label="Widget suchen"]'))`);
-      await setInputByLabel(client, 'Widget suchen', search);
-      await waitFor(client, 'widget audit search result: ' + search, `Array.from(document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]')).some(b=>b.getAttribute('aria-label').startsWith(${q(label || search)}))`);
-      await evaluate(client, `(() => {const buttons=Array.from(document.querySelectorAll('[role=dialog][aria-label="Widget-Bibliothek"] button[data-widget-card-action="primary"]'));const button=buttons.find(b=>b.getAttribute("aria-label").startsWith(${q(label || search)}));if(!button)throw new Error("Widget entry missing");button.click();})()`);
-      await waitFor(client, 'widget audit opens ' + type, `Array.from(document.querySelectorAll('[data-widget-type=${q(type)}]')).some(el=>el.getClientRects().length)`);
+    const archiveDialog = 'dialog[open][aria-labelledby="cockpit-archive-title"]';
+    const openArchiveCatalog = async () => {
+      if (await evaluate(client, `Boolean(document.querySelector('#open-cockpit-widget-archive'))`)) {
+        await clickSelector(client, '#open-cockpit-widget-archive');
+      } else {
+        await clickSelector(client, 'button[aria-label="Cockpit-Einstellungen"]');
+        await clickButton(client, 'Widget-Archiv', true);
+      }
+      await waitFor(client, 'archive is open', `Boolean(document.querySelector(${q(archiveDialog)}))`);
+    };
+    await openArchiveCatalog();
+    const archivedTypes = new Set(await evaluate(client, `Array.from(document.querySelectorAll('[data-archived-widget]'), node => node.dataset.archivedWidget)`));
+    await clickSelector(client, 'button[aria-label="Widget-Archiv schließen"]');
+    await waitFor(client, 'archive catalogue closes', `!document.querySelector(${q(archiveDialog)})`);
+
+    const openAuditWidget = async (type) => {
+      const frame = `Array.from(document.querySelectorAll('[data-widget-type=${q(type)}][data-widget-minimized="false"]')).some(el=>el.getClientRects().length)`;
+      if (await evaluate(client, frame)) return;
+      if (archivedTypes.has(type)) {
+        await openArchiveCatalog();
+        await clickSelector(client, `[data-archived-widget="${type}"]`);
+      } else {
+        if (await evaluate(client, `Boolean(document.querySelector('#open-cockpit-widget-archive'))`)) {
+          await clickButton(client, 'Zurück zur Tafel', true);
+          await waitFor(client, 'teaching dock returns', `Boolean(document.querySelector('.klassio-widget-dock'))`);
+        }
+        await evaluate(client, `(() => {
+          const dock = document.querySelector('.klassio-widget-dock');
+          const fiberKey = Object.keys(dock || {}).find(key => key.startsWith('__reactFiber$'));
+          for (let fiber = dock?.[fiberKey]; fiber; fiber = fiber.return) {
+            if (typeof fiber.memoizedProps?.onOpenWidget !== 'function') continue;
+            fiber.memoizedProps.onOpenWidget(${q(type)});
+            return;
+          }
+          throw Error('Widget audit could not access the dock command');
+        })()`);
+      }
+      await waitFor(client, 'widget audit opens ' + type, frame);
     };
     const auditMenu = async (type, action) => {
       await evaluate(client, `Array.from(document.querySelectorAll('[data-widget-type=${q(type)}]')).find(el=>el.getClientRects().length).querySelector('button[aria-label="Widget-Menü öffnen"]').click()`);
@@ -1809,6 +1836,7 @@ async function main() {
     const diceValues = `JSON.parse(${diceState}.dataset.diceValues)`;
     await clickSelector(client, diceRoot+' [aria-label="6 Würfel auswählen"]');
     await waitFor(client, 'six dice and all controls fit at native size', `(() => {const root=${diceState},r=root.getBoundingClientRect();return (${diceValues}).length===6&&root.scrollWidth<=root.clientWidth+1&&root.scrollHeight<=root.clientHeight+1&&Array.from(root.querySelectorAll('button')).every(b=>{const t=b.getBoundingClientRect();return t.width>=44&&t.height>=44&&t.left>=r.left&&t.right<=r.right+1&&t.top>=r.top&&t.bottom<=r.bottom+1;});})()`);
+    await clickButton(client, 'Rechenrunde', true);
     if(!await evaluate(client, `document.querySelector('${diceRoot} [aria-label="Einen Würfel hinzufügen"]').disabled`)) throw new Error('Dice count exceeds six.');
     for (const [mode,label] of [['sum','Summe'],['diff','Differenz'],['prod','Produkt']]) {
       await clickSelector(client, diceRoot+' [aria-label='+q('Rechenart '+label)+']');
@@ -2153,6 +2181,9 @@ async function main() {
     ]){
       await openAuditWidget(type,search,label);
       const frame='[data-widget-type="'+type+'"]',root=frame+' [data-language-workshop-mode]',state=`document.querySelector(${q(root)})`;
+      if (type === 'wortsatzwerkstatt' && await evaluate(client, `Boolean(document.querySelector(${q(frame+' [data-reading-mode]')}))`)) {
+        await clickMathText(frame, 'Alle Übungen');
+      }
       const cards=`Array.from(document.querySelectorAll(${q(root+' button[id^="card-item-"]')})).map(b=>b.querySelector('span').textContent)`;
       await waitFor(client,type+' starts its migrated task mode',`${state}?.dataset.languageWorkshopMode===${q(mode)}`);
       await auditWidgetMinimum(type);
@@ -3469,8 +3500,8 @@ async function main() {
     await clickButton(client, 'Widget hinzufügen');
     await clickButton(client, 'Kernwidgets');
     await setInputByLabel(client, 'Widget suchen', 'Glücksrad');
-    await waitFor(client, 'random variants are one integrated entry', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===1 && !document.querySelector('[data-testid="cockpit-core-group-randomname"] [data-widget-card-action="variants"]')`);
-    await clickSelector(client, '[data-testid="cockpit-core-group-randomname"] [data-widget-card-action="primary"]');
+    await waitFor(client, 'random variants are one integrated entry', `document.querySelectorAll('[data-testid^="cockpit-core-group-"]').length===1 && !document.querySelector('[data-testid="cockpit-core-group-groups"] [data-widget-card-action="variants"]')`);
+    await clickSelector(client, '[data-testid="cockpit-core-group-groups"] [data-widget-card-action="primary"]');
     const selectionRoot = '[data-widget-type="randomname"]';
     const selectionPanel = mode => `${selectionRoot} [data-random-selection-panel="${mode}"]`;
     const selectRandomMode = async mode => {

@@ -33,8 +33,8 @@ test('spoken clocks handle half hours, midnight and approximate minute rounding 
   assert.equal(spokenClockTime(12, 45), 'Viertel vor 1');
 });
 
-test('all existing clock learning names lead to one regular entry', () => {
+test('retired clock-learning variants stay out of the teaching picker', () => {
   for (const query of ['Uhren-Lern-Trainer', 'Uhrzeit-Macher', 'Deutsche Wort-Uhr']) {
-    assert.deepEqual(getRegularCockpitGroups('core', query).map(group => group.id), ['clockpuzzle']);
+    assert.deepEqual(getRegularCockpitGroups('core', query).map(group => group.id), []);
   }
 });

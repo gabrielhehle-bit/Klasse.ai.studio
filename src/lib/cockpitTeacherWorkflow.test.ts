@@ -20,14 +20,14 @@ test('Canva image is shown on the board itself and paper patterns never cover it
   assert.equal(getCockpitPaperStyle('lined', 'https://untrusted.test').backgroundSize, '100% 32px');
 });
 
-test('Grouped primary widget entries expose legacy widget variants without deleting original renderers', () => {
+test('The teaching picker uses the curated catalog and integrated modes', () => {
   const source = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
   assert.match(source, /useState<string>\("core"\)/);
-  assert.match(source, /regularGroups\.map\(\(group, groupIndex\)/);
-  assert.match(source, /label: "▦ Weitere Widgets"/);
-  assert.match(source, /label: "🕘 Zuletzt verwendet"/);
+  assert.match(source, /regularGroups\.map\(\(group\)/);
+  assert.doesNotMatch(source, /label: "▦ Weitere Widgets"/);
+  assert.match(source, /label: "Zuletzt verwendet"/);
   assert.match(source, /group\.sources/);
-  assert.match(source, /handleOpenWidgetInCockpitLayout\(variant\.type/);
+  assert.match(source, /handleOpenWidgetInCockpitLayout\(primaryType, searchMode\)/);
   assert.match(source, /aria-label="Papierart der Unterrichtsfläche"/);
   assert.match(source, /getCockpitPaperStyle\(cockpitPaper, currentBgId === "canva"/);
   assert.match(source, /boardSettings:\s*\{[\s\S]*?cockpitPaperByClass/);

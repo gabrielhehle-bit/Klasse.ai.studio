@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { PLANNED_COCKPIT_WIDGETS, getPlannedCockpitWidgetForLegacyType } from '../components/cockpit/plannedCockpitCatalog';
 import { COCKPIT_QUICKBAR_ITEMS, normalizeCockpitQuickbarSettings } from './cockpitQuickbar';
+import { COCKPIT_ARCHIVED_WIDGETS, isCockpitTeachingBoardWidget } from './cockpitRegularCatalog';
 
 const source = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
 const panel = readFileSync('src/components/cockpit/PublicStudentListWidget.tsx', 'utf8');
@@ -16,9 +17,8 @@ test('Retired floating studentlist cannot be opened via core, catalogue, quickba
   assert.doesNotMatch(source, /\{ type: "studentlist", category: "interactivity" \}/);
   assert.match(source, /if \(type === "studentlist"\) return;/);
   assert.match(source, /visible: w\.type === "studentlist" \? false : !!w\.visible/);
-  // The retired studentlist stays out of the visible widget map. Minimized widgets,
-  // however, remain mounted so their local state survives restore.
-  assert.match(source, /\.filter\(\(w\) => w\.visible && w\.type !== "studentlist"\)/);
+  assert.equal(isCockpitTeachingBoardWidget('studentlist'), false);
+  assert.equal(COCKPIT_ARCHIVED_WIDGETS.some(item => String(item.type) === 'studentlist'), false);
   assert.match(source, /!minimizedWidgetIds\.includes\(candidate\.id\)/);
   assert.doesNotMatch(source, /case "studentlist":/);
 });

@@ -6,6 +6,7 @@ const ACCESS_CODE = process.env.KLASSIO_E2E_ACCESS_CODE || 'ci-cockpit-visual-ac
 const VAULT_PASSWORD = 'Klassio-Cockpit-Visual-E2E-2026!';
 const WIDTH = Number(process.env.KLASSIO_E2E_WIDTH || 1600);
 const HEIGHT = WIDTH >= 1500 ? 900 : 720;
+const TOUCH_PHONE = process.env.KLASSIO_E2E_TOUCH_PHONE === '1' && WIDTH < 640;
 const PREFIX = '/tmp/klassio-cockpit-visual-' + WIDTH;
 const q = JSON.stringify;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -121,6 +122,114 @@ async function metrics(client) {
 }
 
 const toggleWaldruheDock = client => evaluate(client, `document.querySelector('[data-dock-favorite-id="waldruhe"]').click()`);
+
+async function checkWaldruhePreflight(client, forest, forestProgress) {
+  const toggleSettings = () => evaluate(client, `document.querySelector('[data-widget-type="waldruhe"] .cockpit-widget-settings-trigger').click()`);
+  const settings = `${forest}.querySelector('[aria-label="Waldruhe-Einstellungen"]')`;
+  const noProgress = `!${forest}.querySelector('[role="progressbar"], [data-waldruhe-animal]')`;
+  const fixture = 'window.__waldruhePreflight';
+  await evaluate(client, `(() => {
+    const devices = navigator.mediaDevices;
+    const original = devices.getUserMedia;
+    const getFrequencyData = AnalyserNode.prototype.getByteFrequencyData;
+    const audio = new AudioContext();
+    const test = { tracks: [], level: 220, hold: false, denied: false };
+    ${fixture} = test;
+    devices.getUserMedia = async () => {
+      if (test.denied) throw new DOMException('Test permission denied', 'NotAllowedError');
+      if (test.hold) await new Promise(resolve => { test.resolve = resolve; });
+      const stream = audio.createMediaStreamDestination().stream;
+      test.tracks.push(...stream.getAudioTracks());
+      return stream;
+    };
+    AnalyserNode.prototype.getByteFrequencyData = samples => samples.fill(test.level);
+    test.restore = async () => {
+      devices.getUserMedia = original;
+      AnalyserNode.prototype.getByteFrequencyData = getFrequencyData;
+      test.tracks.forEach(track => track.stop());
+      delete ${fixture};
+      await audio.close();
+    };
+  })()`);
+
+  try {
+    await toggleSettings();
+    await waitFor(client, 'Mikrofon prüfen is visible when Waldruhe settings open', `(() => {
+      const button = Array.from(${settings}.querySelectorAll('button')).find(button => button.textContent.trim() === 'Mikrofon prüfen');
+      const { x, y, width, height } = button.getBoundingClientRect();
+      return button.contains(document.elementFromPoint(x + width / 2, y + height / 2));
+    })()`);
+    await evaluate(client, `(() => {
+      const choice = ${settings}.querySelector('select[aria-label="Leisezeit pro Tier"]');
+      choice.value = '5';
+      choice.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`);
+    await clickButton(client, 'Mikrofon prüfen');
+    await waitFor(client, 'the microphone check reports sound above the selected limit',
+      `${forest}.dataset.waldruheMode === 'checking' && ${settings}.textContent.includes('Über der Grenze')
+        && ${fixture}.tracks.length === 1 && ${noProgress}`);
+    await evaluate(client, `${fixture}.level = 80`);
+    await waitFor(client, 'the level settles between the partner-work and whisper limits',
+      `Number(${settings}.querySelector('[role="meter"]').getAttribute('aria-valuenow')) < 48`);
+    await clickButton(client, 'Partnerarbeit');
+    await waitFor(client, 'changing the working mode updates the limit without reconnecting',
+      `${settings}.textContent.includes('Grenze eingehalten') && ${fixture}.tracks.length === 1`);
+    await clickButton(client, 'Flüsterarbeit');
+    await waitFor(client, 'the same signal is above the limit for whispering',
+      `${settings}.textContent.includes('Über der Grenze')`);
+    await evaluate(client, `${fixture}.level = 0`);
+    await waitFor(client, 'the microphone check reports a quiet room',
+      `${settings}.textContent.includes('Grenze eingehalten')`);
+    await screenshot(client, 'waldruhe-mikrofoncheck');
+    await sleep(5500);
+    if (!await evaluate(client, noProgress)) throw Error('Waldruhe advanced the round during the microphone check');
+    await clickButton(client, 'Runde starten');
+    await waitFor(client, 'the round starts from zero on the existing microphone track',
+      `${forest}.dataset.waldruheMode === 'live' && !${settings}
+        && ${forestProgress} > 0 && ${forestProgress} < 30
+        && ${forest}.textContent.includes('0 von 5 Tieren')
+        && ${fixture}.tracks.length === 1 && ${fixture}.tracks[0].readyState === 'live'`);
+    await clickButton(client, 'Mikrofon stoppen');
+
+    await toggleSettings();
+    await clickButton(client, 'Mikrofon prüfen');
+    await waitFor(client, 'a second microphone check opens a fresh stream',
+      `${forest}.dataset.waldruheMode === 'checking' && ${fixture}.tracks.length === 2`);
+    await clickButton(client, 'Check beenden');
+    await waitFor(client, 'ending the check stops audio without starting a round',
+      `${fixture}.tracks[0].readyState === 'ended' && ${fixture}.tracks[1].readyState === 'ended'
+        && ${forest}.dataset.waldruheMode === 'idle' && ${noProgress}`);
+
+    await clickButton(client, 'Mikrofon prüfen');
+    await waitFor(client, 'a check is running before settings close', `${forest}.dataset.waldruheMode === 'checking'`);
+    await toggleSettings();
+    await waitFor(client, 'closing settings also releases the microphone check',
+      `${fixture}.tracks[2].readyState === 'ended' && ${forest}.dataset.waldruheMode === 'idle'`);
+
+    await toggleSettings();
+    await evaluate(client, `${fixture}.hold = true`);
+    await clickButton(client, 'Mikrofon prüfen');
+    await waitFor(client, 'the check is waiting for microphone access',
+      `${forest}.dataset.waldruheMode === 'requesting-check' && Boolean(${fixture}.resolve)`);
+    await toggleWaldruheDock(client);
+    await waitFor(client, 'minimizing cancels a pending check', `${forest}.dataset.waldruheMode === 'idle'`);
+    await evaluate(client, `${fixture}.resolve()`);
+    await waitFor(client, 'audio returned after cancellation is released immediately',
+      `${fixture}.tracks[3].readyState === 'ended'`);
+    await toggleWaldruheDock(client);
+    if (!await evaluate(client, `Boolean(${settings})`)) await toggleSettings();
+    await evaluate(client, `${fixture}.denied = true`);
+    await clickButton(client, 'Mikrofon prüfen');
+    await waitFor(client, 'permission denial explains how to continue without a microphone',
+      `${forest}.dataset.waldruheMode === 'idle' && ${forest}.querySelector('[role="alert"]')?.textContent.includes('Erlaube das Mikrofon')`);
+    await clickButton(client, 'Fertig');
+    await clickButton(client, 'Ohne Mikrofon testen');
+    await waitFor(client, 'the rehearsal is available after permission denial', `${forest}.dataset.waldruheMode === 'demo'`);
+    await clickButton(client, 'Test beenden');
+  } finally {
+    await evaluate(client, `${fixture}.restore()`);
+  }
+}
 
 async function checkWaldruheMicrophone(client, forest, forestProgress) {
   const origin = new URL(BASE_URL).origin;
@@ -240,6 +349,276 @@ async function searchWidget(client, query) {
   await fill(client, 'Widget suchen', query);
 }
 
+async function checkLinkedNumbers(client) {
+  const widget = `document.querySelector('#widget-board-stage [data-widget-type="zahlenraum"]')`;
+  const line = `${widget}?.querySelector('svg[data-linked-twenty-line]')`;
+  const equation = `${widget}?.querySelector('#zahlenraum-split-panel')`;
+  const matches = (value, first, second) => `(() => {
+    const line = ${line};
+    return line?.getAttribute('aria-valuenow') === ${q(String(value))} &&
+      line.querySelector('[data-linked-number-label]').textContent === ${q(String(value))} &&
+      ${widget}.querySelectorAll('[data-grid-filled="true"]').length === ${value}
+      ${first === undefined ? '' : `&& ${equation}.textContent.trim() === '${value} = ${first} + ${second}' &&
+      ${widget}.querySelectorAll('[data-grid-color="primary"]').length === ${first} &&
+      ${widget}.querySelectorAll('[data-grid-color="secondary"]').length === ${second}`};
+  })()`;
+  await clickLabel(client, 'Neue Tafelseite hinzufügen');
+  await searchWidget(client, 'Zahlenraum');
+  await waitFor(client, 'the curated Zahlenraum card is available', `Boolean(document.querySelector('[data-testid="cockpit-core-group-zahlenraum"] [data-widget-card-action="primary"]'))`);
+  await evaluate(client, `document.querySelector('[data-testid="cockpit-core-group-zahlenraum"] [data-widget-card-action="primary"]').click()`);
+  await waitFor(client, 'the twenty field and number line open with the same seventeen', matches(17));
+  await clickButton(client, 'Zerlegung');
+  await waitFor(client, 'the initial decomposition groups seventeen into ten and seven', matches(17, 10, 7));
+  await waitFor(client, 'both colours are projected at the mathematically correct positions', `(() => {
+    const line = ${line};
+    const first = line.querySelector('[data-linked-first-part]');
+    const second = line.querySelector('[data-linked-second-part]');
+    const firstDot = ${widget}.querySelector('[data-grid-color="primary"]');
+    const secondDot = ${widget}.querySelector('[data-grid-color="secondary"]');
+    return first.getAttribute('x2') === '500' && second.getAttribute('x1') === '500' &&
+      Math.abs(Number(second.getAttribute('x2')) - 822) < 0.01 &&
+      getComputedStyle(first).stroke === getComputedStyle(firstDot).backgroundColor &&
+      getComputedStyle(second).stroke === getComputedStyle(secondDot).backgroundColor &&
+      getComputedStyle(first).stroke !== getComputedStyle(second).stroke;
+  })()`);
+  const point = await evaluate(client, `(() => {
+    const line = ${line};
+    const point = line.createSVGPoint();
+    point.x = 40 + 14 * 46;
+    point.y = 43;
+    const actual = point.matrixTransform(line.getScreenCTM());
+    return { x: actual.x, y: actual.y, reachable: line.contains(document.elementFromPoint(actual.x, actual.y)) };
+  })()`);
+  if (!point.reachable) throw Error('Tapping a point on the number line is obstructed.');
+  const { x, y } = point;
+  await client.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
+  await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
+  await waitFor(client, 'tapping fourteen on the line changes the field and decomposition', matches(14, 10, 4));
+  await clickLabel(client, 'Menge 19 wählen');
+  await waitFor(client, 'a field tap updates the number line', matches(19, 10, 9));
+  await evaluate(client, `${line}.focus()`);
+  await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowLeft', code: 'ArrowLeft', windowsVirtualKeyCode: 37 });
+  await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowLeft', code: 'ArrowLeft', windowsVirtualKeyCode: 37 });
+  await waitFor(client, 'keyboard selection updates both maths representations', matches(18, 10, 8));
+  await waitFor(client, 'all twenty-field and line controls are reachable without the dock covering them', `(() => {
+    const widget = ${widget};
+    const controls = widget.querySelectorAll('#zahlenraum-quantity-controls button, #zahlenraum-grid button, #zahlenraum-split-slider, [data-linked-twenty-line]');
+    return controls.length >= 25 && Array.from(controls).every(control => {
+      const r = control.getBoundingClientRect();
+      return r.height >= 43.5 && control.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2));
+    });
+  })()`);
+  await evaluate(client, `document.activeElement?.blur()`);
+  await screenshot(client, 'zwanzigerfeld-zerlegung-zahlenstrahl');
+  await reloadSavedCockpit(client);
+  await waitFor(client, 'both representations restore the same saved number and decomposition', matches(18, 10, 8));
+  await evaluate(client, `${widget}.querySelector('.cockpit-widget-settings-trigger').click()`);
+  await waitFor(client, 'the standalone number line remains available through settings', `Boolean(document.querySelector('dialog[open] #zahlenraum-mode-numberline-btn'))`);
+  await evaluate(client, `document.querySelector('dialog[open] #zahlenraum-mode-numberline-btn').click()`);
+  await clickLabel(client, 'Zahlenraum-Einstellungen schließen');
+  await waitFor(client, 'standalone number line still exposes marker and jump controls',
+    `!${line} && ${widget}.querySelector('[aria-label="Hauptmarker eingeben"]') && Boolean(${widget}.querySelector('[aria-label="Eigene Sprungweite"]'))`);
+}
+
+async function checkSubjectWidgets(client) {
+  await clickLabel(client, 'Neue Tafelseite hinzufügen');
+  const widget = type => `document.querySelector('#widget-board-stage [data-widget-type="${type}"]')`;
+  const chooseCategory = name => evaluate(client, `Array.from(document.querySelectorAll('[aria-label="Widget-Kategorien"] button'))
+    .find(button => button.lastElementChild.textContent === ${q(name)}).click()`);
+  const open = async (category, type) => {
+    await clickButton(client, 'Widget hinzufügen');
+    await chooseCategory(category);
+    await evaluate(client, `document.querySelector('[data-testid="cockpit-core-group-${type}"] [data-widget-card-action="primary"]').click()`);
+    await waitFor(client, `${category} opens ${type} on the board`, `Boolean(${widget(type)})`);
+  };
+  const close = async type => {
+    await evaluate(client, `${widget(type)}.querySelector('button[aria-label="Widget-Menü öffnen"]').click()`);
+    await clickButton(client, 'Widget schließen');
+    await waitFor(client, `${type} closes cleanly`, `!${widget(type)}`);
+  };
+
+  await open('Mathe', 'kopfrechnen');
+  await waitFor(client, 'a calculation is shown with its solution covered',
+    `${widget('kopfrechnen')}?.querySelector('[data-mental-math-question]') && !${widget('kopfrechnen')}.querySelector('[data-mental-math-answer]')`);
+  await clickButton(client, 'Lösung aufdecken');
+  await waitFor(client, 'the class can reveal the result after thinking',
+    `Boolean(${widget('kopfrechnen')}.querySelector('[data-mental-math-answer]'))`);
+  await close('kopfrechnen');
+
+  await open('Deutsch', 'wortsatzwerkstatt');
+  await clickButton(client, 'Alle Übungen');
+  await clickButton(client, 'Sätze bauen');
+  await waitFor(client, 'the word workshop has a working sentence mode',
+    `${widget('wortsatzwerkstatt')}.querySelector('#tab-mode-sentence').getAttribute('aria-selected') === 'true'`);
+  await close('wortsatzwerkstatt');
+
+  await open('Sachunterricht', 'compass');
+  const directions = `${widget('compass')}.querySelectorAll('[aria-label="Himmelsrichtung wählen"] button')`;
+  await waitFor(client, 'the compass presents at least the four compass points', `${directions}.length >= 4`);
+  await evaluate(client, `${directions}[1].click()`);
+  await waitFor(client, 'tapping a compass point selects its direction', `${directions}[1].getAttribute('aria-pressed') === 'true'`);
+  await close('compass');
+
+  await open('Sachunterricht', 'watercycle');
+  await clickButton(client, 'Puzzle');
+  await waitFor(client, 'the water cycle puzzle has steps that pupils can reorder',
+    `${widget('watercycle')}.querySelectorAll('button[aria-label$="nach unten"]').length > 1`);
+  await close('watercycle');
+
+  await open('Musik', 'sounds');
+  await fill(client, 'Musik & Klänge: Bereich auswählen', 'rhythm');
+  const rhythm = `${widget('sounds')}.querySelector('[aria-label="Rhythmus-Klopfer"]')`;
+  await waitFor(client, 'Rhythmus is available within the music tool',
+    `${rhythm}?.querySelectorAll('[data-rhythm-step]').length === 4`);
+  await evaluate(client, `${rhythm}.querySelector('[data-rhythm-step="0"]').click()`);
+  await waitFor(client, 'a tap edits the rhythm pattern',
+    `${rhythm}.querySelector('[data-rhythm-step="0"]').textContent.includes('Patschen')`);
+  await close('sounds');
+
+  await open('Spiele', 'dice');
+  const dice = `${widget('dice')}.querySelector('[data-classroom-dice]')`;
+  const dieButtons = `${dice}.querySelectorAll('button[aria-label^="Würfel "][aria-label$=" werfen"]:not([aria-label="Würfel werfen"])')`;
+  await waitFor(client, 'dice opens with one die and a prominent roll button',
+    `${dieButtons}.length === 1 && !${dice}.querySelector('[aria-label="Würfelergebnis aufdecken"]')`);
+  await clickLabel(client, 'Würfel werfen');
+  await waitFor(client, 'pressing Würfeln triggers the roll', `${dice}.dataset.diceRolling === 'true'`);
+  await waitFor(client, 'the roll resolves to a valid face', `${dice}.dataset.diceRolling === 'false' && /^[1-6]$/.test(JSON.parse(${dice}.dataset.diceValues)[0])`);
+  await screenshot(client, 'spiele-wuerfel');
+  await clickLabel(client, '6 Würfel auswählen');
+  await clickButton(client, 'Rechenrunde');
+  await clickLabel(client, 'Rechenart Differenz');
+  await clickLabel(client, 'Würfelergebnis aufdecken');
+  await waitFor(client, 'six dice, both labels and the calculation fit without scrolling', `(() => {
+    const root = ${dice};
+    const result = root.querySelector('[aria-label="Ergebnis wieder verdecken"]');
+    const faces = root.querySelector('.overflow-y-auto');
+    return ${dieButtons}.length === 6 && result &&
+      Number(Array.from(result.querySelectorAll('span')).at(-1).textContent) === JSON.parse(root.dataset.diceValues).reduce((a, b, i) => i === 0 ? b : a - b, 0) &&
+      faces.scrollWidth <= faces.clientWidth + 1 && faces.scrollHeight <= faces.clientHeight + 1 &&
+      Array.from(root.querySelectorAll('button')).every(button => {
+        const {x, y, width, height} = button.getBoundingClientRect();
+        return height >= 43.5 && width >= 43.5 && button.contains(document.elementFromPoint(x + width / 2, y + height / 2));
+      });
+  })()`);
+  await screenshot(client, 'spiele-wuerfel-rechenrunde');
+}
+
+async function checkReadingWorkshop(client) {
+  const widget = `document.querySelector('#widget-board-stage [data-widget-type="wortsatzwerkstatt"]')`;
+  const practice = `${widget}?.querySelector('[data-reading-mode]')`;
+  const placed = `JSON.stringify(Array.from(${practice}.querySelectorAll('[aria-label="Gelegte Karten"] button'), button => button.textContent))`;
+  const heading = `${practice}.querySelector('h3')`;
+  const feedback = `${practice}.querySelector('[role="status"]')`;
+  const correct = sequence => `${placed} === ${q(JSON.stringify(sequence))} && ${feedback}.textContent === 'Das passt.'`;
+  const actOnTile = async (label) => {
+    const position = await evaluate(client, `(() => {
+      const button = ${practice}.querySelector('button[aria-label="'+${q(label)}+'"]:enabled');
+      const rect = button.getBoundingClientRect();
+      const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+      return { x, y, reachable: rect.height >= 44 && rect.width >= 44 && button.contains(document.elementFromPoint(x, y)) };
+    })()`);
+    if (!position.reachable) throw Error('Card is not reachable: ' + label);
+    const { x, y } = position;
+    await client.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
+    await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
+  };
+
+  await clickLabel(client, 'Neue Tafelseite hinzufügen');
+  await searchWidget(client, 'Leseanfang');
+  const entry = `document.querySelector('[data-testid="cockpit-core-group-wortsatzwerkstatt"] [data-widget-card-action="primary"]')`;
+  await waitFor(client, 'the regular library offers the same workshop entry', `Boolean(${entry})`);
+  await evaluate(client, `${entry}.click()`);
+  await waitFor(client, 'a new workshop starts with a two-syllable picture clue', `
+    ${practice}?.dataset.readingMode === 'syllables' && ${practice}.querySelector('[role="img"]').getAttribute('aria-label') === 'Lama' && ${heading}.textContent.includes('Silben')`);
+  await waitFor(client, 'enabled reading controls fit and stay clear of the dock', `(() => {
+    const buttons = [...${practice}.querySelectorAll('button:enabled')];
+    return buttons.every(button => {
+      const rect = button.getBoundingClientRect();
+      return rect.height >= 44 && button.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+    });
+  })()`);
+  await screenshot(client, 'leseanfang-silben');
+  await actOnTile('ma legen');
+  await actOnTile('La legen');
+  await clickButton(client, 'Prüfen');
+  await waitFor(client, 'checking the wrong order offers a retry', `${feedback}.textContent.includes('noch einmal')`);
+  await actOnTile('ma zurücklegen');
+  await actOnTile('ma legen');
+  await clickButton(client, 'Prüfen');
+  await waitFor(client, 'touching the cards in order builds Lama', correct(['La', 'ma']));
+  await clickLabel(client, 'Nächste Aufgabe');
+  await waitFor(client, 'next syllable task opens with an empty workspace', `${placed} === '[]' && ${practice}.querySelector('[role="img"]').getAttribute('aria-label') === 'Nase'`);
+
+  await clickButton(client, 'Wörter bauen');
+  for (const part of ['O', 'm', 'a']) await actOnTile(`${part} legen`);
+  await clickButton(client, 'Prüfen');
+  await waitFor(client, 'letter cards preserve usual spelling for beginning readers', correct(['O', 'm', 'a']));
+  await clickButton(client, 'Sätze bauen');
+  for (const part of ['Mia', 'malt', 'gern.']) await actOnTile(`${part} legen`);
+  await clickButton(client, 'Prüfen');
+  await waitFor(client, 'children can arrange and check a short sentence', correct(['Mia', 'malt', 'gern.']));
+  await reloadSavedCockpit(client);
+  await waitFor(client, 'the current exercise and correct order survive a reload', correct(['Mia', 'malt', 'gern.']));
+  await clickButton(client, 'Alle Übungen');
+  await waitFor(client, 'the existing exercises remain accessible', `!${practice} && Boolean(${widget}.querySelector('#tab-mode-compound'))`);
+  await evaluate(client, `${widget}.querySelector('.cockpit-widget-settings-trigger').click()`);
+  const editor = `document.querySelector('dialog[open][aria-label="Wörter und Sätze bearbeiten"]')`;
+  const customWord = `${widget}.querySelector('#target-word-display')?.textContent.trim() === 'MAUS'`;
+  await waitFor(client, 'the existing teacher editor is still available', `Boolean(${editor})`);
+  await fill(client, 'Zielwort', 'Maus');
+  await fill(client, 'Wortbausteine', 'M-AU-S');
+  await clickButton(client, 'Hinzufügen');
+  await waitFor(client, 'the existing editor accepts a teacher-created word', `!${editor}.querySelector('[role="alert"]') && ${editor}.querySelector('input[aria-label="Zielwort"]').value === ''`);
+  await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await waitFor(client, 'teacher editor closes', `!${editor}`);
+  await clickLabel(client, 'Vorherige Aufgabe');
+  await waitFor(client, 'the new word is available alongside the existing exercises', customWord);
+  await clickButton(client, 'Leseanfang');
+  await waitFor(client, 'returning from all exercises restores the reading exercise', correct(['Mia', 'malt', 'gern.']));
+  await clickButton(client, 'Alle Übungen');
+  await waitFor(client, 'going back keeps the teacher-created word in place', customWord);
+}
+
+async function checkClassroomMaterials(client) {
+  await clickButton(client, 'Widget hinzufügen');
+  await clickButton(client, 'Klassenalltag');
+  await waitFor(client, 'the daily teaching tools include the material check and the weekly plan', `(() => {
+    const items = Array.from(document.querySelectorAll('[data-testid^="cockpit-core-group-"]'));
+    return items.length === 6 && items[0].dataset.testid === 'cockpit-core-group-tischcheck'
+      && items.some(item => item.dataset.testid === 'cockpit-core-group-classweeklyplan');
+  })()`);
+  await screenshot(client, 'widget-klassenalltag');
+  await clickLabel(client, 'Tisch-Check öffnen');
+  const table = `document.querySelector('[data-practice-root="tischcheck"]')`;
+  await waitFor(client, 'the open assignment is offered as the source of materials',
+    `${table}?.textContent.includes('Material aus Arbeitsauftrag anzeigen')`);
+  await clickButton(client, 'Material aus Arbeitsauftrag anzeigen');
+  const cards = `Array.from(${table}.querySelectorAll('button[aria-label^="Material "]'))`;
+  const firstPage = `${cards}.map(card => card.getAttribute('aria-label').slice(9)).join(',')`;
+  await waitFor(client, 'the board displays the chosen materials and a fresh check count',
+    `${table}.textContent.includes('0/6 bereit') && ${firstPage}.startsWith('Buch,Heft,Bleistift,Lineal')`);
+  if (await evaluate(client, `${cards}.length === 4`)) {
+    await clickLabel(client, 'Nächste Materialseite');
+    await waitFor(client, 'a smaller board keeps the remaining materials one tap away', `${firstPage} === 'Radiergummi,Schere'`);
+    await clickLabel(client, 'Vorherige Materialseite');
+  } else {
+    await waitFor(client, 'the roomy board includes the six materials at once', `${firstPage} === 'Buch,Heft,Bleistift,Lineal,Radiergummi,Schere'`);
+  }
+  await waitFor(client, 'the material tiles are unobstructed touch targets', `${cards}.every(card => {
+    const { x, y, width, height } = card.getBoundingClientRect();
+    return width >= 44 && height >= 44 && card.contains(document.elementFromPoint(x + width / 2, y + height / 2));
+  })`);
+  await clickLabel(client, 'Material Buch');
+  await waitFor(client, 'checking off material updates the classroom counter',
+    `${table}.textContent.includes('1/6 bereit') && ${cards}[0].getAttribute('aria-pressed') === 'true'`);
+  await screenshot(client, 'tisch-check-arbeitsauftrag');
+  await clickButton(client, 'Material wählen');
+  await clickButton(client, 'Material aus Arbeitsauftrag anzeigen');
+  await waitFor(client, 'starting a fresh material check clears old ticks',
+    `${table}.textContent.includes('0/6 bereit') && ${cards}.every(card => card.getAttribute('aria-pressed') === 'false')`);
+}
+
 async function checkAssignmentCountdown(client) {
   const dock = `document.querySelector('[data-cockpit-countdown-status]')`;
   const timer = `document.querySelector('[data-timer-widget-status]')`;
@@ -251,11 +630,27 @@ async function checkAssignmentCountdown(client) {
   await waitFor(client, 'the assignment editor is open',
     `Boolean(document.querySelector('[aria-label="Arbeitsauftrag Haupttext"]'))`);
   await fill(client, 'Arbeitsauftrag Haupttext', 'Mathe, Seite 20');
-  await clickButton(client, 'Anzeigen und 5 Min. starten');
-  await waitFor(client, 'one click shows the assignment and starts five minutes',
+  await evaluate(client, `(() => {
+    const editor = document.querySelector('[aria-label="Arbeitsauftrag bearbeiten"][role="dialog"]');
+    for (const name of ['Buch', 'Heft', 'Bleistift', 'Lineal', 'Radiergummi', 'Schere']) {
+      const button = Array.from(editor.querySelectorAll('button')).find(button => button.lastElementChild?.textContent === name);
+      if (!button) throw Error('Material option missing: ' + name);
+      button.click();
+    }
+  })()`);
+  await waitFor(client, 'the blank estimate still offers the explicit five-minute default',
+    `Array.from(document.querySelectorAll('button')).some(button => button.textContent.trim() === 'Anzeigen und 5 Min. starten' && !button.disabled)`);
+  await fill(client, 'Geplante Zeit', '10–15 Minuten');
+  await waitFor(client, 'a range can be shown on the board but does not silently start a countdown',
+    `Array.from(document.querySelectorAll('button')).some(button => button.textContent.trim() === 'Anzeigen und Timer starten' && button.disabled)`);
+  await clickButton(client, '10 Min.');
+  await clickButton(client, 'Anzeigen und 10 Min. starten');
+  await waitFor(client, 'one click shows the assignment with ten minutes and starts that countdown',
     `document.querySelector('[data-widget-type="instruction"]')?.textContent.includes('Mathe, Seite 20') &&
+      document.querySelector('[data-widget-type="instruction"]').textContent.includes('10 Minuten') &&
       ${dock}?.dataset.cockpitCountdownStatus === 'running' &&
-      /^(5:00|4:5[0-9])$/.test(${dock}.querySelector('[role="timer"]').textContent.trim())`);
+      /^(10:00|9:5[0-9])$/.test(${dock}.querySelector('[role="timer"]').textContent.trim())`);
+  await checkClassroomMaterials(client);
   await clickLabel(client, 'Unterrichtstimer anzeigen');
   await waitFor(client, 'the timer widget displays the existing countdown',
     `${timer}?.dataset.timerWidgetStatus === 'running'`);
@@ -287,6 +682,16 @@ async function checkAssignmentCountdown(client) {
   await waitFor(client, 'the new board page retains the running countdown without the timer widget',
     `!${timer} && ${dock}?.dataset.cockpitCountdownStatus === 'running' &&
       document.querySelector('[role="tablist"][aria-label="Tafelseiten"] [aria-selected="true"]').textContent.trim() === '2'`);
+  await waitFor(client, 'the short dock labels and timer remain fully visible during the countdown', `(() => {
+    const favorites = document.querySelector('.klassio-dock-favorites');
+    const pin = favorites.querySelector('[data-dock-favorite-id="timer"]');
+    const forestPin = favorites.querySelector('[data-dock-favorite-id="waldruhe"]');
+    const visibleLabel = button => button.querySelector('span:not([aria-hidden])')?.textContent;
+    const pinRect = pin.getBoundingClientRect();
+    const favoritesRect = favorites.getBoundingClientRect();
+    return visibleLabel(pin) === 'Timer' && visibleLabel(forestPin) === 'Waldruhe' &&
+      pinRect.left >= favoritesRect.left - 1 && pinRect.right <= favoritesRect.right + 1;
+  })()`);
   await screenshot(client, 'arbeitsauftrag-timer-tafelseite');
   const deadline = await evaluate(client, endOfCountdown);
   await clickLabel(client, 'Lehrercockpit schließen · Zurück zu Heute');
@@ -303,7 +708,7 @@ async function checkAssignmentCountdown(client) {
       window.__countdownOscillators++;
       return oscillator.apply(this, args);
     };
-    Date.now = () => now() + 301000;
+    Date.now = () => now() + 601000;
     document.dispatchEvent(new Event('visibilitychange'));
     document.dispatchEvent(new Event('visibilitychange'));
     Date.now = now;
@@ -315,6 +720,30 @@ async function checkAssignmentCountdown(client) {
   await clickLabel(client, 'Unterrichtstimer anzeigen');
   await waitFor(client, 'opening the timer after the alarm shows the finished session',
     `${timer}?.dataset.timerWidgetStatus === 'expired'`);
+  await clickLabel(client, 'Signalton stummschalten');
+  await clickButton(client, 'Nochmals');
+  await waitFor(client, 'the timer can be restarted silently', `${dock}?.dataset.cockpitCountdownStatus === 'running'`);
+  await evaluate(client, `document.querySelector('[data-dock-favorite-id="timer"]').click()`);
+  await evaluate(client, `(() => {
+    const now = Date.now;
+    const openAudio = AudioContext.prototype.createOscillator;
+    AudioContext.prototype.createOscillator = () => { window.__countdownOscillators++; };
+    Date.now = () => now() + 601000;
+    document.dispatchEvent(new Event('visibilitychange'));
+    Date.now = now;
+    AudioContext.prototype.createOscillator = openAudio;
+  })()`);
+  await waitFor(client, 'the silent timer still shows a persistent finish signal when minimized',
+    `${dock}?.querySelector('[role="status"]')?.textContent === 'Zeit vorbei'
+      && ${dock}.querySelector('.lucide-flag') && window.__countdownOscillators === 6
+      && document.querySelector('[data-dock-favorite-id="timer"]').dataset.minimized === 'true'`);
+  await screenshot(client, 'timer-stumm-zeit-vorbei');
+  await clickLabel(client, 'Timer-Endsignal schließen');
+  await waitFor(client, 'the teacher can clear the finished signal with one tap', `!${dock}`);
+  await evaluate(client, `document.querySelector('[data-dock-favorite-id="timer"]').click()`);
+  await waitFor(client, 'the classroom timer can be restored after clearing the signal',
+    `${timer}?.dataset.timerWidgetStatus === 'ready' &&
+      document.querySelector('[data-widget-type="timer"]').dataset.widgetMinimized === 'false'`);
 }
 
 async function dragWidgetTo(client, type, left, top) {
@@ -429,6 +858,11 @@ async function checkWidgetGeometry(client) {
   await selectPage('2');
   await waitFor(client, 'both widgets keep their positions after a page round trip', isOverlap);
 
+  await reloadSavedCockpit(client);
+  await waitFor(client, 'saved upper-left positions and overlap survive an actual reload', isOverlap);
+}
+
+async function reloadSavedApp(client) {
   const beforeReload = client.navigationCount;
   for (let attempt = 0; attempt < 20 && client.navigationCount === beforeReload; attempt++) {
     await client.send('Page.reload');
@@ -442,8 +876,12 @@ async function checkWidgetGeometry(client) {
     await clickButton(client, 'Tresor entsperren');
   }
   await waitFor(client, 'the app is ready after reload', `Boolean(document.querySelector('.topbar'))`);
+}
+
+async function reloadSavedCockpit(client) {
+  await reloadSavedApp(client);
   await clickButton(client, 'Lehrercockpit');
-  await waitFor(client, 'saved upper-left positions and overlap survive an actual reload', isOverlap);
+  await waitFor(client, 'the cockpit is ready after reload', `Boolean(document.querySelector('#widget-board-stage'))`);
 }
 
 async function checkAttendanceScope(client) {
@@ -474,10 +912,20 @@ async function checkAttendanceScope(client) {
   const closeCorrection = () => evaluate(client, `Array.from(${correction}.querySelectorAll('button'))
     .find(button => button.textContent.trim() === 'Schließen').click()`);
   const attendanceRows = `Array.from(${correction}.querySelectorAll('[aria-label^="Anwesenheit von "]'))`;
+  const openCount = `document.querySelector('[data-widget-type="kidattendance"] button[aria-label$="Offene Check-ins anzeigen"]')`;
+  const openOnlyDialog = `document.querySelector('[role="dialog"][aria-label="Offene Check-ins"]')`;
+  const openOnlyRows = `Array.from(${openOnlyDialog}.querySelectorAll('[aria-label^="Offenen Check-in für "]'))`;
   await openCorrection();
   await waitFor(client, 'three example pupils are available for attendance', `${attendanceRows}.length >= 3`);
+  const total = await evaluate(client, `${attendanceRows}.length`);
   await evaluate(client, `${attendanceRows}[1].querySelector('button[aria-label$=": Entschuldigt"]').click()`);
   await closeCorrection();
+  await waitFor(client, 'the open check-ins count is an action with the precise number of pupils',
+    `${openCount}?.getAttribute('aria-label').startsWith(${q(`${total - 1} offen`)})`);
+  await evaluate(client, `${openCount}.click()`);
+  await waitFor(client, 'the shortcut shows only pupils who still have an open check-in',
+    `${openOnlyDialog} && ${openOnlyRows}.length === ${total - 1}`);
+  await clickLabel(client, 'Offene Check-ins schließen');
   await clickLabel(client, 'Ich bin da! einklappen');
 
   await openFromGroupCard('primary');
@@ -497,9 +945,11 @@ async function checkAttendanceScope(client) {
     `${randomCount} === '0 zur Auswahl' && ${random}.querySelector('button[aria-label="Zufälliges Kind ziehen"]')?.disabled`);
 
   await evaluate(client, `document.querySelector('[data-dock-favorite-id="kidattendance"]').click()`);
-  await openCorrection();
-  await evaluate(client, `${attendanceRows}[0].querySelector('button[aria-label$=": Da"]').click()`);
-  await closeCorrection();
+  await evaluate(client, `${openCount}.click()`);
+  await waitFor(client, 'the shortcut opens the same list after reopening the attendance widget', `Boolean(${openOnlyDialog})`);
+  await evaluate(client, `${openOnlyRows}[0].querySelector('button').click()`);
+  await waitFor(client, 'marking one pupil present removes only that pupil from the open list', `${openOnlyRows}.length === ${total - 2}`);
+  await clickLabel(client, 'Offene Check-ins schließen');
   await clickLabel(client, 'Ich bin da! einklappen');
   const afterCheckIn = q('1 da · ' + (oldCount - 1) + ' offen');
   await waitFor(client, 'the same new check-in appears live in both participant pools',
@@ -521,6 +971,34 @@ async function checkAttendanceScope(client) {
     `parseInt(${groupCount}, 10) === ${oldCount} &&
       Number(${random}.querySelector('[data-fair-student-count]').dataset.fairStudentCount) === ${oldCount} &&
       ${group}.querySelector('[data-group-student]').dataset.groupStudent === ${q(checkedInId)}`);
+
+  await setScope(group, 'checked-in');
+  await evaluate(client, `document.querySelector('[data-dock-favorite-id="kidattendance"]').click()`);
+  await evaluate(client, `${openCount}.click()`);
+  await waitFor(client, 'the next late arrival can check in', `Boolean(${openOnlyDialog})`);
+  await evaluate(client, `${openOnlyRows}[0].querySelector('button').click()`);
+  await clickLabel(client, 'Offene Check-ins schließen');
+  await clickLabel(client, 'Ich bin da! einklappen');
+  await waitFor(client, 'a late check-in offers assignment without changing the existing group',
+    `${group}.querySelector('button[aria-label="Kinder nachträglich zuteilen"]')?.textContent.includes('1 zuteilen')
+      && ${group}.querySelectorAll('[data-group-student]').length === 1`);
+  await clickLabel(client, 'Kinder nachträglich zuteilen');
+  const lateDialog = `document.querySelector('dialog[open][aria-label="Kinder nachträglich zuteilen"]')`;
+  await waitFor(client, 'one checked-in child and a suggested group appear',
+    `${lateDialog}?.querySelectorAll('select')[0]?.options.length === 1
+      && ${lateDialog}.querySelectorAll('select')[1]?.selectedOptions[0]?.textContent.includes('(Vorschlag)')`);
+  const lateId = await evaluate(client, `${lateDialog}.querySelector('select').value`);
+  const previousTeam = await evaluate(client, `${group}.querySelector('[data-group-id]').dataset.groupId`);
+  await screenshot(client, 'gruppen-nachtraeglich-zuteilen');
+  await evaluate(client, `${lateDialog}.querySelector('button[type="submit"]').click()`);
+  await waitFor(client, 'the new pupil joins the original group and all previous pupils stay',
+    `!${lateDialog} && Array.from(${group}.querySelectorAll('[data-group-student]')).map(button => button.dataset.groupStudent).join(',') === ${q(checkedInId + ',' + lateId)}
+      && ${group}.querySelector('[data-group-id]').dataset.groupId === ${q(previousTeam)}`);
+  await clickLabel(client, 'Einteilung rückgängig machen');
+  await waitFor(client, 'undo restores the old group and offers the late child again',
+    `${group}.querySelectorAll('[data-group-student]').length === 1
+      && ${group}.querySelector('[data-group-student]').dataset.groupStudent === ${q(checkedInId)}
+      && Boolean(${group}.querySelector('button[aria-label="Kinder nachträglich zuteilen"]'))`);
 }
 
 async function checkRandomModeSearch(client) {
@@ -531,7 +1009,7 @@ async function checkRandomModeSearch(client) {
   const activeMode = mode => `${studio}?.querySelector('[data-random-selection-mode="' + ${q(mode)} + '"][aria-pressed="true"]')`;
   await searchWidget(client, 'Glücksrad');
   await waitFor(client, 'the result names the wheel and its shared widget',
-    `document.querySelector('[data-testid="cockpit-core-group-randomname"] h3')?.textContent === 'Glücksrad · Zufallsauswahl'`);
+    `document.querySelector('[data-testid="cockpit-core-group-groups"] h3')?.textContent === 'Glücksrad · Gruppen & Zufall'`);
   await clickLabel(client, 'Glücksrad öffnen');
   await waitFor(client, 'search opens the wheel in the existing selection widget', `Boolean(${activeMode('wheel')})`);
   await evaluate(client, `${wheel}.querySelector('button[aria-label="Glücksrad drehen"]').click()`);
@@ -550,9 +1028,14 @@ async function checkRandomModeSearch(client) {
 async function checkDayTimeline(client) {
   const timeline = `document.querySelector('#widget-board-stage [data-widget-type="timeline"]')`;
   const nowCard = `${timeline}?.querySelector('section[aria-label="Jetzt"]')`;
-  const nextCard = `${timeline}?.querySelector('section[aria-label="Als Nächstes"]')`;
-  const setClock = (day, hour, minute) => evaluate(client, `(() => {
-    window.__timelineTime = new window.__timelineDate(2026, 8, ${day}, ${hour}, ${minute}).getTime();
+  const nextCard = `${timeline}?.querySelector('section[aria-label="Danach"]')`;
+  const title = card => `${card}?.querySelector('[data-timeline-title]')?.textContent`;
+  const symbol = card => `${card}?.querySelector('[data-timeline-symbol]')`;
+  const boardHint = 'Mathebuch auf Seite 24';
+  const planningTopic = 'Internes Lernziel zum Zahlenraum';
+  const setClock = (day, hour, minute, tickToNextMinute = false) => evaluate(client, `(() => {
+    window.__timelineTime = new window.__timelineDate(2026, 8, ${day}, ${hour}, ${minute}, ${tickToNextMinute ? 58 : 0}).getTime();
+    window.__timelineClockStartedAt = ${tickToNextMinute ? 'performance.now()' : 'null'};
     window.dispatchEvent(new Event('focus'));
   })()`);
 
@@ -560,18 +1043,54 @@ async function checkDayTimeline(client) {
   await evaluate(client, `(() => {
     window.__timelineDate = window.Date;
     window.__timelineTime = new Date(2026, 8, 14, 9, 44).getTime();
+    window.__timelineClockStartedAt = null;
     window.Date = new Proxy(window.Date, {
-      construct: (target, args) => Reflect.construct(target, args.length ? args : [window.__timelineTime]),
+      construct: (target, args) => Reflect.construct(target, args.length ? args : [
+        window.__timelineTime + (window.__timelineClockStartedAt === null ? 0 : performance.now() - window.__timelineClockStartedAt),
+      ]),
     });
   })()`);
 
   try {
+    // The lesson editing fixture uses the weekly grid. At tablet width the
+    // planner shows a different layout, so use desktop only to enter the data.
+    if (WIDTH < 1000) await client.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: HEIGHT, deviceScaleFactor: 1, mobile: false });
+    await clickLabel(client, 'Lehrercockpit schließen · Zurück zu Heute');
+    await clickButton(client, 'Planung');
+    await waitFor(client, 'the planning workspace is ready', `Boolean(document.querySelector('[data-planning-next-actions] button'))`);
+    await evaluate(client, `document.querySelector('[data-planning-next-actions] button').click()`);
+    await waitFor(client, 'the weekly planning grid is ready',
+      `Array.from(document.querySelectorAll('button')).some(button => button.textContent.trim() === 'Diese Woche')`);
+    await clickButton(client, 'Diese Woche');
+    const mondaySecondLesson = `Array.from(document.querySelectorAll('div[draggable]')).find(cell =>
+      cell.classList.contains('group/cell') && cell.style.gridColumn === '2' && cell.style.gridRow.startsWith('3 /'))`;
+    await waitFor(client, 'the second lesson on Monday can be edited', `Boolean(${mondaySecondLesson})`);
+    await evaluate(client, `${mondaySecondLesson}.click()`);
+    const editor = `document.querySelector('[data-weekly-lesson-editor]')`;
+    await waitFor(client, 'the weekly lesson opens directly or via its overview', `Boolean(${editor}) || document.body.innerText.includes('Geplante Einheit')`);
+    if (!await evaluate(client, `Boolean(${editor})`)) await clickButton(client, 'Bearbeiten');
+    await waitFor(client, 'the second lesson opens the board hint field',
+      `${editor}?.textContent.includes('Montag • 2. Stunde • KW 38') && ${editor}.textContent.includes('Tafelhinweis')`);
+    await clickButton(client, 'Mathematik');
+    await fill(client, 'Was wird gelernt?', planningTopic);
+    await fill(client, 'Tafelhinweis', boardHint);
+    await clickButton(client, 'Einheit speichern');
+    await waitFor(client, 'the planned lesson was saved', `!${editor} && document.body.innerText.includes(${q(planningTopic)})`);
+    await clickButton(client, 'Heute');
+    if (WIDTH < 1000) await client.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false });
+    await clickButton(client, 'Lehrercockpit');
+    await waitFor(client, 'the cockpit is ready after editing the weekly plan', `Boolean(document.getElementById('widget-board-stage'))`);
+
     await evaluate(client, `document.querySelector('[data-dock-favorite-id="timeline"]').click()`);
     await waitFor(client, 'the cards show the current lesson and the next break time', `(() => {
       const now = ${nowCard}, next = ${nextCard};
       return now?.textContent.includes('08:50–09:45') && next?.textContent.includes('09:45–10:00')
-        && next.querySelector('p').textContent === 'Pause'
+        && ${title(nextCard)} === 'Pause'
+        && ${symbol(nowCard)}?.classList.contains('lucide-calculator')
+        && ${symbol(nextCard)}?.classList.contains('lucide-sandwich')
         && getComputedStyle(next).borderTopColor === 'rgb(245, 158, 11)'
+        && now.textContent.includes(${q(boardHint)})
+        && !${timeline}.textContent.includes(${q(planningTopic)})
         && !${timeline}.querySelector('[aria-current="time"]');
     })()`);
     const dimensions = await evaluate(client, `(() => {
@@ -580,34 +1099,51 @@ async function checkDayTimeline(client) {
       return {
         cards: [now, next].map(card => ({
           width: card.clientWidth, height: card.clientHeight, scrollWidth: card.scrollWidth,
-          subjectSize: parseFloat(getComputedStyle(card.querySelector('p')).fontSize),
+          subjectSize: parseFloat(getComputedStyle(card.querySelector('[data-timeline-title]')).fontSize),
+          symbolSize: card.querySelector('[data-timeline-symbol]').getBoundingClientRect().width,
         })),
         panel: { height: panel.clientHeight, scrollHeight: panel.scrollHeight },
       };
     })()`);
     const cardsFit = dimensions.cards.every(card => card.width >= 110 && card.height >= 70
-      && card.subjectSize >= 20 && card.scrollWidth <= card.width + 1);
+      && card.subjectSize >= 20 && card.symbolSize >= 28 && card.scrollWidth <= card.width + 1);
     if (!cardsFit || dimensions.panel.scrollHeight > dimensions.panel.height + 1) {
       throw Error('Timeline cards do not fit at the default size: ' + JSON.stringify(dimensions));
     }
-    await screenshot(client, 'tagesablauf-jetzt-und-als-naechstes');
-    await setClock(14, 9, 45);
-    await waitFor(client, 'at the boundary the break becomes current and the next lesson moves up',
-      `${nowCard}?.querySelector('p').textContent === 'Pause' &&
-       ${nextCard}?.textContent.includes('10:00–10:50')`);
+    await screenshot(client, 'tagesablauf-jetzt-und-danach');
+    await evaluate(client, `${timeline}.querySelector('button[aria-label="Widget-Menü öffnen"]').click()`);
+    await clickButton(client, 'Maximieren');
+    await waitFor(client, 'the classroom display enlarges both subject symbols',
+      `${symbol(nowCard)}?.getBoundingClientRect().width >= 44 && ${symbol(nextCard)}?.getBoundingClientRect().width >= 44`);
+    await screenshot(client, 'tagesablauf-jetzt-und-danach-gross');
+    await evaluate(client, `${timeline}.querySelector('button[aria-label="Widget-Menü öffnen"]').click()`);
+    await clickButton(client, 'Vollbild beenden');
+    await setClock(14, 8, 25);
+    await waitFor(client, 'the board hint is shown only on the upcoming lesson before it starts',
+      `${nextCard}?.textContent.includes(${q(boardHint)}) && !${nowCard}?.textContent.includes(${q(boardHint)})`);
+    await setClock(14, 9, 44, true);
+    await waitFor(client, 'at the boundary the break becomes current without another focus event',
+      `${title(nowCard)} === 'Pause' && ${symbol(nowCard)}?.classList.contains('lucide-sandwich') &&
+       ${nextCard}?.textContent.includes('10:00–10:50') && !${timeline}.textContent.includes(${q(boardHint)})`, 5000);
     await clickButton(client, 'Tagesverlauf');
     await waitFor(client, 'the optional day overview marks the current break',
       `${timeline}?.querySelector('[aria-current="time"]')?.getAttribute('aria-label') === 'Pause' && !${nowCard}`);
     await evaluate(client, `${timeline}.querySelector('[aria-current="time"]').click()`);
     await waitFor(client, 'the selected break still shows its details',
       `${timeline}.querySelector('[aria-pressed="true"][aria-current="time"]') && ${timeline}.textContent.includes('09:45–10:00')`);
-    await clickButton(client, 'Jetzt und als Nächstes');
+    await evaluate(client, `${timeline}.querySelector('button[aria-label^="2. Stunde:"]').click()`);
+    await waitFor(client, 'inspecting a lesson shows its public hint',
+      `${timeline}.textContent.includes(${q(boardHint)}) && !${timeline}.textContent.includes(${q(planningTopic)})`);
+    await clickButton(client, 'Jetzt und danach');
     await setClock(14, 7, 55);
     await waitFor(client, 'before school the cards show when the first lesson starts',
-      `${nowCard}?.textContent.includes('Vor Unterrichtsbeginn') && ${nextCard}?.textContent.includes('08:00–08:50')`);
+      `${title(nowCard)} === 'Unterricht beginnt' && ${nowCard}.textContent.includes('In 5 Min.') && ${nextCard}?.textContent.includes('08:00–08:50')`);
+    await setClock(14, 12, 15);
+    await waitFor(client, 'the last lesson shows the dismissal time under Danach',
+      `${title(nextCard)} === 'Schulschluss' && ${nextCard}.textContent.includes('12:30 Uhr')`);
     await setClock(14, 18, 0);
     await waitFor(client, 'after school the cards show the end of the day',
-      `${nowCard}?.textContent.includes('Schulschluss') && ${nextCard}?.textContent.includes('Heute nichts mehr')`);
+      `${title(nowCard)} === 'Schulschluss' && ${symbol(nowCard)}?.classList.contains('lucide-flag') && !${nextCard}`);
     await setClock(19, 10, 0);
     await waitFor(client, 'an empty Saturday shows a clear empty state',
       `${timeline}.textContent.includes('Heute kein Unterricht eingetragen') && !${nowCard} && !${nextCard}`);
@@ -619,9 +1155,234 @@ async function checkDayTimeline(client) {
       window.Date = window.__timelineDate;
       delete window.__timelineDate;
       delete window.__timelineTime;
+      delete window.__timelineClockStartedAt;
       window.dispatchEvent(new Event('focus'));
     })()`);
   }
+}
+
+async function checkAssignmentReference(client) {
+  const editor = `document.querySelector('[role="dialog"][aria-label="Arbeitsauftrag bearbeiten"]')`;
+  const widget = `document.querySelector('#widget-board-stage [data-widget-type="instruction"]')`;
+  const reference = key => `${widget}.querySelector('[data-instruction-reference="${key}"]')`;
+  const bonus = 'Zeig deinem Partner, wie du gerechnet hast.';
+  const hasAssignment = `!${editor} && ${reference('material')}?.textContent === 'TRAX-Arbeitsheft' &&
+    ${reference('material')}.querySelector('[aria-label="Heftfarbe Grün"]') &&
+    ${reference('page')}.textContent === '12' && ${reference('exercises')}.textContent === '1–3' &&
+    ${widget}.textContent.includes('Schon fertig?') && ${widget}.textContent.includes(${q(bonus)})`;
+
+  await clickLabel(client, 'Neue Tafelseite hinzufügen');
+  await evaluate(client, `document.querySelector('[data-dock-favorite-id="instruction"]').click()`);
+  await waitFor(client, 'a newly opened assignment is ready', `Boolean(${editor} || ${widget}?.querySelector('button[aria-label="Bearbeiten"]'))`);
+  if (!await evaluate(client, `Boolean(${editor})`)) await clickLabel(client, 'Bearbeiten');
+  await fill(client, 'Arbeitsauftrag Haupttext', '');
+  await fill(client, 'Heft oder Buch', 'TRAX-Arbeitsheft');
+  await clickButton(client, 'Grün');
+  await fill(client, 'Seite', '12');
+  await fill(client, 'Aufgabe', '1–3');
+  await fill(client, 'Schon fertig?', bonus);
+  await waitFor(client, 'structured assignments can start the timer without duplicate main text',
+    `Array.from(${editor}.querySelectorAll('button')).some(button => button.textContent.trim() === 'Anzeigen und 5 Min. starten' && !button.disabled)`);
+  await clickButton(client, 'Anzeigen und 5 Min. starten');
+  await waitFor(client, 'the complete assignment appears and the shared timer starts',
+    `${hasAssignment} && Boolean(document.querySelector('[data-cockpit-countdown-status="running"]'))`);
+  await waitFor(client, 'the full assignment fits in the default window without scrolling', `(() => {
+    const group = ${widget}.querySelector('dl');
+    const pane = ${widget}.querySelector('[data-instruction-board-content]');
+    const cards = Array.from(group.querySelectorAll('dd span:last-child'));
+    return pane.scrollHeight <= pane.clientHeight + 1 && pane.scrollWidth <= pane.clientWidth + 1 &&
+      cards.length === 3 && cards.every(card => parseFloat(getComputedStyle(card).fontSize) >= 18);
+  })()`);
+  await screenshot(client, 'arbeitsauftrag-heft-seite-aufgabe');
+
+  await clickLabel(client, 'Bearbeiten');
+  await fill(client, 'Seite', '99');
+  await clickButton(client, 'Abbrechen');
+  await waitFor(client, 'cancel keeps the original page reference', hasAssignment);
+  await reloadSavedCockpit(client);
+  await waitFor(client, 'the reference is saved with the board and reloads directly in pupil view', hasAssignment);
+  await clickLabel(client, 'Neuer Auftrag');
+  await clickLabel(client, 'Neuer Auftrag');
+  await waitFor(client, 'clearing the assignment also clears the reference and bonus',
+    `${editor} && Array.from(${editor}.querySelectorAll('fieldset input')).every(input => input.value === '') &&
+      ${editor}.querySelector('[role="group"] button[aria-pressed="true"]') === null &&
+      ${editor}.querySelector('input[placeholder^="z. B. Zeig deinem Partner"]').value === ''`);
+}
+
+async function checkWidgetArchive(client) {
+  const archive = `document.querySelector('dialog[open][aria-labelledby="cockpit-archive-title"]')`;
+  const savedPin = `[data-archived-widget="clock"]`;
+  const archivedTodo = `[data-archived-widget="todo"]`;
+  const todo = `document.querySelector('#widget-board-stage [data-widget-type="todo"]')`;
+  const timer = `document.querySelector('#widget-board-stage [data-widget-type="timer"]')`;
+  const marker = 'Archivtest: Lesebuch bereitlegen';
+  const openArchive = async () => {
+    await clickLabel(client, 'Cockpit-Einstellungen');
+    await clickButton(client, 'Widget-Archiv');
+    await waitFor(client, 'the archive opens as its own dialog', `Boolean(${archive})`);
+  };
+
+  await clickLabel(client, 'Neue Tafelseite hinzufügen');
+  await evaluate(client, `document.querySelector('[data-dock-favorite-id="timer"]').click()`);
+  await waitFor(client, 'timer opens on the teaching board', `${timer}?.dataset.widgetMinimized === 'false'`);
+  await evaluate(client, `(() => {
+    const dock = document.querySelector('.klassio-widget-dock');
+    const key = Object.keys(dock).find(key => key.startsWith('__reactFiber$'));
+    for (let fiber = dock[key]; fiber; fiber = fiber.return) {
+      if (typeof fiber.memoizedProps?.onOpenWidget !== 'function') continue;
+      fiber.memoizedProps.onChange(settings => ({ ...settings, itemIds: [...settings.itemIds, 'clock'] }));
+      return;
+    }
+    throw Error('Could not seed a legacy dock pin');
+  })()`);
+  await openArchive();
+  await waitFor(client, '91 retired tools are listed and the former pin is marked',
+    `${archive}.querySelectorAll('[data-archived-widget]').length === 91 &&
+      ${archive}.querySelector('${savedPin}').textContent.includes('Früher angeheftet') &&
+      !document.querySelector('[data-dock-favorite-id="clock"]')`);
+  await screenshot(client, 'widget-archiv');
+  await fill(client, 'Archivierte Widgets suchen', 'Aufgaben-Checkliste');
+  await waitFor(client, 'archive search finds the original checklist',
+    `${archive}.querySelectorAll('[data-archived-widget]').length === 1 && Boolean(${archive}.querySelector('${archivedTodo}'))`);
+  await evaluate(client, `${archive}.querySelector('${archivedTodo}').click()`);
+  await waitFor(client, 'the retired widget opens only in the archive view',
+    `Boolean(${todo}) && !${archive} && ${timer}.dataset.widgetMinimized === 'true' && !document.querySelector('.klassio-widget-dock')`);
+  await fill(client, 'Neuer Aufgabenschritt', marker);
+  await clickLabel(client, 'Schritt zur Liste hinzufügen');
+  await waitFor(client, 'an archived tool can read and save its original data', `${todo}.textContent.includes(${q(marker)})`);
+  await clickButton(client, 'Zurück zur Tafel');
+  await waitFor(client, 'the board returns with neither the old pin nor the saved retired widget',
+    `!${todo} && ${timer}.dataset.widgetMinimized === 'false' && !document.querySelector('[data-dock-favorite-id="clock"]')`);
+
+  await clickLabel(client, 'Cockpit-Einstellungen');
+  await clickButton(client, 'Layouts & Schnell-Slots');
+  await clickButton(client, 'Leere Ausgangsfläche laden');
+  await clickLabel(client, 'Meine Widget-Leiste anpassen');
+  await clickButton(client, 'Standard wiederherstellen');
+  await clickButton(client, 'Ja, Standard laden');
+  await reloadSavedCockpit(client);
+  await waitFor(client, 'old widgets and pins stay off the teaching board after reload',
+    `!${todo} && !document.querySelector('[data-dock-favorite-id="clock"]')`);
+  await openArchive();
+  await waitFor(client, 'resetting the teaching board and dock keeps the retired data',
+    `${archive}.querySelector('${archivedTodo}').textContent.includes('Auf dieser Tafel gespeichert') &&
+      ${archive}.querySelector('${savedPin}').textContent.includes('Früher angeheftet')`);
+  await evaluate(client, `${archive}.querySelector('${archivedTodo}').click()`);
+  await waitFor(client, 'the saved checklist opens again', `Boolean(${todo})`);
+  for (let page = 0; page < 10; page++) {
+    if (await evaluate(client, `${todo}.textContent.includes(${q(marker)})`)) break;
+    const nextPage = await evaluate(client, `(() => {
+      const next = ${todo}.querySelector('button[aria-label="Nächste Aufgabenseite"]');
+      if (!next || next.disabled) return false;
+      next.click();
+      return true;
+    })()`);
+    if (!nextPage) break;
+    await sleep(100);
+  }
+  await waitFor(client, 'checklist content survives both resets and reloading', `${todo}.textContent.includes(${q(marker)})`);
+  await clickButton(client, 'Zurück zur Tafel');
+}
+
+async function checkDashboardCustomization(client) {
+  const dialog = `document.querySelector('dialog[open][aria-labelledby="dashboard-customize-title"]')`;
+  const compact = `document.querySelector('[data-dashboard-overview]')`;
+  const more = `document.querySelector('button[title="Weitere Optionen & Werkzeuge"]')`;
+  const editButtons = `Array.from(document.querySelectorAll('button[aria-label="Heute bearbeiten"]')).filter(button => button.getClientRects().length)`;
+  const edit = `(${editButtons})[0]`;
+  const mobileMore = `document.querySelector('#klassio-mobile-quick-mode [data-kind="more"]')`;
+  const usesTopbarMenu = WIDTH < 640 && !TOUCH_PHONE;
+  const focusReturn = usesTopbarMenu ? more : edit;
+  const choose = label => evaluate(client, `Array.from(${dialog}.querySelectorAll('label')).find(el => el.textContent.trim() === ${q(label)}).click()`);
+  const openEditor = async () => {
+    if (usesTopbarMenu) {
+      await evaluate(client, `${more}.click()`);
+      await clickButton(client, 'Heute bearbeiten');
+    } else {
+      await evaluate(client, `(() => {const button = ${edit}; button.focus(); button.click();})()`);
+    }
+    await waitFor(client, 'the visible entry opens Heute bearbeiten', `Boolean(${dialog})`);
+  };
+
+  await waitFor(client, 'the compact dashboard is ready', `Boolean(${compact})`);
+  if (TOUCH_PHONE) {
+    await waitFor(client, 'the dedicated touch interface exposes the dashboard edit action',
+      `document.documentElement.dataset.klassioMobileQuick === 'true' && Boolean(${edit}) &&
+        (${edit}).getBoundingClientRect().height >= 44`);
+  }
+  if (!usesTopbarMenu) {
+    await waitFor(client, 'the dashboard has just one visible edit action', `(${editButtons}).length === 1`);
+  }
+  await openEditor();
+  await waitFor(client, 'compact settings show the current controls within the viewport', `(() => {
+    const dialog = ${dialog};
+    const rect = dialog.getBoundingClientRect();
+    return rect.left >= 0 && rect.top >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight &&
+      dialog.textContent.includes('Tagesvorschau') && !dialog.querySelector('details') &&
+      !/Zone 1|Starr Heute|Schriftgestaltung/.test(dialog.textContent);
+  })()`);
+  await screenshot(client, 'dashboard-heute-bearbeiten');
+  await choose('Nächster Werktag');
+  await waitFor(client, 'the live compact dashboard date changes to the preview',
+    `/^(Morgen|Vorschau)/.test(${compact}.querySelector('header p span').textContent) && !${dialog}.querySelector('#dashboard-preview-hour')`);
+  await choose('Automatisch');
+  await fill(client, 'Wechsel ab', '15');
+  await waitFor(client, 'the automatic preview hour is saved', `localStorage.getItem('dashboard_vorschau_stunde') === '15'`);
+  await choose('Erweitert');
+  await waitFor(client, 'the expanded view replaces the compact dashboard', `!${compact} && Boolean(${dialog}.querySelector('details'))`);
+  await evaluate(client, `${dialog}.querySelector('summary').click()`);
+  await fill(client, 'Schwerpunkt', 'morning');
+  await waitFor(client, 'Morgenstart shows the working appointment card', `document.body.textContent.includes('Anstehende Termine & Events')`);
+  await choose('Anstehende Termine');
+  await waitFor(client, 'the appointments toggle hides its card immediately', `!document.body.textContent.includes('Anstehende Termine & Events')`);
+  await clickButton(client, 'Karten anordnen');
+  await waitFor(client, 'expanded cards are editable on the page after the modal closes', `!${dialog} &&
+    document.activeElement?.textContent.trim() === 'Anordnung fertig' &&
+    Boolean(document.querySelector('button[title="Widget ausblenden"]'))`);
+  await clickButton(client, 'Anordnung fertig');
+  await waitFor(client, 'finishing the arrangement returns to settings', `Boolean(${dialog})`);
+  await clickButton(client, 'Fertig');
+  await waitFor(client, 'the dashboard stays expanded with its setting applied', `!${dialog} && !${compact}`);
+
+  await reloadSavedApp(client);
+  await waitFor(client, 'the expanded dashboard restores after a browser reload',
+    `Boolean(document.querySelector('button[title="Zur kompakten Ansicht wechseln"]')) ||
+    Array.from(document.querySelectorAll('button')).some(button => button.textContent.trim() === 'Zur kompakten Startseite')`);
+  await openEditor();
+  await waitFor(client, 'the saved hour and hidden appointment card are restored',
+    `${dialog}.querySelector('#dashboard-preview-hour')?.value === '15' &&
+      !document.body.textContent.includes('Anstehende Termine & Events')`);
+  await choose('Kompakt');
+  await choose('Heutiger Tag');
+  await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await waitFor(client, 'Escape returns focus to the dashboard opener',
+    `!${dialog} && document.activeElement === (${focusReturn}) &&
+    ${compact}?.querySelector('header p span').textContent === 'Heute'`);
+
+  if (TOUCH_PHONE) {
+    await evaluate(client, `(() => {
+      (${mobileMore}).click();
+      const actions = document.querySelectorAll('#klassio-mobile-quick-mode [data-sheet="more"] .kqm-action');
+      Array.from(actions).find(button => button.querySelector('strong')?.textContent === 'Einstellungen').click();
+    })()`);
+  } else {
+    await evaluate(client, `${more}.click()`);
+    await clickButton(client, 'Haupteinstellungen');
+  }
+  await waitFor(client, 'settings open from the same topbar',
+    `Array.from(document.querySelectorAll('button')).some(button => button.textContent.trim().startsWith('Darstellung'))`);
+  await clickButton(client, 'Darstellung');
+  await waitFor(client, 'the global font settings are in Darstellung',
+    `Boolean(document.querySelector('#klassio-display-font'))`);
+  const fontWeight = `Array.from(document.querySelectorAll('label')).find(label => label.textContent.trim() === 'Fett')`;
+  await evaluate(client, `${fontWeight}.click()`);
+  await waitFor(client, 'the retained font style still applies to the app',
+    `document.documentElement.dataset.fontWeight === 'bold'`);
+  await evaluate(client, `${fontWeight}.click()`);
+  await clickButton(client, 'Heute bearbeiten');
+  await waitFor(client, 'the settings shortcut opens the same editor after navigation',
+    `Boolean(${dialog}) && Boolean(${compact})`);
 }
 
 async function main() {
@@ -631,7 +1392,8 @@ async function main() {
   await client.connect();
   try {
     await client.send('Page.enable');await client.send('Runtime.enable');
-    await client.send('Emulation.setDeviceMetricsOverride',{width:WIDTH,height:HEIGHT,deviceScaleFactor:1,mobile:false});
+    await client.send('Emulation.setDeviceMetricsOverride',{width:WIDTH,height:HEIGHT,deviceScaleFactor:1,mobile:TOUCH_PHONE});
+    if (TOUCH_PHONE) await client.send('Emulation.setTouchEmulationEnabled', { enabled: true });
     await client.send('Page.navigate',{url:BASE_URL});
     await waitFor(client,'access gate','document.body?.innerText.toLowerCase().includes("geschützter zugang")');
     await waitFor(client,'access form ready',`Array.from(document.querySelectorAll('input')).some(i => String(i.placeholder || '').includes('Zugangscode eingeben'))`);
@@ -647,8 +1409,32 @@ async function main() {
     await waitFor(client,'first run','document.body?.innerText.toLowerCase().includes("willkommen bei klassio")');
     await clickButton(client,'Beispielklasse erkunden');
     await waitFor(client,'dashboard ready','Array.from(document.querySelectorAll("button")).some(x=>x.textContent.trim()==="Heute")');
+    if (process.env.KLASSIO_E2E_WIDGET_FOCUS === 'dashboard') {
+      await checkDashboardCustomization(client);
+      return;
+    }
     await clickButton(client,'Lehrercockpit');
     await waitFor(client,'cockpit board','Boolean(document.querySelector(".klassio-whiteboard"))');
+    if (process.env.KLASSIO_E2E_WIDGET_FOCUS === 'archive') {
+      await checkWidgetArchive(client);
+      return;
+    }
+    if (process.env.KLASSIO_E2E_WIDGET_FOCUS === 'instruction') {
+      await checkAssignmentReference(client);
+      return;
+    }
+    if (process.env.KLASSIO_E2E_WIDGET_FOCUS === 'timeline') {
+      await checkDayTimeline(client);
+      return;
+    }
+    if (process.env.KLASSIO_E2E_WIDGET_FOCUS === 'zahlenraum') {
+      await checkLinkedNumbers(client);
+      return;
+    }
+    if (process.env.KLASSIO_E2E_WIDGET_FOCUS === 'leseanfang') {
+      await checkReadingWorkshop(client);
+      return;
+    }
     const toggleCount = await evaluate(client, `document.querySelectorAll('.klassio-cockpit-shell button[aria-label="Schülerliste einblenden"]').length`);
     if (toggleCount !== 1) throw Error('Expected exactly one student list entry');
     await clickLabel(client,'Schülerliste einblenden',true);
@@ -680,6 +1466,13 @@ async function main() {
     await clickButton(client, 'Widget-Leiste anpassen');
     await waitFor(client, 'central entry opens the existing dock editor',
       `Boolean(document.querySelector('[role="dialog"][aria-label="Widget-Leiste anpassen"]')) && !document.querySelector('${cockpitSettings}')`);
+    const dockAdd = `document.querySelector('[aria-labelledby="dock-available-heading"]')`;
+    await evaluate(client, `document.querySelector('[aria-label="Widget-Leiste anpassen"] [role="tab"]:last-child').click()`);
+    await waitFor(client, 'the dock offers only the fifteen unpinned teaching tools, grouped by use',
+      `${dockAdd}?.querySelectorAll('button[aria-label$="zur Widget-Leiste hinzufügen"]').length === 15
+        && Array.from(${dockAdd}.querySelectorAll('h4')).map(heading => heading.textContent).join(',') === 'Kernwidgets,Klassenalltag,Mathe,Deutsch,Sachunterricht,Musik,Spiele'`);
+    await fill(client, 'Widgets für die Leiste suchen', 'Zahnputz');
+    await waitFor(client, 'retired tools cannot be newly pinned', `${dockAdd}.textContent.includes('Keine weiteren Widgets passen zur Suche.')`);
     await clickLabel(client, 'Widget-Leiste schließen');
     await openCockpitSettings();
     await clickButton(client, 'Widget-Voreinstellungen');
@@ -877,14 +1670,33 @@ async function main() {
         const content = ${picker}.querySelector('.klassio-widget-library-content').getBoundingClientRect();
         return Array.from(${picker}.querySelectorAll('[data-widget-core-start="true"] [data-widget-card-action="primary"]')).every(button => {
           const box = button.getBoundingClientRect();
-          return box.height >= 43.5 && box.top >= content.top && box.bottom <= content.bottom;
+          return box.height >= 43.5 && box.top >= content.top && box.bottom <= content.bottom &&
+            Boolean(button.querySelector('svg.lucide-panel-top-open[aria-hidden="true"]'));
         });
       })()`);
     await sleep(250);
     await screenshot(client, 'widget-kernwidgets');
-    await fill(client, 'Widget suchen', 'Wasserkreislauf');
-    await waitFor(client, 'a specialist subject tool is directly discoverable from the core picker',
-      `Boolean(${picker}.querySelector('button[aria-label="Wasserkreislauf-Puzzle öffnen"]'))`);
+    await clickButton(client, 'Klassenalltag');
+    await waitFor(client, 'the classroom category contains six practical tools',
+      `${coreCards} === 'tischcheck,classweeklyplan,homework,dienste,image,qrcode'`);
+    for (const [category, tools] of [
+      ['Mathe', 'zahlenraum,kopfrechnen'],
+      ['Deutsch', 'vocabulary,wortsatzwerkstatt'],
+      ['Sachunterricht', 'compass,watercycle'],
+      ['Musik', 'sounds'],
+      ['Spiele', 'dice'],
+    ]) {
+      await evaluate(client, `Array.from(${picker}.querySelectorAll('[aria-label="Widget-Kategorien"] button'))
+        .find(button => button.lastElementChild.textContent === ${q(category)}).click()`);
+      await waitFor(client, category + ' shows only its selected teaching tools', `${coreCards} === ${q(tools)}`);
+    }
+    await fill(client, 'Widget suchen', 'Zahnputz');
+    await waitFor(client, 'retired tools never appear in the library or a fallback catalogue',
+      `${coreCards} === '' && ${picker}.textContent.includes('Keine passenden Widgets gefunden')
+        && !${picker}.textContent.includes('Weitere Widgets')`);
+    await fill(client, 'Widget suchen', 'Zahlenstrahl');
+    await waitFor(client, 'the number line is discoverable as part of the number space',
+      `${coreCards} === 'zahlenraum'`);
     await fill(client, 'Widget suchen', 'Stoppuhr');
     await waitFor(client, 'stopwatch search returns one integrated timer entry', `${coreCards} === 'timer'`);
     await fill(client, 'Widget suchen', 'Shy Safari');
@@ -897,6 +1709,18 @@ async function main() {
       `Boolean(${forest}) && document.querySelector('[data-widget-type="waldruhe"]')?.getAttribute('data-widget-title')?.includes('Waldruhe (Shy Safari)')`);
     await clickButton(client, 'Ohne Mikrofon testen');
     await waitFor(client, 'quiet time visibly advances', `${forestProgress} >= 5`);
+    await waitFor(client, 'Waldruhe actions fit without scrolling, including the test buttons', `(() => {
+      const widget = ${forest};
+      const frame = widget.getBoundingClientRect();
+      const controls = widget.querySelector('[data-waldruhe-controls]');
+      const buttons = Array.from(controls.querySelectorAll('button'));
+      return buttons.length === 5 && widget.scrollHeight <= widget.clientHeight + 1 &&
+        getComputedStyle(controls.querySelector('.waldruhe-primary')).webkitTextFillColor === 'rgb(255, 255, 255)' && buttons.every(button => {
+        const bounds = button.getBoundingClientRect();
+        return bounds.height >= 43.5 && bounds.bottom <= frame.bottom + 1 &&
+          button.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
+      });
+    })()`);
     await clickButton(client, 'Laut');
     await waitFor(client, 'loud signal pauses the quiet countdown', `${forest}?.textContent.includes('Ruhezeit pausiert')`);
     const pausedForestProgress = await evaluate(client, forestProgress);
@@ -956,6 +1780,12 @@ async function main() {
       choice.dispatchEvent(new Event('change', { bubbles: true }));
     })()`);
     await openForestSettings();
+    await waitFor(client, 'Waldruhe settings scroll independently of the controls', `(() => {
+      const settings = ${forest}.querySelector('[aria-label="Waldruhe-Einstellungen"]');
+      const controls = ${forest}.querySelector('[data-waldruhe-controls]');
+      return settings && getComputedStyle(settings).overflowY === 'auto' &&
+        settings.getBoundingClientRect().bottom <= controls.getBoundingClientRect().top;
+    })()`);
     await selectScene('aquarium');
     await clickButton(client, 'Fertig');
     await waitFor(client, 'aquarium has its own quiet progress', `${forest}.dataset.waldruheScene === 'aquarium' && ${forest}.textContent.includes('0 von 5 Tieren')`);
@@ -1063,6 +1893,7 @@ async function main() {
     await clickButton(client, 'Flüsterarbeit');
     await clickButton(client, 'Fertig');
 
+    await checkWaldruhePreflight(client, forest, forestProgress);
     if (process.env.KLASSIO_E2E_FAKE_MIC === '1') await checkWaldruheMicrophone(client, forest, forestProgress);
 
     await checkAssignmentCountdown(client);
@@ -1070,6 +1901,11 @@ async function main() {
     await checkAttendanceScope(client);
     await checkRandomModeSearch(client);
     await checkDayTimeline(client);
+    await checkSubjectWidgets(client);
+    await checkWidgetArchive(client);
+    await checkAssignmentReference(client);
+    await checkLinkedNumbers(client);
+    await checkReadingWorkshop(client);
 
     console.log('✓ Cockpit visual QA passed for '+WIDTH+'×'+HEIGHT+'. Board primary, students restorable, award modes distinct.');
   } catch(error) {

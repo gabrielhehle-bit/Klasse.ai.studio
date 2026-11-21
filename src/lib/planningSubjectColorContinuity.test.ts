@@ -96,8 +96,8 @@ test('Substitution and publishing contexts retain fach color without changing th
   assert.match(sek1, /onClick=\{\(\) => openLesson\(slot\)\}/);
   assert.match(classroom, /data-klassio-subject-card=\{task\.fach\}/);
   assert.match(classroom, /data-klassio-subject-stripe/);
-  assert.match(classroom, /getFachThemeStyles\(task\.fach, app\.fachConfig\)\.bgLight/);
-  assert.match(classroom, /tasks\.map\(\(task, index\) => <article/);
+  assert.match(classroom, /const \{ bgLight, hex \} = getFachThemeStyles\(task\.fach, app\.fachConfig\)/);
+  assert.match(classroom, /'--fach-card-bg': bgLight, '--fach-card-stripe': hex/);
   assert.match(classroom, /aria-label="Aufgaben dieser Woche"/);
 });
 

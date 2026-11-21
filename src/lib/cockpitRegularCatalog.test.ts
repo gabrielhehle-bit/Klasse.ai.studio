@@ -1,17 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { COCKPIT_CORE_WIDGETS, COCKPIT_REGULAR_WIDGETS, getCockpitFavoriteGroups, getRegularCockpitGroups } from './cockpitRegularCatalog';
-import { COCKPIT_WIDGET_LIBRARY_ITEMS } from './cockpitWidgetCatalog';
+import { COCKPIT_ARCHIVED_WIDGETS, COCKPIT_TEACHING_WIDGET_SECTIONS, COCKPIT_CORE_WIDGETS, COCKPIT_REGULAR_WIDGETS, getCockpitGroupsForTypes, getRegularCockpitGroups, isCockpitTeachingBoardWidget } from './cockpitRegularCatalog';
+import { COCKPIT_WIDGET_LIBRARY_ITEMS, matchesCockpitWidgetSearch } from './cockpitWidgetCatalog';
 
-test('start view adds available personal favorites once without repeating a core tool', () => {
-  assert.deepEqual(getCockpitFavoriteGroups([
-    'clock', 'timer', 'spellingdetective', 'vocabulary', 'fractionvisualizer', 'removed-widget',
-  ]).map(group => group.id), ['vocabulary', 'fractionvisualizer']);
+test('favorites and history group supported variants once and omit retired tools', () => {
+  assert.deepEqual(getCockpitGroupsForTypes([
+    'clock', 'timer', 'spellingdetective', 'vocabulary', 'fractionvisualizer', 'toothbrush', 'removed-widget',
+  ]).map(group => group.id), ['timer', 'vocabulary']);
 });
 
-test('regular selection has 26 unique, available entries while retaining every legacy entry', () => {
-  assert.equal(COCKPIT_REGULAR_WIDGETS.length, 26);
-  assert.equal(new Set(COCKPIT_REGULAR_WIDGETS.map(group => group.id)).size, 26);
+test('grouped variants and uncurated widgets keep their original library entries', () => {
+  assert.equal(new Set(COCKPIT_REGULAR_WIDGETS.map(group => group.id)).size, COCKPIT_REGULAR_WIDGETS.length);
   assert.equal(COCKPIT_WIDGET_LIBRARY_ITEMS.length, 113);
   for (const group of COCKPIT_REGULAR_WIDGETS) {
     assert.ok(COCKPIT_WIDGET_LIBRARY_ITEMS.some(item => item.type === group.id));
@@ -21,17 +20,30 @@ test('regular selection has 26 unique, available entries while retaining every l
   }
 });
 
+test('retired types belong only to the archive; the integrated tools stay on the board', () => {
+  assert.equal(COCKPIT_ARCHIVED_WIDGETS.length, 91);
+  assert.deepEqual(
+    COCKPIT_WIDGET_LIBRARY_ITEMS.filter(item => isCockpitTeachingBoardWidget(item.type)).map(item => item.type).sort(),
+    [...COCKPIT_REGULAR_WIDGETS.map(group => group.id), 'randomname', 'pet'].sort(),
+  );
+  for (const type of ['clock', 'stopwatch', 'trafficlight', 'noisemeter', 'wheel', 'faircall', 'toothbrush']) {
+    assert.ok(COCKPIT_ARCHIVED_WIDGETS.some(item => item.type === type), type);
+  }
+});
+
 test('search groups old names without opening or converting saved variants', () => {
   for (const [query, id] of [
-    ['Stoppuhr', 'timer'], ['Glücksrad', 'randomname'],
-    ['Bruch-Kuchen', 'fractionvisualizer'], ['Zahlenstrahl', 'zahlenraum'],
-    ['Rechtschreib-Detektiv', 'vocabulary'], ['Satzbau', 'wortsatzwerkstatt'],
-    ['Klassen-Klavier', 'sounds'], ['Waldtiere', 'waldruhe'],
+    ['Stoppuhr', 'timer'], ['Glücksrad', 'groups'],
+    ['Zahlenstrahl', 'zahlenraum'], ['Lernwörter', 'vocabulary'], ['Waldtiere', 'waldruhe'],
+    ['Klassen-Klavier', 'sounds'], ['Wasserkreislauf', 'watercycle'], ['Tafel-Würfel', 'dice'],
   ]) {
     assert.deepEqual(getRegularCockpitGroups('core', query).map(group => group.id), [id]);
   }
-  assert.deepEqual(getRegularCockpitGroups('core', 'Zahnputz').map(group => group.id), ['toothbrush']);
-  assert.deepEqual(getRegularCockpitGroups('mathe', 'Wasserkreislauf').map(group => group.id), ['watercycle']);
+  assert.deepEqual(getRegularCockpitGroups('core', 'Zahnputz'), []);
+  assert.deepEqual(COCKPIT_WIDGET_LIBRARY_ITEMS.filter(item => matchesCockpitWidgetSearch(item, 'Zahnputz')).map(item => item.type), ['toothbrush']);
+  for (const query of ['Bruch-Kuchen', 'Blitz-Reaktions-Trainer']) {
+    assert.deepEqual(getRegularCockpitGroups('mathe', query), [], query);
+  }
 });
 
 test('search results open the requested tool mode inside the integrated widget', () => {
@@ -47,14 +59,11 @@ test('search results open the requested tool mode inside the integrated widget',
     ['fair-call', 'randomname', 'fair', 'Faire Runde'],
     ['Namen ziehen', 'randomname', 'names', 'Namen ziehen'],
   ]) {
-    const result = getRegularCockpitGroups('core', query).find(group => group.id === type);
+    const result = getRegularCockpitGroups('core', query).find(group => group.id === (type === 'randomname' ? 'groups' : type));
     assert.deepEqual(result?.openMode, { type, mode, label }, query);
   }
   assert.ok(COCKPIT_CORE_WIDGETS.every(group => group.openMode === undefined));
-  const general = getRegularCockpitGroups('core', 'Zufallsauswahl').find(group => group.id === 'randomname');
-  assert.ok(general);
-  assert.equal(general.openMode, undefined);
-  assert.equal(getRegularCockpitGroups('mathe', 'Wasserkreislauf')[0].openMode, undefined);
+  assert.equal(getRegularCockpitGroups('core', 'Zufallsauswahl')[0]?.openMode?.mode, 'names');
 });
 
 test('six core cards start with attendance and Waldruhe', () => {
@@ -64,12 +73,20 @@ test('six core cards start with attendance and Waldruhe', () => {
   assert.deepEqual(getRegularCockpitGroups('core', '   '), COCKPIT_CORE_WIDGETS);
 });
 
-test('subject categories cover every catalog type once across their grouped entries', () => {
-  const categories = [...new Set(COCKPIT_WIDGET_LIBRARY_ITEMS.map(item => item.category))];
+test('classroom and subject categories show a short, distinct teaching selection', () => {
+  const categories = COCKPIT_TEACHING_WIDGET_SECTIONS.map(section => section.id);
+  assert.deepEqual(categories, ['core', 'classroom', 'mathe', 'deutsch', 'sachunterricht', 'musik', 'play']);
   const groups = categories.flatMap(category => getRegularCockpitGroups(category));
+  assert.equal(groups.length, 20);
   assert.equal(new Set(groups.map(group => group.id)).size, groups.length);
-  const types = groups.flatMap(group => group.sources);
-  assert.equal(types.length, COCKPIT_WIDGET_LIBRARY_ITEMS.length);
-  assert.deepEqual(new Set(types), new Set(COCKPIT_WIDGET_LIBRARY_ITEMS.map(item => item.type)));
+  assert.deepEqual(getRegularCockpitGroups('classroom').map(group => group.id), [
+    'tischcheck', 'classweeklyplan', 'homework', 'dienste', 'image', 'qrcode',
+  ]);
+  assert.deepEqual(getRegularCockpitGroups('mathe').map(group => group.id), ['zahlenraum', 'kopfrechnen']);
+  assert.deepEqual(getRegularCockpitGroups('deutsch').map(group => group.id), ['vocabulary', 'wortsatzwerkstatt']);
+  assert.deepEqual(getRegularCockpitGroups('sachunterricht').map(group => group.id), ['compass', 'watercycle']);
+  assert.deepEqual(getRegularCockpitGroups('musik').map(group => group.id), ['sounds']);
+  assert.deepEqual(getRegularCockpitGroups('play').map(group => group.id), ['dice']);
+  assert.ok(groups.every(group => group.sources.every(type => COCKPIT_WIDGET_LIBRARY_ITEMS.some(item => item.type === type))));
   assert.deepEqual(getRegularCockpitGroups('mathe', 'Hausübungen').map(group => group.id), ['homework']);
 });

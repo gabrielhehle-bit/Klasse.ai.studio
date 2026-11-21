@@ -45,6 +45,74 @@ export interface ZahlenraumStudioProps {
   onCloseSettings?: () => void;
 }
 
+function getNumberLineClickValue(event: React.MouseEvent<SVGSVGElement>, min: number, max: number) {
+  const matrix = event.currentTarget.getScreenCTM();
+  if (!matrix) return null;
+  const point = event.currentTarget.createSVGPoint();
+  point.x = event.clientX;
+  point.y = event.clientY;
+  const clickX = point.matrixTransform(matrix.inverse()).x;
+  return numberLineValueAtClick(clickX, 1000, min, max);
+}
+
+const TWENTY_FIELD_TICKS = Array.from({ length: 21 }, (_, index) => index);
+const TWENTY_FIELD_COLORS = {
+  light: { first: '#216ca6', second: '#b6530a' },
+  dark: { first: '#60a5fa', second: '#fbbf24' },
+};
+
+function LinkedTwentyNumberLine({ value, split, onSelect, light }: {
+  value: number;
+  split?: number;
+  onSelect: (value: number) => void;
+  light: boolean;
+}) {
+  const xOf = (number: number) => 40 + (number / 20) * 920;
+  const firstPart = split ?? value;
+  const startX = xOf(0);
+  const valueX = xOf(value);
+  const firstPartX = xOf(firstPart);
+  const axisColor = light ? '#64748b' : '#94a3b8';
+  const { first, second } = TWENTY_FIELD_COLORS[light ? 'light' : 'dark'];
+
+  return (
+    <div className={`w-full max-w-3xl shrink-0 rounded-xl border px-3 pt-1.5 ${light ? 'border-slate-200 bg-white' : 'border-slate-700 bg-slate-950'}`}>
+      <h3 className="text-sm font-bold">Zahlenstrahl</h3>
+      <svg viewBox="0 0 1000 84" className="block h-[66px] w-full cursor-crosshair"
+        data-linked-twenty-line role="slider" aria-label="Zahl am Zahlenstrahl wählen"
+        aria-valuemin={0} aria-valuemax={20} aria-valuenow={value} tabIndex={0}
+        onClick={event => {
+          const next = getNumberLineClickValue(event, 0, 20);
+          if (next !== null) onSelect(next);
+        }}
+        onKeyDown={event => {
+          const targets: Record<string, number> = {
+            ArrowLeft: value - 1, ArrowDown: value - 1, ArrowRight: value + 1, ArrowUp: value + 1, Home: 0, End: 20,
+          };
+          const next = targets[event.key];
+          if (typeof next !== 'number') return;
+          event.preventDefault();
+          event.stopPropagation();
+          onSelect(next);
+        }}>
+        <line x1={startX} x2={xOf(20)} y1={43} y2={43} stroke={axisColor} strokeWidth={3} />
+        {firstPart > 0 && <line data-linked-first-part x1={startX} x2={firstPartX} y1={43} y2={43} stroke={first} strokeWidth={7} />}
+        {firstPart < value && <line data-linked-second-part x1={firstPartX} x2={valueX} y1={43} y2={43} stroke={second} strokeWidth={7} />}
+        {TWENTY_FIELD_TICKS.map(tick => {
+          const x = xOf(tick);
+          const major = tick % 5 === 0;
+          return <g key={tick}>
+            <line x1={x} x2={x} y1={major ? 33 : 39} y2={major ? 55 : 49} stroke={axisColor} strokeWidth={major ? 2.5 : 1.5} />
+            {major && <text x={x} y={78} fill="currentColor" textAnchor="middle" fontSize={21} fontWeight={600}>{tick}</text>}
+          </g>;
+        })}
+        <circle cx={valueX} cy={43} r={9} fill={firstPart < value ? second : first} stroke={light ? '#fff' : '#020617'} strokeWidth={2.5} />
+        <text x={valueX} y={25} data-linked-number-label fill="currentColor" textAnchor="middle" fontSize={25} fontWeight={800}>{value}</text>
+      </svg>
+    </div>
+  );
+}
+
 // Keep signed integer drafts (including an unfinished minus) separate from saved numbers.
 const SignedIntegerInput: React.FC<Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
   value: number; onValueChange: (value: number) => void;
@@ -101,6 +169,8 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
   const [jumps, setJumps] = useState<ZahlenraumJump[]>(initialSettings.jumps);
   const [newJumpStep, setNewJumpStep] = useState<number>(initialSettings.pendingJumpStep ?? 10);
   const [showCustomRangeInputs, setShowCustomRangeInputs] = useState<boolean>(initialSettings.range === 'custom');
+  const showLinkedLine = widget?.type === 'zahlenraum' && mode === 'quantity' && range === 20;
+  const linkedColors = TWENTY_FIELD_COLORS[currentIsLight ? 'light' : 'dark'];
   const settingsRef = useRef(initialSettings);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const applySettings = useCallback((next: ZahlenraumSettings) => {
@@ -204,7 +274,8 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
   const toggleSplit = () => {
     const nextState = !splitActive;
     setSplitActive(nextState);
-    const nextSplit = nextState ? Math.max(0, Math.floor(quantityValue / 2)) : undefined;
+    const defaultSplit = showLinkedLine ? Math.min(quantityValue, quantityValue >= 10 ? 10 : 5) : Math.floor(quantityValue / 2);
+    const nextSplit = nextState ? defaultSplit : undefined;
     if (nextSplit !== undefined) setSplitValue(nextSplit);
     persist({ splitValue: nextSplit });
   };
@@ -277,12 +348,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
 
   // Klick auf Zahlenstrahl SVG
   const handleLineClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    const matrix = e.currentTarget.getScreenCTM();
-    if (!matrix) return;
-    const point = e.currentTarget.createSVGPoint();
-    point.x = e.clientX; point.y = e.clientY;
-    const clickX = point.matrixTransform(matrix.inverse()).x;
-    const computedVal = numberLineValueAtClick(clickX, 1000, currentMin, currentMax);
+    const computedVal = getNumberLineClickValue(e, currentMin, currentMax);
     if (computedVal === null) return;
     handleAddOrUpdateMarker(computedVal);
   };
@@ -427,7 +493,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
       </div></dialog>, document.body)}
 
       {/* Hauptbereich */}
-      <div className="flex-1 flex flex-col min-h-0 p-3 gap-2">
+      <div className={`flex-1 flex flex-col min-h-0 p-3 gap-2 ${showLinkedLine ? 'pb-14' : ''}`}>
         {mode === 'quantity' ? (
           /* =========================================================================
              MODUS A: MENGEN & ZAHLENBILDER
@@ -454,15 +520,15 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                   <Minus className="w-4 h-4" />
                 </button>
 
-                <span 
+                {!showLinkedLine && <span
                   id="zahlenraum-quantity-value-display"
                   className="text-2xl font-black min-w-[48px] text-center font-mono text-accent"
                 >
                   {quantityValue}
-                </span>
+                </span>}
                 <input type="number" min={0} max={quantityRange} value={quantityValue}
                   aria-label="Menge eingeben" onChange={e => updateQuantityValue(Number(e.target.value))}
-                  className="min-h-11 w-20 rounded-lg border border-slate-300 bg-transparent px-2 text-center font-mono" />
+                  className={`min-h-11 w-20 rounded-lg border border-slate-300 bg-transparent px-2 text-center font-mono ${showLinkedLine ? 'text-2xl font-black text-accent' : ''}`} />
 
                 <button
                   id="zahlenraum-quantity-inc-btn"
@@ -523,8 +589,8 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                   currentIsLight ? 'bg-amber-50/70 border-amber-200' : 'bg-amber-950/30 border-amber-800/60'
                 }`}
               >
-                <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                  {quantityValue} = <span className="text-accent font-extrabold">{splitValue}</span> + <span className="text-amber-600 dark:text-amber-400 font-extrabold">{quantityValue - splitValue}</span>
+                <span className={`font-bold text-amber-900 dark:text-amber-200 ${showLinkedLine ? 'text-xl tabular-nums' : 'text-xs'}`}>
+                  {quantityValue} = <span className={`font-extrabold ${showLinkedLine ? '' : 'text-accent'}`} style={showLinkedLine ? { color: linkedColors.first } : undefined}>{splitValue}</span> + <span className={`font-extrabold ${showLinkedLine ? '' : 'text-amber-600 dark:text-amber-400'}`} style={showLinkedLine ? { color: linkedColors.second } : undefined}>{quantityValue - splitValue}</span>
                 </span>
                 <input
                   id="zahlenraum-split-slider"
@@ -550,6 +616,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 currentIsLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-950 border-slate-800'
               }`}
             >
+              {showLinkedLine && <h3 className="mb-2 text-sm font-bold">Zwanzigerfeld</h3>}
               {/* Optionales Gras-Band bei Jäger-Stil */}
               <div
                 id="zahlenraum-grid"
@@ -562,8 +629,13 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 {gridDots.dots.map((dot) => {
                   // Farbe bestimmen
                   let dotBg = 'bg-transparent border-2 border-dashed border-slate-300 dark:border-slate-700';
+                  const linkedColor = showLinkedLine && dot.isFilled
+                    ? dot.colorType === 'secondary' ? linkedColors.second : linkedColors.first
+                    : undefined;
                   if (dot.isFilled) {
-                    if (dot.colorType === 'secondary') {
+                    if (linkedColor) {
+                      dotBg = 'border shadow-sm';
+                    } else if (dot.colorType === 'secondary') {
                       dotBg = 'bg-amber-500 text-white shadow-md border border-amber-600';
                     } else {
                       dotBg = 'bg-accent text-accent-text shadow-md border border-accent';
@@ -588,10 +660,11 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                         type: 'button' as const, 'aria-label': `Menge ${dot.index} wählen`, onClick: () => updateQuantityValue(dot.index),
                       })}
                       data-grid-filled={dot.isFilled} data-grid-color={dot.colorType}
+                      style={linkedColor ? { backgroundColor: linkedColor, borderColor: linkedColor } : undefined}
                       className={`rounded-full flex items-center justify-center font-bold font-mono select-none ${dotSizeClass} ${colMargin} ${rowMargin} ${dotBg}`}
                       title={`Punkt ${dot.index}`}
                     >
-                      {dot.isFilled && quantityRange <= 20 && dot.index}
+                      {dot.isFilled && quantityRange <= 20 && !showLinkedLine && dot.index}
                     </Dot>
                   );
                 })}
@@ -605,8 +678,11 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
               )}
             </div>
 
+            {showLinkedLine && <LinkedTwentyNumberLine value={quantityValue} split={splitActive ? splitValue : undefined}
+              onSelect={updateQuantityValue} light={currentIsLight} />}
+
             {/* Kurzwahltasten für typische Mengen */}
-            <div className="flex items-center gap-1 flex-wrap justify-center">
+            {!showLinkedLine && <div className="flex items-center gap-1 flex-wrap justify-center">
               {(quantityRange === 10 ? [0, 2, 5, 7, 10] : quantityRange === 20 ? [0, 5, 10, 15, 17, 20] : [0, 10, 25, 47, 50, 75, 100]).map((v) => (
                 <button
                   key={v}
@@ -618,7 +694,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                   {v}
                 </button>
               ))}
-            </div>
+            </div>}
           </div>
         ) : (
           /* =========================================================================
