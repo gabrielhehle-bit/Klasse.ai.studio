@@ -111,7 +111,19 @@ export function stepCompassAngle(
   return directions[(safeIndex + step + directions.length) % directions.length].angle;
 }
 
+const mapTasks: Record<number, string> = {
+  0: 'Auf deiner Karte ist Norden oben. Der Wald liegt direkt über der Schule. In welche Richtung gehst du?',
+  45: 'Der Teich liegt genau zwischen Norden und Osten. In welche Richtung gehst du?',
+  90: 'Du schaust nach Norden und drehst dich eine Vierteldrehung nach rechts. Wohin schaust du jetzt?',
+  135: 'Der Bach liegt genau zwischen Süden und Osten. In welche Richtung gehst du?',
+  180: 'Du schaust nach Norden und drehst dich eine halbe Drehung. Wohin schaust du jetzt?',
+  225: 'Die Wiese liegt genau zwischen Süden und Westen. In welche Richtung gehst du?',
+  270: 'Du schaust nach Norden und drehst dich eine Vierteldrehung nach links. Wohin schaust du jetzt?',
+  315: 'Der Spielplatz liegt genau zwischen Norden und Westen. In welche Richtung gehst du?',
+};
+
 export interface CompassPracticeRound {
+  prompt: string;
   target: CompassDirection;
 }
 
@@ -128,5 +140,6 @@ export function createCompassPracticeRound(
   const pool = candidates.length > 0 ? candidates : [...directions];
   const randomValue = Math.max(0, Math.min(0.999999, random()));
   const index = Math.min(pool.length - 1, Math.floor(randomValue * pool.length));
-  return { target: pool[index] };
+  const target = pool[index];
+  return { target, prompt: mapTasks[target.angle] };
 }

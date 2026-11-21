@@ -48,7 +48,7 @@ test('dock floats above the board and favorites are removed only through deliber
   assert.match(dock, /role="tab"/);
   assert.match(dock, /Widget hinzufügen/);
   assert.match(dock, /if \(event\.key === 'Escape'\) setEditing\(false\)/);
-  assert.match(dock, /w-max max-w-full/);
+  assert.match(dock, /w-fit max-w-full/);
   assert.doesNotMatch(dock, /indigo-/);
   assert.match(css, /background-color: var\(--accent\) !important/);
   assert.match(dock, /aria-label="Weitere Widgets hinzufügen"/);
@@ -61,7 +61,9 @@ test('minimize is session-local and never closes widget state or changes its rec
   assert.match(surface, /const \[minimizedWidgetIds, setMinimizedWidgetIds\] = useState<string\[\]>\(\[\]\)/);
   assert.match(surface, /!minimizedWidgetIds\.includes\(w\.id\)/);
   assert.match(surface, /onMinimize=\{\(\) => setMinimizedWidgetIds/);
-  assert.match(dock, /aria-label="Minimierte Widgets"/);
+  assert.doesNotMatch(dock, /klassio-minimized-strip/);
+  assert.match(dock, /size-2.5 rounded-full bg-black/);
+  assert.match(dock, /onRestoreMinimized/);
   assert.doesNotMatch(dock, /cockpitLayout\s*:/);
 });
 
