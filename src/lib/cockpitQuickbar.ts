@@ -3,11 +3,11 @@ import {
   splitCockpitWidgetLabel,
   type CockpitWidgetLibraryId,
 } from './cockpitWidgetCatalog';
+import { COCKPIT_REGULAR_WIDGETS, getCockpitTeachingSectionLabel, isCockpitWidgetAddable } from './cockpitRegularCatalog';
 
 /**
  * Personal teaching-dock favorites stored per class inside the existing
- * encrypted boardSettings. The quick bar uses the full widget-library catalog:
- * every widget that can be opened from the library can also be pinned here.
+ * encrypted boardSettings. Keep historical pins for the widget archive.
  */
 export const COCKPIT_QUICKBAR_ITEMS = COCKPIT_WIDGET_LIBRARY_ITEMS.map(item => {
   const parsed = splitCockpitWidgetLabel(item.label);
@@ -18,6 +18,16 @@ export const COCKPIT_QUICKBAR_ITEMS = COCKPIT_WIDGET_LIBRARY_ITEMS.map(item => {
     category: item.category,
   };
 });
+const quickbarItemsById = new Map(COCKPIT_QUICKBAR_ITEMS.map(item => [item.id, item]));
+export const COCKPIT_QUICKBAR_ADDABLE_ITEMS = COCKPIT_REGULAR_WIDGETS.map(group => ({
+  ...quickbarItemsById.get(group.id)!,
+  label: group.label,
+  section: getCockpitTeachingSectionLabel(group.id)!,
+}));
+
+export function getCockpitTeachingQuickbarIds(settings: CockpitQuickbarSettings): CockpitQuickbarId[] {
+  return settings.itemIds.filter(isCockpitWidgetAddable);
+}
 
 export type CockpitQuickbarId = CockpitWidgetLibraryId;
 export type CockpitQuickbarSettings = { enabled: boolean; itemIds: CockpitQuickbarId[] };
@@ -41,7 +51,7 @@ export function addCockpitQuickbarItem(
   settings: CockpitQuickbarSettings,
   id: CockpitQuickbarId,
 ): CockpitQuickbarSettings {
-  if (!ALLOWED.has(id) || settings.itemIds.includes(id)) return settings;
+  if (!isCockpitWidgetAddable(id) || settings.itemIds.includes(id)) return settings;
   return { ...settings, itemIds: [...settings.itemIds, id] };
 }
 
@@ -69,9 +79,12 @@ export function moveCockpitQuickbarItem(
   id: CockpitQuickbarId,
   direction: -1 | 1,
 ): CockpitQuickbarSettings {
+  const visibleIds = getCockpitTeachingQuickbarIds(settings);
+  const visibleIndex = visibleIds.indexOf(id);
+  const adjacent = visibleIds[visibleIndex + direction];
+  if (visibleIndex < 0 || !adjacent) return settings;
   const index = settings.itemIds.indexOf(id);
-  const target = index + direction;
-  if (index < 0 || target < 0 || target >= settings.itemIds.length) return settings;
+  const target = settings.itemIds.indexOf(adjacent);
   const itemIds = [...settings.itemIds];
   [itemIds[index], itemIds[target]] = [itemIds[target], itemIds[index]];
   return { ...settings, itemIds };

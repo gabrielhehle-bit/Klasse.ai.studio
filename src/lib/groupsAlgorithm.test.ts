@@ -6,6 +6,7 @@ import {
   swapStudentsInGroups,
   moveStudentToGroup,
   getNewGroupRuleViolation,
+  getLateStudentGroupOptions,
   GroupingConfig,
   getGroupName
 } from './groupsAlgorithm';
@@ -272,4 +273,23 @@ test('Bestehende Regelverletzungen dürfen behoben werden und fremde IDs werden 
   const repaired = moveStudentToGroup(original, 'synthetic-b', 'g1');
   assert.equal(getNewGroupRuleViolation(original, repaired.updatedGroups, [], buddy), null);
   assert.strictEqual(swapStudentsInGroups(original, 'synthetic-a', 'unknown'), original);
+});
+
+test('Nachträgliches Zuteilen schlägt die kleinste passende Gruppe vor und lässt bestehende Plätze stehen', () => {
+  const groups = [
+    { id: 'g1', name: 'Füchse', colorIndex: 0, studentIds: ['a', 'b'] },
+    { id: 'g2', name: 'Igel', colorIndex: 1, studentIds: ['c'] },
+    { id: 'g3', name: 'Eulen', colorIndex: 2, studentIds: ['d'] },
+  ];
+  const lateId = 'late';
+  const options = getLateStudentGroupOptions(groups, lateId, [{ studentIdA: 'c', studentIdB: lateId }]);
+  assert.deepEqual(options.map(option => option.target.id), ['g3', 'g1']);
+  assert.equal(options[0].updatedGroups[0], groups[0]);
+  assert.equal(options[0].updatedGroups[1], groups[1]);
+  assert.deepEqual(options[0].updatedGroups[2], { ...groups[2], studentIds: ['d', lateId] });
+  assert.deepEqual(groups[2].studentIds, ['d']);
+  const buddy = [{ studentIdA: 'a', studentIdB: lateId }];
+  assert.deepEqual(getLateStudentGroupOptions(groups, lateId, [], buddy).map(option => option.target.id), ['g1']);
+  assert.deepEqual(getLateStudentGroupOptions(groups, lateId, buddy, buddy), []);
+  assert.deepEqual(getLateStudentGroupOptions(groups, 'c'), []);
 });

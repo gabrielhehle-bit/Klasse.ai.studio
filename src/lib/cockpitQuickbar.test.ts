@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  COCKPIT_QUICKBAR_ITEMS, normalizeCockpitQuickbarSettings,
-  toggleCockpitQuickbarItem, moveCockpitQuickbarItem,
+  COCKPIT_QUICKBAR_ITEMS, COCKPIT_QUICKBAR_ADDABLE_ITEMS, normalizeCockpitQuickbarSettings,
+  toggleCockpitQuickbarItem, moveCockpitQuickbarItem, getCockpitTeachingQuickbarIds,
 } from './cockpitQuickbar';
 
 const source = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
@@ -18,7 +18,9 @@ test('new classrooms get an ordered customizable dock; old disabled favorites re
   assert.deepEqual(normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['timer', 'timer', 'unsafe', null] }), {
     enabled: true, itemIds: ['timer'],
   });
-  assert.ok(COCKPIT_QUICKBAR_ITEMS.length >= 100);
+  assert.equal(COCKPIT_QUICKBAR_ADDABLE_ITEMS.length, 20);
+  assert.ok(!COCKPIT_QUICKBAR_ADDABLE_ITEMS.some(item => item.id === 'toothbrush'));
+  assert.deepEqual(toggleCockpitQuickbarItem(defaults, 'toothbrush'), defaults);
   assert.equal(COCKPIT_QUICKBAR_ITEMS.some(item => item.id === 'pet'), true);
   assert.equal(COCKPIT_QUICKBAR_ITEMS.some(item => item.id === 'mathcards'), true);
   assert.deepEqual(normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['studentlist', 'timer'] }).itemIds, ['timer']);
@@ -55,17 +57,17 @@ test('favorites can be chosen and reordered without modifying saved widget posit
   assert.deepEqual(before.itemIds, ['timer', 'clock']);
   assert.deepEqual(next.itemIds, ['timer', 'clock', 'dienste']);
   assert.deepEqual(toggleCockpitQuickbarItem(next, 'timer').itemIds, ['clock', 'dienste']);
-  assert.deepEqual(moveCockpitQuickbarItem(next, 'dienste', -1).itemIds, ['timer', 'dienste', 'clock']);
+  assert.deepEqual(getCockpitTeachingQuickbarIds(next), ['timer', 'dienste']);
+  assert.deepEqual(moveCockpitQuickbarItem(next, 'dienste', -1).itemIds, ['dienste', 'clock', 'timer']);
   assert.deepEqual(moveCockpitQuickbarItem(next, 'timer', -1).itemIds, next.itemIds);
-  assert.deepEqual(moveCockpitQuickbarItem(next, 'clock', 1).itemIds, ['timer', 'dienste', 'clock']);
+  assert.deepEqual(moveCockpitQuickbarItem(next, 'clock', 1).itemIds, next.itemIds);
   assert.match(source, /cockpitQuickbarByClass/);
   assert.match(source, /\[boardTextClassKey\]: update\(current\)/);
   assert.match(source, /delete next\[boardTextClassKey\]/);
   assert.doesNotMatch(source.slice(source.indexOf('const resetQuickBarSettings'), source.indexOf('const boardInkItems: InkItem')), /cockpitLayout\s*:/);
   assert.match(dock, /moveCockpitQuickbarItem\(current, item\.id/);
   assert.match(dock, /removeCockpitQuickbarItem\(current, id\)/);
-  assert.match(source, /addCockpitQuickbarItem\(settings, item\.type as CockpitQuickbarId\)/);
-  assert.match(source, /addCockpitQuickbarItem\(settings, primaryType as CockpitQuickbarId\)/);
+  assert.match(source, /addCockpitQuickbarItem\(settings, group\.id\)/);
 });
 
 test('clicking a pinned widget toggles open, minimized and restored without closing its saved state', () => {

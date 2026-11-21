@@ -10,6 +10,17 @@ export function normalizeClassTimerSeconds(minutes: unknown, seconds: unknown): 
     throw new Error('Wähle eine Zeit zwischen einer Sekunde und zwölf Stunden.');
   return value;
 }
+
+/** The assignment field can also contain free text that is only shown on the board. */
+export function getInstructionCountdownMinutes(estimate: string): number | null {
+  const value = estimate.trim();
+  if (!value) return 5;
+  const match = /^(\d+)\s*(?:min(?:uten?)?\.?)?$/i.exec(value);
+  if (!match) return null;
+  const minutes = Number(match[1]);
+  return minutes >= 1 && minutes * 60 <= MAX_CLASS_TIMER_SECONDS ? minutes : null;
+}
+
 export function classTimerOwnsShortcut(container: HTMLElement | null, target: EventTarget | null): boolean {
   if (!container || !(target instanceof Node) || !container.contains(target)) return false;
   if (!(target instanceof HTMLElement)) return false;

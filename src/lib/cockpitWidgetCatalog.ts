@@ -1,9 +1,8 @@
 import { getCockpitWidgetCanonicalEntry } from "./cockpitWidgetCanonical";
 
 /**
- * Single source of truth for every widget shown in the classroom widget library.
- * The same catalog powers the lower quick-access bar, so newly listed widgets can
- * be pinned there without maintaining a second whitelist.
+ * Widget metadata, including types that still occur in saved boards and pins.
+ * cockpitRegularCatalog.ts defines which tools can be added to the board today.
  */
 export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
@@ -216,7 +215,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
                                         type: "wortsatzwerkstatt",
                                         label: "✍️ Wort- & Satzwerkstatt",
-                                        desc: "Wörter bauen, zerlegen & Sätze ordnen",
+                                        desc: "Leseanfang mit Silben, Wörtern und kurzen Sätzen",
                                         category: "deutsch",
                                       },
                                       {
@@ -455,7 +454,7 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       {
                                         type: "dice",
                                         label: "🎲 Tafel-Würfel",
-                                        desc: "Zweifarbwürfel werfen",
+                                        desc: "Mit bis zu sechs Würfeln spielen oder rechnen",
                                         category: "mindfulness",
                                       },
                                       {

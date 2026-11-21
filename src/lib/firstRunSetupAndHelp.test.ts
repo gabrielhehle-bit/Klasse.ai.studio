@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { initialAppState, normalizeAppState } from './appState';
 import { hasCompletedInitialSetup, shouldShowInitialDashboardTour } from './firstRunFlow';
 import { SETTINGS_HELP, PAGE_HELP, WIDGET_HELP } from './helpContent';
+import { COCKPIT_REGULAR_WIDGETS } from './cockpitRegularCatalog';
 import { AVAILABLE_MODULES } from './settingsModuleCatalog';
 
 const read = (path: string) => readFileSync(path, 'utf8');
@@ -70,7 +71,7 @@ test('Hilfe lists every configurable app page, every selectable cockpit widget a
     assert.ok(entry!.canDo.length > 20, module.id);
     assert.ok(entry!.steps.length >= 2, module.id);
   }
-  assert.ok(WIDGET_HELP.length >= 108, 'Current cockpit widget picker should be fully covered');
+  assert.deepEqual(WIDGET_HELP.map(topic => topic.id), COCKPIT_REGULAR_WIDGETS.map(widget => widget.id));
   assert.equal(new Set(WIDGET_HELP.map(topic => topic.id)).size, WIDGET_HELP.length);
   assert.ok(WIDGET_HELP.every(topic => topic.steps.length >= 3 && topic.purpose.trim()), 'Every widget must have an actual guide');
   for (const category of ['overview', 'account', 'general', 'display', 'modules', 'sync', 'backup', 'support', 'advanced', 'hilfe']) {

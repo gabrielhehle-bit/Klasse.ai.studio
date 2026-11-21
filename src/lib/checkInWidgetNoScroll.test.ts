@@ -43,7 +43,8 @@ test('Ich bin da: compact 25-child view has no internal scrolling and keeps teac
   assert.doesNotMatch(compact, /overflow-y-auto|overflow-auto|no-scrollbar|students\.map/);
   assert.match(source, /activeMoodStudent && renderChildMoodModal\(\)/);
   assert.match(source, /isTeacherModalOpen && createPortal\(renderTeacherModal\(\), document\.body\)/);
-  assert.match(source, /isFinalizeModalOpen && renderFinalizeModal\(\)/);
+  assert.match(compact, /isFinalizeModalOpen && createPortal\(renderFinalizeModal\(\), document\.body\)/);
+  assert.match(compact, /aria-label=\{summary\.open \? openCountLabel : 'Keine offenen Check-ins'\}/);
   assert.match(source, /document\.addEventListener\('visibilitychange', refreshToday\)/);
 });
 
@@ -84,7 +85,8 @@ test('Ich bin da: narrow cards keep the full name separate from the visual statu
 
 
 test('Ich bin da: a completed roll call never mistakes absent children for present children', () => {
-  assert.ok(source.includes('summary.isComplete ? `${summary.present}/${summary.total} da · vollständig`'));
-  assert.ok(!source.includes('summary.isComplete ? `${summary.total}/${summary.total} da · vollständig`'));
-  assert.ok(source.includes('`${summary.present} von ${summary.total} da · ${summary.open} noch offen`'));
+  assert.ok(source.includes('`${summary.present}/${summary.total} da · vollständig`'));
+  assert.ok(!source.includes('`${summary.total}/${summary.total} da · vollständig`'));
+  assert.ok(source.includes('`${summary.present} von ${summary.total} da`'));
+  assert.ok(source.includes('`${summary.open} offen · Offene Check-ins anzeigen`'));
 });

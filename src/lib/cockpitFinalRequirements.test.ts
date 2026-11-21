@@ -22,15 +22,15 @@ test("Cockpit: freie Unterrichtsfläche bleibt weiß und ohne Startkarte", () =>
   assert.doesNotMatch(teachingSurface, /cockpit-empty-state-hint/);
 });
 
-test("Cockpit: Widgetbibliothek hält Kernwidgets und Alt-Layouts erreichbar", () => {
+test("Cockpit: Widgetbibliothek zeigt ausschließlich die aktuelle Unterrichtsauswahl", () => {
   assert.match(teachingSurface, /useState<string>\("core"\)/);
-  assert.match(teachingSurface, /\{ id: "core", label: "🧩 Kernwidgets" \}/);
-  assert.match(teachingSurface, /\{ id: "legacy", label: "▦ Weitere Widgets" \}/);
-  assert.match(teachingSurface, /\{ id: "recent", label: "🕘 Zuletzt verwendet" \}/);
-  assert.match(teachingSurface, /regularGroups\.map\(\(group, groupIndex\)/);
-  assert.match(teachingSurface, /data-widget-favorite-start/);
+  assert.match(teachingSurface, /\.\.\.COCKPIT_TEACHING_WIDGET_SECTIONS/);
+  assert.doesNotMatch(teachingSurface, /id: "legacy", label: "▦ Weitere Widgets"/);
+  assert.match(teachingSurface, /\{ id: "recent", label: "Zuletzt verwendet", icon: "🕘" \}/);
+  assert.match(teachingSurface, /regularGroups\.map\(\(group\)/);
+  assert.match(teachingSurface, /data-widget-core-start/);
   assert.match(teachingSurface, /aria-label="Widget-Bibliothek"/);
-  assert.match(teachingSurface, /placeholder="Widget suchen … z\. B\. Timer, Gruppen, Brüche"/);
+  assert.match(teachingSurface, /placeholder="Widget suchen … z\. B\. Timer, Gruppen, Lernwörter"/);
   assert.doesNotMatch(teachingSurface, /Wähle oben eine Kategorie/);
   assert.doesNotMatch(teachingSurface, /activeWidgetCategory === "everyday"/);
   assert.doesNotMatch(teachingSurface, /DEFAULT_QUICK_WIDGETS/);
@@ -38,18 +38,15 @@ test("Cockpit: Widgetbibliothek hält Kernwidgets und Alt-Layouts erreichbar", (
 });
 
 test("Cockpit: verständliche Kategorien und eigene Favoriten bleiben erhalten", () => {
+  const catalog = readFileSync("src/lib/cockpitRegularCatalog.ts", "utf8");
   for (const label of [
-    "Ablauf & Organisation",
-    "Klasse & Interaktion",
-    "Mathematik",
-    "Deutsch",
-    "Sachunterricht",
-    "Werkzeuge",
-    "Spiele & Fokus",
+    "Klassenalltag",
+    "Mathe", "Deutsch", "Sachunterricht", "Musik", "Spiele",
   ]) {
-    assert.ok(teachingSurface.includes(label), `Kategorie fehlt: ${label}`);
+    assert.ok(catalog.includes(label), `Kategorie fehlt: ${label}`);
   }
-  assert.match(teachingSurface, /⭐ Favoriten/);
+  assert.match(teachingSurface, /\.\.\.COCKPIT_TEACHING_WIDGET_SECTIONS/);
+  assert.match(teachingSurface, /label: "Favoriten"/);
   assert.match(teachingSurface, /Zu Favoriten hinzufügen/);
   assert.match(teachingSurface, /Von Favoriten entfernen/);
 });
@@ -63,7 +60,7 @@ test("Cockpit: alle erhaltenen Standard-Widgettypen kommen aus einem gemeinsamen
 
   assert.equal(defaults.length, 114, "Standardlayout muss alle Bibliothekswidgets und die historische Schülerliste enthalten");
   assert.equal(catalog.length, 113, "Gemeinsamer Widget-Katalog bietet alle Standardwidgets außer der doppelten Schülerliste");
-  assert.match(teachingSurface, /const allAvailableWidgets = COCKPIT_WIDGET_LIBRARY_ITEMS;/);
+  assert.match(teachingSurface, /getCockpitWidgetLibraryItem\(group\.id\)/);
 
   // Historic studentlist remains in the layout/backup schema but
   // must not be offered as a duplicate of the existing student sidebar.
@@ -415,11 +412,9 @@ test("Cockpit: Minimieren blendet Widgets aus, ohne ihre React-Instanz zu zerst�
   assert.ok(renderStart >= 0 && renderEnd > renderStart);
   const renderBlock = teachingSurface.slice(renderStart, renderEnd);
 
-  assert.match(renderBlock, /\.filter\(\(w\) => w\.visible && w\.type !== "studentlist"\)/);
-  assert.doesNotMatch(
-    renderBlock,
-    /\.filter\(\(w\) => w\.visible && w\.type !== "studentlist" && !minimizedWidgetIds\.includes\(w\.id\)\)/,
-  );
+  const mountFilter = renderBlock.slice(renderBlock.indexOf('.filter'), renderBlock.indexOf('.map((widget)'));
+  assert.match(mountFilter, /w\.visible && \(isCockpitTeachingBoardWidget\(w\.type\) \|\| archiveWidgetTypes\?\.includes\(w\.type\)\)/);
+  assert.doesNotMatch(mountFilter, /minimizedWidgetIds/);
   assert.match(renderBlock, /const isMinimized = minimizedWidgetIds\.includes\(widget\.id\)/);
   assert.match(teachingSurface, /isMinimized=\{isMinimized\}/);
   assert.match(cockpitWidget, /isMinimized\?: boolean/);

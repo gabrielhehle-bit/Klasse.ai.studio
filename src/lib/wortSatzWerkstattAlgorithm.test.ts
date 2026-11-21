@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { isReadingExerciseSolved, READING_MODES, restoreReadingExercise, startReadingExercise } from './leseanfang';
 import {
   WortSatzMode,
   DEFAULT_WORD_TASKS,
@@ -29,6 +30,28 @@ test('a closed workshop restores success only for the actual canonical task orde
     const changed = migrateLegacyWortSatzWidgetSettings('wortsatzwerkstatt', {...state,currentItems:state.currentItems.slice().reverse()});
     assert.equal(changed.isSolved,false); assert.equal(changed.checkFeedback,null);
   }
+});
+
+test('Leseanfang resumes the ordered pieces and checks only a complete, correctly arranged answer', () => {
+  for (const mode of ['syllables', 'letters', 'sentences'] as const) {
+    const exercise = startReadingExercise(mode);
+    const answer = READING_MODES[mode].tasks[0].cards.map((_, index) => index);
+    assert.deepEqual(exercise.order.slice().sort((a, b) => a - b), answer);
+    assert.equal(isReadingExerciseSolved(exercise), false);
+    const incorrect = restoreReadingExercise({ ...exercise, placed: [...answer].reverse(), checked: true });
+    assert.equal(isReadingExerciseSolved(incorrect), false);
+    const correct = { ...exercise, placed: answer, checked: true };
+    assert.deepEqual(restoreReadingExercise(JSON.parse(JSON.stringify(correct))), correct);
+    assert.equal(isReadingExerciseSolved(correct), true);
+  }
+});
+
+test('Leseanfang restores only valid tiles and accepts either copy of a repeated letter', () => {
+  const exercise = startReadingExercise('letters', 3);
+  assert.equal(isReadingExerciseSolved({ ...exercise, placed: [0, 3, 2, 1] }), true);
+  assert.deepEqual(restoreReadingExercise({ ...exercise, placed: [1, 1], checked: true }).placed, []);
+  assert.equal(restoreReadingExercise({ ...exercise, placed: [0], checked: true }).checked, false);
+  assert.equal(restoreReadingExercise({ ...exercise, taskIndex: 999 }).taskIndex, 0);
 });
 
 test('1. word-Modus: initialisiert standardmäßig mit word-Modus und Wortaufgaben', () => {

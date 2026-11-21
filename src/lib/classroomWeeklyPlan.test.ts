@@ -45,6 +45,29 @@ test('editing a selected lesson retains its task identity and a child checkmark'
   assert.equal(getChildTaskProgress(progress[0], tasks[0].id)?.difficulty, 'schwierig');
 });
 
+test('the child plan preserves old tasks as Pflichtaufgaben and reads the explicit Wahlaufgabe and child instructions', () => {
+  const plan = structuredClone(original);
+  Object.assign(plan.wochenplanung[39].Montag[2], {
+    wochenplanAufgabenart: 'wahl', wochenplanAuftrag: '  Lege 15 Plättchen.\nZeichne sie ins Heft.  ', housework: 'Ältere Anweisung',
+  });
+  const tasks = getClassroomWeeklyTasks(plan, 39);
+  assert.deepEqual(tasks.map(task => task.kind), ['pflicht', 'wahl']);
+  assert.equal(tasks[1].instruction, 'Lege 15 Plättchen.\nZeichne sie ins Heft.');
+  assert.equal(tasks[1].id, weekTaskKey(schoolYear, 39, 'Montag', 2));
+});
+
+test('a checkmark without an assessment records completion and retains earlier feedback', () => {
+  const [task] = getClassroomWeeklyTasks(original, 39);
+  const pupils = [pupil('a'), pupil('b')];
+  const assessedPupils = updateChildWeeklyFeedback(pupils, 'b', task, 'gut');
+  const first = updateChildWeeklyFeedback(assessedPupils, 'a', task, 'fertig');
+  const second = updateChildWeeklyFeedback(first, 'b', task, 'fertig');
+  assert.equal(getChildTaskProgress(first[0], task.id)?.done, true);
+  assert.equal(getChildTaskProgress(first[0], task.id)?.difficulty, undefined);
+  assert.equal(first[1], assessedPupils[1]);
+  assert.equal(getChildTaskProgress(second[1], task.id)?.difficulty, 'gut');
+});
+
 test('checkmark and difficulty are editable for one child only and do not leak to other weeks or pupils', () => {
   const key = weekTaskKey(schoolYear, 39, 'Montag', 0);
   const first = updateChildWeeklyProgress([pupil('a'), pupil('b')], 'a', key, true, 'leicht');
@@ -174,7 +197,7 @@ test('child board reads every published task directly and records outcome from a
   const widget = readFileSync('src/components/cockpit/widgets/ClassroomWeeklyPlanWidget.tsx', 'utf8');
   const dossier = readFileSync('src/components/dossier/DossierLeistungen.tsx', 'utf8');
   assert.match(widget, /aria-label="Aufgaben dieser Woche"/);
-  assert.match(widget, /tasks\.map\(\(task, index\) => <article/);
+  assert.match(widget, /tasks\.filter\(task => task\.kind === group\.kind\)/);
   assert.match(widget, /✅ Ich bin fertig mit einer Aufgabe/);
   assert.match(widget, /aria-label="Aufgabe auswählen"/);
   assert.match(widget, /aria-label="Kind auswählen"/);

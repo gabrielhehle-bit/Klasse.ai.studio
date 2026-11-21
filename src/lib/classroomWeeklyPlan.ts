@@ -1,6 +1,20 @@
 import type { AppState, Student, WeeklyChildTaskProgress } from '../types';
 import { getKW } from './utils';
 
+export const CLASSROOM_WEEKLY_TASK_KINDS = { pflicht: 'Pflichtaufgabe', wahl: 'Wahlaufgabe' } as const;
+export type ClassroomWeeklyTaskKind = keyof typeof CLASSROOM_WEEKLY_TASK_KINDS;
+export type ClassroomWeeklyTaskDetails = {
+  wochenplanAufgabenart: ClassroomWeeklyTaskKind;
+  wochenplanAuftrag: string;
+};
+
+export function getClassroomWeeklyTaskDetails(lesson?: Record<string, unknown>): ClassroomWeeklyTaskDetails {
+  return {
+    wochenplanAufgabenart: lesson?.wochenplanAufgabenart === 'wahl' ? 'wahl' : 'pflicht',
+    wochenplanAuftrag: typeof lesson?.wochenplanAuftrag === 'string' ? lesson.wochenplanAuftrag.trim() : '',
+  };
+}
+
 export interface ClassroomWeeklyTask {
   id: string;
   fach: string;
@@ -9,9 +23,11 @@ export interface ClassroomWeeklyTask {
   material: string;
   day: string;
   lesson: number;
+  kind: ClassroomWeeklyTaskKind;
 }
 export const WEEK_DAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'] as const;
 export type ChildDifficulty = NonNullable<WeeklyChildTaskProgress['difficulty']>;
+export type ChildWeeklyFeedback = ChildDifficulty | 'fertig' | 'hilfe';
 
 /** Each selected lesson is one task. The slot key survives editing its text; the
  * school-year + ISO week prefix keeps completed tasks out of another week. */
@@ -43,14 +59,16 @@ export function getClassroomWeeklyTasks(
       if (!title || !fach) return;
       const material = String(value.wochenplanMaterial || value.material || '').trim();
       const housework = String(value.housework || '').trim();
+      const { wochenplanAufgabenart, wochenplanAuftrag } = getClassroomWeeklyTaskDetails(value);
       tasks.push({
         id: weekTaskKey(app.schuljahr || '', week, day, lesson),
         fach,
         title,
-        instruction: housework && housework !== title ? housework : '',
+        instruction: wochenplanAuftrag || (housework !== title ? housework : ''),
         material,
         day,
         lesson,
+        kind: wochenplanAufgabenart,
       });
     });
   });
@@ -108,7 +126,7 @@ export function updateChildWeeklyFeedback(
   students: Student[],
   studentId: string,
   task: ClassroomWeeklyTask,
-  feedback: ChildDifficulty | 'hilfe',
+  feedback: ChildWeeklyFeedback,
   at: Date = new Date(),
 ): Student[] {
   if (!Number.isFinite(at.getTime()) || !task.id || !task.title) return students;
@@ -129,7 +147,7 @@ export function updateChildWeeklyFeedback(
     } : {
       ...old,
       done: true,
-      difficulty: feedback,
+      difficulty: feedback === 'fertig' ? old?.difficulty : feedback,
       // Completing the task must never erase an earlier help request.
       helpRequested: old?.helpRequested === true,
       taskTitle: task.title,

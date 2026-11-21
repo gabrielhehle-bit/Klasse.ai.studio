@@ -70,6 +70,7 @@ import {
   Map as MapIcon,
   BarChart3,
   Plus,
+  PanelTopOpen,
   ChevronRight,
   ChevronLeft,
   Edit3,
@@ -101,6 +102,7 @@ import {
   Ghost,
   Minus,
   Trash2,
+  Archive,
   Check,
   QrCode,
   Target,
@@ -219,10 +221,18 @@ import {
   normalizeCockpitBoardPageIds,
 } from "../lib/cockpitBoardPages";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
+import { CockpitWidgetArchive } from "./cockpit/CockpitWidgetArchive";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
 import { BoardInk, type BoardInkHandle, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
-import { COCKPIT_CORE_WIDGETS, getCockpitFavoriteGroups, getRegularCockpitGroups, type CockpitWidgetModeTarget } from "../lib/cockpitRegularCatalog";
+import {
+  COCKPIT_TEACHING_WIDGET_SECTIONS,
+  getCockpitGroupsForTypes,
+  getRegularCockpitGroups,
+  isCockpitTeachingBoardWidget,
+  isCockpitWidgetAddable,
+  type CockpitWidgetModeTarget,
+} from "../lib/cockpitRegularCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
 import HomeworkWidget from "./cockpit/widgets/HomeworkWidget";
 import StarsReviewWidget from "./cockpit/widgets/StarsReviewWidget";
@@ -234,7 +244,7 @@ import { getGroupWidgetPreferences, applyGroupWidgetPreference, type GroupWidget
 import { getClassroomWeeklyWidgetPreferences } from "../lib/classroomWeeklyWidgetPreferences";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
 import { addCockpitQuickbarItem, normalizeCockpitQuickbarSettings, type CockpitQuickbarId } from "../lib/cockpitQuickbar";
-import { COCKPIT_WIDGET_LIBRARY_ITEMS, cockpitWidgetSupportsSettings, matchesCockpitWidgetSearch } from "../lib/cockpitWidgetCatalog";
+import { cockpitWidgetSupportsSettings, getCockpitWidgetLibraryItem } from "../lib/cockpitWidgetCatalog";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
@@ -2630,8 +2640,8 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     type: "timeline",
     x: 35,
     y: 5,
-    w: 40,
-    h: 30,
+    w: 46,
+    h: 42,
     visible: false,
   },
   {
@@ -3006,7 +3016,6 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [vorlagenStartTab, setVorlagenStartTab] = useState<"browse" | "create">("browse");
   const [activeWidgetCategory, setActiveWidgetCategory] =
     useState<string>("core");
-  const [expandedCoreWidget, setExpandedCoreWidget] = useState<string | null>(null);
   const [widgetSearch, setWidgetSearch] = useState<string>("");
   const [isBoardTextEditing, setIsBoardTextEditing] = useState(false);
   const [boardTool, setBoardTool] = useState<'select' | 'text' | 'pen' | 'erase'>('select');
@@ -3030,6 +3039,17 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     boardPageIds,
   );
   const boardPageStorageKey = getCockpitBoardPageStorageKey(boardTextClassKey, activeBoardPageId);
+  const [isWidgetArchiveOpen, setIsWidgetArchiveOpen] = useState(false);
+  const [archiveWidgetTypes, setArchiveWidgetTypes] = useState<CockpitWidgetConfig["type"][] | null>(null);
+  const teachingBoardWidgets = useMemo(() => cockpitWidgets.filter(widget => isCockpitTeachingBoardWidget(widget.type)), [cockpitWidgets]);
+  const displayedBoardWidgets = useMemo(() => archiveWidgetTypes
+    ? cockpitWidgets.filter(widget => archiveWidgetTypes.includes(widget.type))
+    : teachingBoardWidgets,
+  [archiveWidgetTypes, cockpitWidgets, teachingBoardWidgets]);
+  useEffect(() => {
+    setIsWidgetArchiveOpen(false);
+    setArchiveWidgetTypes(null);
+  }, [boardPageStorageKey]);
   const currentGeometryPageRef = useRef(boardPageStorageKey);
   currentGeometryPageRef.current = boardPageStorageKey;
   const [geometryUndoByPage, setGeometryUndoByPage] = useState<Record<string, CockpitWidgetGeometryChange[][]>>({});
@@ -3085,7 +3105,14 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     if (!app.activeClassId) return;
     setApp((prev: any) => {
       const next = { ...(prev.boardSettings?.cockpitQuickbarByClass || {}) };
-      delete next[boardTextClassKey];
+      const current = normalizeCockpitQuickbarSettings(next[boardTextClassKey]);
+      const retained = current.itemIds.filter(id => !isCockpitWidgetAddable(id));
+      if (retained.length) {
+        const defaults = normalizeCockpitQuickbarSettings(undefined);
+        next[boardTextClassKey] = { ...defaults, itemIds: [...defaults.itemIds, ...retained] };
+      } else {
+        delete next[boardTextClassKey];
+      }
       return { ...prev, boardSettings: { ...(prev.boardSettings || {}), cockpitQuickbarByClass: next } };
     });
     setIsDockSettingsOpen(false);
@@ -3714,8 +3741,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const visibleIds = cockpitWidgets
       .filter(widget =>
         widget.visible &&
+        (isCockpitTeachingBoardWidget(widget.type) || archiveWidgetTypes?.includes(widget.type)) &&
         !minimizedWidgetIds.includes(widget.id) &&
-        widget.type !== "studentlist" &&
         widget.type !== "pet" &&
         !widget.settings?.isDirectMode,
       )
@@ -3729,7 +3756,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       }
       return next;
     });
-  }, [cockpitWidgets, minimizedWidgetIds]);
+  }, [archiveWidgetTypes, cockpitWidgets, minimizedWidgetIds]);
 
     const [timerToCloseId, setTimerToCloseId] = useState<string | null>(null);
   const [widgetSettingsOpenId, setWidgetSettingsOpenId] = useState<
@@ -4194,9 +4221,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const handleOpenWidgetInCockpitLayout = (
     type: CockpitWidgetConfig["type"],
     requestedMode?: CockpitWidgetModeTarget,
+    fromArchive = false,
   ) => {
-    // Only the sidebar may provide public plus points now.
     if (type === "studentlist") return;
+    if (fromArchive ? isCockpitTeachingBoardWidget(type) : !isCockpitTeachingBoardWidget(type)) return;
     const targetWidget = cockpitWidgets.find(widget => widget.type === type);
     if (!targetWidget) return;
     const activeMode = requestedMode?.type === type ? requestedMode : undefined;
@@ -4208,11 +4236,15 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     setMinimizedWidgetIds(current =>
       current.filter(id => cockpitWidgets.find(widget => widget.id === id)?.type !== type),
     );
-    setRecentWidgetTypes((previous) => {
-      const updatedRecent = [String(type), ...previous.filter((entry) => entry !== type)].slice(0, 5);
-      localStorage.setItem("cockpit_recent_widget_types", JSON.stringify(updatedRecent));
-      return updatedRecent;
-    });
+    if (fromArchive) {
+      setArchiveWidgetTypes(current => current?.includes(type) ? current : [...(current ?? []), type]);
+    } else {
+      setRecentWidgetTypes((previous) => {
+        const updatedRecent = [String(type), ...previous.filter((entry) => entry !== type)].slice(0, 5);
+        localStorage.setItem("cockpit_recent_widget_types", JSON.stringify(updatedRecent));
+        return updatedRecent;
+      });
+    }
 
     const def = DEFAULT_COCKPIT_LAYOUT.find((candidate) => candidate.type === type);
     const useOld =
@@ -4264,12 +4296,14 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       : type === "groups" ? groupStartSize.w
       : type === "classweeklyplan" ? weeklyStartSize.w
       : type === "randomname" ? randomStartSize.w
+      : type === "instruction" ? def?.w ?? targetWidget.w
       : Math.min(def?.w || targetWidget.w, 46);
     const startH =
       type === "kidattendance" ? checkInSize.h
       : type === "groups" ? groupStartSize.h
       : type === "classweeklyplan" ? weeklyStartSize.h
       : type === "randomname" ? randomStartSize.h
+      : type === "instruction" ? def?.h ?? targetWidget.h
       : isFreeMascot ? 66
       : Math.min(def?.h || targetWidget.h, 46);
 
@@ -4289,12 +4323,12 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         const size = getWidgetMinSizeConfig(String(type));
         const desiredW = Math.max(size.minW, (startW / 100) * area.boardRect.width);
         const desiredH = Math.max(size.minH, (startH / 100) * area.boardRect.height);
-        const occupied = cockpitWidgets
+        const surroundingWidgets = fromArchive ? (archiveWidgetTypes ? displayedBoardWidgets : []) : teachingBoardWidgets;
+        const occupied = surroundingWidgets
           .filter(widget =>
             widget.id !== targetWidget.id &&
             widget.visible &&
             !minimizedWidgetIds.includes(widget.id) &&
-            widget.type !== "studentlist" &&
             widget.type !== "pet" &&
             !widget.settings?.isDirectMode,
           )
@@ -4415,7 +4449,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   };
 
   const handleAutoArrangeWidgets = () => {
-    const visibleOnes = cockpitWidgets.filter((w) =>
+    const visibleOnes = teachingBoardWidgets.filter((w) =>
       w.visible &&
       !minimizedWidgetIds.includes(w.id) &&
       w.type !== "pet" &&
@@ -4479,12 +4513,11 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   };
 
   const handleClearAllWidgets = () => {
-    const visibleCount = cockpitWidgets.filter((w) => w.visible).length;
-    if (visibleCount === 0) {
+    if (!teachingBoardWidgets.some(widget => widget.visible)) {
       showToast("Es sind keine Widgets geöffnet.", "info");
       return;
     }
-    const cleared = cockpitWidgets.map((w) => ({ ...w, visible: false }));
+    const cleared = cockpitWidgets.map(w => isCockpitTeachingBoardWidget(w.type) ? { ...w, visible: false } : w);
     setMinimizedWidgetIds([]);
     setCockpitWidgets(cleared);
     setApp((p: any) => ({
@@ -4514,6 +4547,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   };
 
   const resetCockpitTransientUi = () => {
+    setArchiveWidgetTypes(null);
+    setIsWidgetArchiveOpen(false);
     setMinimizedWidgetIds([]);
     setFocusOrder([]);
     setBoardTool("select");
@@ -4526,6 +4561,20 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     setIsMoreOptionsMenuOpen(false);
     setIsSlotMenuOpen(false);
     setTimerToCloseId(null);
+  };
+
+  const openWidgetArchive = () => {
+    setIsMoreOptionsMenuOpen(false);
+    setWidgetSettingsOpenId(null);
+    setIsWidgetArchiveOpen(true);
+  };
+
+  const leaveWidgetArchive = () => {
+    const archivedIds = displayedBoardWidgets.map(widget => widget.id);
+    setMinimizedWidgetIds(current => current.filter(id => !archivedIds.includes(id)));
+    setWidgetSettingsOpenId(null);
+    setArchiveWidgetTypes(null);
+    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="Cockpit-Einstellungen"]')?.focus());
   };
 
   const persistLayoutForActiveBoardPage = (
@@ -4547,7 +4596,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   });
 
   const restoreCockpitLayout = (layout: unknown) => {
-    const loaded = loadAndSanitizeLayout(layout);
+    const loaded = loadAndSanitizeLayout(layout).map(widget => {
+      if (isCockpitTeachingBoardWidget(widget.type) || widget.hasBeenOpened || widget.visible) return widget;
+      return cockpitWidgets.find(current => current.type === widget.type) ?? widget;
+    });
     const cloned = JSON.parse(JSON.stringify(loaded)) as CockpitWidgetConfig[];
     forgetGeometryUndo(boardPageStorageKey);
     resetCockpitTransientUi();
@@ -8929,6 +8981,15 @@ ${content}
                     </div>
                   ) : (
                     <div className="flex-1 flex flex-col min-h-0 h-full w-full relative gap-1">
+                      {archiveWidgetTypes ? (
+                        <div className="no-print flex min-h-12 shrink-0 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-2 text-slate-900" aria-label="Archivansicht">
+                          <button type="button" id="open-cockpit-widget-archive" onClick={openWidgetArchive}
+                            className="min-h-11 rounded-lg px-3 text-sm font-bold hover:bg-slate-100">Widget-Archiv</button>
+                          <button type="button" onClick={leaveWidgetArchive}
+                            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm font-bold hover:bg-slate-100">Zurück zur Tafel</button>
+                        </div>
+                      ) : (
+                      <>
                       {/* Compact board header: pages and writing controls stay visible without stealing stage space. */}
                       <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white/95 px-2 py-1 text-slate-900 shadow-sm no-print shrink-0 relative z-50">
                         <div className="flex min-w-0 items-center gap-1.5">
@@ -9101,13 +9162,12 @@ ${content}
                                 <header className="klassio-widget-library-header flex min-w-0 items-center gap-2 border-b border-slate-200 pb-3">
                                   <div className="klassio-widget-library-heading min-w-0 shrink-0">
                                     <h2 className="text-base font-black text-slate-900 dark:text-white"><span className="sm:hidden">Widgets</span><span className="hidden sm:inline">Widget-Bibliothek</span></h2>
-                                    <p className="hidden text-xs text-slate-500 md:block">Kernwidgets, Fachwerkzeuge und Favoriten.</p>
                                   </div>
                                   <div className="klassio-widget-library-search relative min-w-0 flex-1">
                                     <input
                                       type="search"
                                       aria-label="Widget suchen"
-                                      placeholder="Widget suchen … z. B. Timer, Gruppen, Brüche"
+                                      placeholder="Widget suchen … z. B. Timer, Gruppen, Lernwörter"
                                       value={widgetSearch}
                                       onChange={(e) => {
                                         setWidgetSearch(e.target.value);
@@ -9513,42 +9573,12 @@ ${content}
                                   )}
                                 </section>
                                 {/* Category Switcher Tab Bar */}
-                                <aside className="klassio-widget-library-sidebar min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2">
-                                  <div className="mb-2 px-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Schnellzugriff</div>
+                                <aside aria-label="Widget-Kategorien" className="klassio-widget-library-sidebar min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2">
                                   {[
-                                    { id: "core", label: "🧩 Kernwidgets" },
-                                    { id: "favorites", label: "⭐ Favoriten" },
-                                    { id: "recent", label: "🕘 Zuletzt verwendet" },
-                                    { id: "struct", label: "🗂️ Ablauf & Organisation" },
-                                    { id: "interactivity", label: "👥 Klasse & Interaktion" },
-                                    { id: "mathe", label: "🔢 Mathematik" },
-                                    { id: "deutsch", label: "📖 Deutsch" },
-                                    { id: "sachunterricht", label: "🌍 Sachunterricht" },
-                                    { id: "tools", label: "🛠️ Werkzeuge" },
-                                    { id: "mindfulness", label: "🍃 Spiele & Fokus" },
-                                    { id: "play", label: "🎲 Spiele" },
-                                    { id: "legacy", label: "▦ Weitere Widgets" },
-                                  ].filter(cat => ["favorites", "recent", "core", "legacy"].includes(cat.id) || getRegularCockpitGroups(cat.id).length > 0).map((cat) => {
-                                    const allAvailableWidgets = COCKPIT_WIDGET_LIBRARY_ITEMS;
-
-                                    let count = 0;
-                                    if (cat.id === "core") {
-                                      count = COCKPIT_CORE_WIDGETS.length;
-                                    } else if (cat.id === "legacy") {
-                                      count = allAvailableWidgets.length;
-                                    } else if (cat.id === "recent") {
-                                      count = recentWidgetTypes.length;
-                                    } else if (cat.id === "favorites") {
-                                      count = (
-                                        favoritesBySubject[
-                                          getResolvedFavFolder()
-                                        ] || []
-                                      ).length;
-                                    } else {
-                                      count = getRegularCockpitGroups(cat.id).length;
-                                    }
-
-                                    return (
+                                    ...COCKPIT_TEACHING_WIDGET_SECTIONS,
+                                    { id: "favorites", label: "Favoriten", icon: "⭐" },
+                                    { id: "recent", label: "Zuletzt verwendet", icon: "🕘" },
+                                  ].map((cat) => (
                                       <button
                                         key={cat.id}
                                         aria-pressed={!widgetSearch.trim() && activeWidgetCategory === cat.id}
@@ -9556,7 +9586,7 @@ ${content}
                                           setActiveWidgetCategory(cat.id);
                                           if (widgetSearch) setWidgetSearch("");
                                         }}
-                                        className={`mb-1 flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-all cursor-pointer ${
+                                          className={`mb-1 flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-all cursor-pointer ${
                                           !widgetSearch.trim() && activeWidgetCategory === cat.id
                                             ? "bg-accent text-accent-text shadow"
                                             : currentIsLight
@@ -9564,21 +9594,15 @@ ${content}
                                               : "text-slate-400 hover:bg-zinc-800 hover:text-white"
                                         }`}
                                       >
+                                        <span aria-hidden="true" className="w-5 shrink-0 text-center">{cat.icon}</span>
                                         <span className="min-w-0 truncate">{cat.label}</span>
-                                        <span
-                                          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${!widgetSearch.trim() && activeWidgetCategory === cat.id ? "bg-white/20 text-white" : "bg-white text-slate-400 border border-slate-200"}`}
-                                        >
-                                          {count}
-                                        </span>
                                       </button>
-                                    );
-                                  })}
+                                  ))}
                                 </aside>
 
                                 <main className="klassio-widget-library-content min-h-0 overflow-y-auto overscroll-contain pr-1">
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 pb-1">
                                   {(() => {
-                                    const allAvailableWidgets = COCKPIT_WIDGET_LIBRARY_ITEMS;
 
                                     const resolvedActiveFach =
                                       getActiveSubject();
@@ -9637,56 +9661,49 @@ ${content}
                                         </label>
                                       </div>
                                     );
-                                    const query = widgetSearch
-                                      .toLowerCase()
-                                      .trim();
-                                    if (activeWidgetCategory !== "legacy" && (query || !["favorites", "recent"].includes(activeWidgetCategory))) {
-                                      const isStart = activeWidgetCategory === "core" && !query;
-                                      const folders = [favoritesBySubject?.[currentResolvedFolder], favoritesBySubject?.Allgemein];
-                                      const quickFavorites = isStart
-                                        ? getCockpitFavoriteGroups(folders.flatMap(items => Array.isArray(items) ? items : [])).slice(0, 6)
-                                        : [];
-                                      const regularGroups = [...getRegularCockpitGroups(activeWidgetCategory, query), ...quickFavorites];
-                                      return (
-                                        <>
-                                          {query && (
-                                            <p className="col-span-full rounded-xl border border-accent/20 bg-accent-soft px-3 py-2 text-sm font-semibold text-slate-900" role="status">
-                                              {`${regularGroups.length} Treffer`}
-                                            </p>
-                                          )}
-                                          {regularGroups.length === 0 && (
-                                            <div className="col-span-full rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">
-                                              Keine passenden Widgets gefunden
-                                            </div>
-                                          )}
-                                          {regularGroups.map((group, groupIndex) => {
+                                    const query = widgetSearch.trim();
+                                    const isStart = activeWidgetCategory === "core" && !query;
+                                    const showFavorites = activeWidgetCategory === "favorites" && !query;
+                                    const showRecent = activeWidgetCategory === "recent" && !query;
+                                    const folderItems = favoritesBySubject[currentResolvedFolder] || [];
+                                    const regularGroups = showFavorites || showRecent
+                                      ? getCockpitGroupsForTypes((showFavorites ? folderItems : recentWidgetTypes).filter(isCockpitTeachingBoardWidget))
+                                      : getRegularCockpitGroups(activeWidgetCategory, query);
+
+                                    return (
+                                      <>
+                                        {showFavorites && favoriteFolderPicker}
+                                        {query && regularGroups.length > 0 && (
+                                          <p className="col-span-full rounded-xl border border-accent/20 bg-accent-soft px-3 py-2 text-sm font-semibold text-slate-900" role="status">
+                                            {`${regularGroups.length} Treffer`}
+                                          </p>
+                                        )}
+                                        {regularGroups.length === 0 && (
+                                          <p className="col-span-full rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">
+                                            {showRecent ? "Noch keine zuletzt verwendeten Widgets"
+                                              : showFavorites ? `Ordner „${currentResolvedFolder}“ ist leer`
+                                              : "Keine passenden Widgets gefunden"}
+                                          </p>
+                                        )}
+                                        {regularGroups.map((group) => {
                                             const searchMode = group.openMode;
                                             const title = searchMode && searchMode.label !== group.label
                                               ? `${searchMode.label} · ${group.label}` : group.label;
-                                            const variants = group.sources
-                                              .map((type) => allAvailableWidgets.find((item) => item.type === type))
-                                              .filter((item): item is (typeof allAvailableWidgets)[number] => Boolean(item));
-                                            const primary = variants.find((variant) => variant.type === group.id) || variants[0];
-                                            const primaryType = primary?.type || String(group.id);
-                                            const primaryLabel = primary?.label || `🧩 ${group.label}`;
-                                            const icon = primaryLabel.split(" ")[0] || "🧩";
-                                            const description = group.id === "clockpuzzle" ? "Uhr ablesen, Zeitaufträge und Wort-Uhr in einem Lernwidget" : group.id === "trafficlight" ? "Arbeitsampel, Lautstärkevorgabe und Live-Pegel in einem Widget" : group.id === "klassenglas" ? "Ein Klassenziel als Glas, Zielring oder Thermometer" : group.id === "randomname" ? "Namen ziehen, Glücksrad und faire Aufrufe in einem Widget" : group.id === "timer" ? "Timer, Stoppuhr und Uhrzeit in einem Widget" : group.id === "groups" ? "Gruppen bilden oder ein Kind auswählen" : primary?.desc || (variants.length > 1
-                                              ? `${variants.length} Varianten für den Unterricht`
-                                              : "Unterrichts-Widget");
-                                            const hasSeparateVariants = variants.length > 1 && !["timer", "randomname", "klassenglas", "trafficlight", "clockpuzzle"].includes(group.id);
-                                            const expanded = expandedCoreWidget === group.id || Boolean(query);
-                                            const isQuickFavorite = isStart && groupIndex >= COCKPIT_CORE_WIDGETS.length;
+                                            const primaryType = searchMode?.type ?? group.id;
+                                            const primary = getCockpitWidgetLibraryItem(group.id);
+                                            const icon = primary?.label.split(" ")[0] || "🧩";
+                                            const description = group.id === "timer" ? "Timer, Stoppuhr und Uhrzeit in einem Widget"
+                                              : group.id === "groups" ? "Gruppen bilden oder ein Kind auswählen"
+                                              : primary?.desc;
                                             const favoriteSource = group.sources.find(type => favoritesBySubject?.[currentResolvedFolder]?.includes(type));
-                                            const generalSource = isQuickFavorite && group.sources.find(type => favoritesBySubject?.Allgemein?.includes(type));
-                                            const isFav = Boolean(favoriteSource || generalSource);
-                                            const isPinned = quickBarSettings.itemIds.includes(primaryType as CockpitQuickbarId);
+                                            const isFav = Boolean(favoriteSource);
+                                            const isPinned = quickBarSettings.itemIds.includes(group.id);
                                             const primaryWidget = cockpitWidgets.find(widget => widget.type === primaryType);
                                             const isActive = Boolean(primaryWidget?.visible);
                                             const isMinimized = Boolean(primaryWidget && minimizedWidgetIds.includes(primaryWidget.id));
                                             return (
                                               <div key={group.id} data-testid={`cockpit-core-group-${group.id}`}
-                                                data-widget-core-start={isStart && !isQuickFavorite ? "true" : undefined}
-                                                data-widget-favorite-start={isQuickFavorite ? "true" : undefined}
+                                                data-widget-core-start={isStart ? "true" : undefined}
                                                 className={`klassio-widget-library-card relative flex min-h-[96px] flex-wrap items-center gap-3 rounded-2xl border p-3 transition-all ${
                                                   isActive
                                                     ? "border-emerald-200 bg-emerald-50/50"
@@ -9698,7 +9715,6 @@ ${content}
                                                 <div className="min-w-0 flex-1">
                                                   <div className="flex items-center gap-2">
                                                     <h3 className="truncate text-sm font-black text-slate-900">{title}</h3>
-                                                    {isQuickFavorite && <span className="text-xs font-semibold text-amber-800">Favorit</span>}
                                                     {isMinimized
                                                       ? <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">minimiert</span>
                                                       : isActive && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">offen</span>}
@@ -9707,40 +9723,29 @@ ${content}
                                                 </div>
                                                 <div className="klassio-widget-card-actions flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                                                   <button type="button" data-widget-card-action="favorite"
-                                                    onClick={(event) => toggleFavorite(favoriteSource || generalSource || primaryType, event,
-                                                      !favoriteSource && generalSource ? "Allgemein" : currentResolvedFolder)}
+                                                    onClick={(event) => toggleFavorite(favoriteSource ?? group.id, event, currentResolvedFolder)}
                                                     aria-label={isFav ? `${group.label} aus Favoriten entfernen` : `${group.label} zu Favoriten hinzufügen`}
                                                     title={isFav ? "Von Favoriten entfernen" : "Zu Favoriten hinzufügen"}
                                                     className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl border transition-colors ${
-                                                      isFav ? "border-amber-200 bg-amber-50 text-amber-500" : "border-slate-200 bg-white text-slate-400 hover:text-amber-500"
+                                                      isFav ? "border-amber-200 bg-amber-50 text-amber-500" : "border-transparent text-slate-500 hover:bg-accent-soft hover:text-accent"
                                                     }`}>
                                                     <Star size={17} fill={isFav ? "currentColor" : "none"} aria-hidden="true" />
                                                   </button>
                                                   <button type="button" data-widget-card-action="dock"
                                                     disabled={isPinned || !app.activeClassId}
                                                     onClick={() => updateQuickBarSettings(settings =>
-                                                      addCockpitQuickbarItem(settings, primaryType as CockpitQuickbarId))}
+                                                      addCockpitQuickbarItem(settings, group.id))}
                                                     aria-label={isPinned ? `${group.label} ist bereits in der Widget-Leiste` : `${group.label} zur Widget-Leiste hinzufügen`}
                                                     title={isPinned ? "Bereits in der Widget-Leiste" : "An die untere Widget-Leiste heften"}
                                                     className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-black transition-colors disabled:cursor-default ${
                                                       isPinned
-                                                        ? "border-accent bg-accent-soft text-accent"
-                                                        : "border-slate-200 bg-white text-slate-600 hover:border-accent hover:bg-accent-soft hover:text-accent"
+                                                        ? "border-transparent bg-slate-100 text-slate-600"
+                                                        : "border-transparent text-slate-600 hover:bg-accent-soft hover:text-accent"
                                                     }`}>
                                                     {isPinned ? <Check size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
                                                     <span>Leiste</span>
                                                   </button>
-                                                  {hasSeparateVariants && !query && (
-                                                    <button type="button" data-widget-card-action="variants"
-                                                      onClick={() => setExpandedCoreWidget(expanded ? null : group.id)}
-                                                      aria-label={`Varianten von ${group.label} ${expanded ? "schließen" : "anzeigen"}`}
-                                                      aria-expanded={expanded}
-                                                      className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50">
-                                                      <span aria-hidden="true">{expanded ? "▴" : "▾"}</span>
-                                                      <span>Varianten</span>
-                                                    </button>
-                                                  )}
-                                                  {group.id === "groups" && (
+                                                  {group.id === "groups" && !searchMode && (
                                                     <button type="button" data-widget-card-action="selection"
                                                       onClick={() => {
                                                         handleOpenWidgetInCockpitLayout("randomname");
@@ -9753,7 +9758,7 @@ ${content}
                                                   )}
                                                   <button type="button" data-widget-card-action="primary"
                                                     onClick={() => {
-                                                      if (handleOpenWidgetInCockpitLayout(group.id, searchMode)) {
+                                                      if (handleOpenWidgetInCockpitLayout(primaryType, searchMode)) {
                                                         setIsAddWidgetMenuOpen(false);
                                                       }
                                                     }}
@@ -9762,210 +9767,13 @@ ${content}
                                                     className={`klassio-widget-primary flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-black transition-colors ${
                                                       isActive ? "bg-success text-white hover:bg-success-hover" : "bg-accent text-accent-text hover:bg-accent-hover"
                                                     }`}>
-                                                    <span aria-hidden="true">{isMinimized ? "↥" : isActive ? "↗" : "＋"}</span>
-                                                    <span>{group.id === "groups" && !isActive ? "Gruppen bilden" : isMinimized ? "Wiederherstellen" : isActive ? "Anzeigen" : "Öffnen"}</span>
+                                                    <PanelTopOpen size={16} aria-hidden="true" />
+                                                    <span>{primaryType === "groups" && !isActive ? "Gruppen bilden" : isMinimized ? "Wiederherstellen" : isActive ? "Anzeigen" : "Öffnen"}</span>
                                                   </button>
                                                 </div>
-                                                {hasSeparateVariants && expanded && (
-                                                  <div className="w-full border-t border-slate-100 pt-2">
-                                                    <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Varianten</p>
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                      {variants.filter(variant => variant.type !== primaryType && variant.label !== primaryLabel).map((variant) => (
-                                                        <button type="button" key={variant.type}
-                                                          onClick={() => {
-                                                            handleOpenWidgetInCockpitLayout(variant.type as CockpitWidgetConfig["type"]);
-                                                            setIsAddWidgetMenuOpen(false);
-                                                          }}
-                                                          className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-xs font-semibold text-slate-700 hover:border-accent hover:bg-accent-soft">
-                                                          {variant.label}
-                                                        </button>
-                                                      ))}
-                                                    </div>
-                                                  </div>
-                                                )}
                                               </div>
                                             );
                                           })}
-                                        </>
-                                      );
-                                    }
-
-                                    const filteredList =
-                                      allAvailableWidgets.filter((item) => {
-                                        if (query) return matchesCockpitWidgetSearch(item, query);
-                                        let matchesCategory = false;
-                                        if (activeWidgetCategory === "legacy") {
-                                          matchesCategory = true;
-                                        } else if (activeWidgetCategory === "recent") {
-                                          matchesCategory = recentWidgetTypes.includes(item.type);
-                                        } else if (
-                                          activeWidgetCategory === "favorites"
-                                        ) {
-                                          const favs =
-                                            favoritesBySubject[
-                                              currentResolvedFolder
-                                            ] || [];
-                                          matchesCategory = favs.includes(
-                                            item.type,
-                                          );
-                                        } else {
-                                          matchesCategory =
-                                            item.category ===
-                                            activeWidgetCategory;
-                                        }
-
-                                        return matchesCategory;
-                                      }).sort((a, b) => activeWidgetCategory === "recent" && !query
-                                        ? recentWidgetTypes.indexOf(a.type) - recentWidgetTypes.indexOf(b.type)
-                                        : 0);
-
-                                    if (
-                                      activeWidgetCategory === "recent" &&
-                                      filteredList.length === 0 &&
-                                      !query
-                                    ) {
-                                      return (
-                                        <div className="col-span-full flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 text-center">
-                                          <div className="mb-3 text-3xl" aria-hidden="true">🕘</div>
-                                          <p className="text-sm font-bold text-slate-800">Noch keine zuletzt verwendeten Widgets</p>
-                                          <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">
-                                            Sobald du ein Widget öffnest, erscheint es hier für den schnellen Zugriff.
-                                          </p>
-                                        </div>
-                                      );
-                                    }
-
-                                    if (
-                                      activeWidgetCategory === "favorites" &&
-                                      filteredList.length === 0
-                                    ) {
-                                      return (
-                                        <>
-                                          {favoriteFolderPicker}
-                                          <div className="col-span-full py-10 flex flex-col items-center justify-center text-center opacity-70">
-                                            <div className="w-10 h-10 rounded-full bg-accent-soft flex items-center justify-center text-accent mb-2">
-                                              <Star
-                                                size={18}
-                                                className="stroke-[2.5]"
-                                              />
-                                            </div>
-                                            <p className="text-sm font-bold">
-                                              Ordner "{currentResolvedFolder}" ist leer
-                                            </p>
-                                            <p className="mt-1 max-w-sm text-xs leading-relaxed">
-                                              Klicke auf das Stern-Symbol bei
-                                              einem beliebigen Widget in den
-                                              anderen Kategorien, um es zu **"
-                                              {currentResolvedFolder}"**
-                                              hinzuzufügen!
-                                            </p>
-                                          </div>
-                                        </>
-                                      );
-                                    }
-
-                                    const renderedFoldersHeader =
-                                      activeWidgetCategory === "favorites" ? favoriteFolderPicker : activeWidgetCategory === "legacy" ? (
-                                        <div className="col-span-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                                          <p className="text-sm font-bold text-slate-900">Weitere Widgets</p>
-                                          <p className="mt-1 text-xs text-slate-600">Spezialwerkzeuge und bisherige Varianten. Deine gespeicherten Tafeln und Einstellungen bleiben erhalten.</p>
-                                        </div>
-                                      ) : null;
-
-                                    return (
-                                      <>
-                                        {renderedFoldersHeader}
-                                        {query && (
-                                          <p className="col-span-full rounded-xl border border-accent/20 bg-accent-soft px-3 py-2 text-sm font-semibold text-slate-900" role="status">
-                                            {filteredList.length} Treffer
-                                          </p>
-                                        )}
-                                        {filteredList.length === 0 && (
-                                          <div className="col-span-full py-10 flex flex-col items-center justify-center text-center opacity-70">
-                                            <div className="w-10 h-10 rounded-full bg-accent-soft flex items-center justify-center text-accent mb-2">
-                                              🔍
-                                            </div>
-                                            <p className="text-sm font-bold">
-                                              Keine passenden Widgets gefunden
-                                            </p>
-                                            <p className="mt-1 max-w-sm text-xs leading-relaxed">
-                                              Passe deine Suche oder deine
-                                              Kategorie-Filter an, um andere
-                                              Cockpit-Hilfen anzuzeigen!
-                                            </p>
-                                          </div>
-                                        )}
-                                        {filteredList.map((item) => {
-                                          const widgetObj = cockpitWidgets.find((w) => w.type === item.type);
-                                          const isActive = Boolean(widgetObj?.visible);
-                                          const isMinimized = Boolean(widgetObj && minimizedWidgetIds.includes(widgetObj.id));
-                                          const isFav = (favoritesBySubject[getResolvedFavFolder()] || []).includes(item.type);
-                                          const isPinned = quickBarSettings.itemIds.includes(item.type as CockpitQuickbarId);
-                                          const parts = String(item.label || "").trim().split(/\s+/);
-                                          const icon = parts.length > 1 ? parts[0] : "🧩";
-                                          const name = parts.length > 1 ? parts.slice(1).join(" ") : item.label;
-                                          return (
-                                            <article key={item.type}
-                                              className={`klassio-widget-library-card group flex min-h-[92px] items-center gap-3 rounded-2xl border p-3 transition-all ${
-                                                isActive
-                                                  ? "border-emerald-200 bg-emerald-50/60"
-                                                  : "border-slate-200 bg-white hover:border-accent hover:shadow-sm"
-                                              }`}>
-                                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-2xl" aria-hidden="true">
-                                                {icon}
-                                              </div>
-                                              <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                  <h3 className="truncate text-sm font-black text-slate-900">{name}</h3>
-                                                  {isMinimized
-                                                    ? <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">minimiert</span>
-                                                    : isActive && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">offen</span>}
-                                                </div>
-                                                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">{item.desc}</p>
-                                              </div>
-                                              <div className="klassio-widget-card-actions flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-                                                <button type="button" data-widget-card-action="favorite"
-                                                  onClick={(event) => toggleFavorite(item.type, event)}
-                                                  aria-label={isFav ? `${name} aus Favoriten entfernen` : `${name} zu Favoriten hinzufügen`}
-                                                  title={isFav ? "Von Favoriten entfernen" : "Zu Favoriten hinzufügen"}
-                                                  className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl border transition-colors ${
-                                                    isFav
-                                                      ? "border-amber-200 bg-amber-50 text-amber-500"
-                                                      : "border-slate-200 bg-white text-slate-400 hover:border-amber-200 hover:text-amber-500"
-                                                  }`}>
-                                                  <Star size={17} fill={isFav ? "currentColor" : "none"} aria-hidden="true" />
-                                                </button>
-                                                <button type="button" data-widget-card-action="dock"
-                                                  disabled={isPinned || !app.activeClassId}
-                                                  onClick={() => updateQuickBarSettings(settings =>
-                                                    addCockpitQuickbarItem(settings, item.type as CockpitQuickbarId))}
-                                                  aria-label={isPinned ? `${name} ist bereits in der Widget-Leiste` : `${name} zur Widget-Leiste hinzufügen`}
-                                                  title={isPinned ? "Bereits in der Widget-Leiste" : "An die untere Widget-Leiste heften"}
-                                                  className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-black transition-colors disabled:cursor-default ${
-                                                    isPinned
-                                                      ? "border-accent bg-accent-soft text-accent"
-                                                      : "border-slate-200 bg-white text-slate-600 hover:border-accent hover:bg-accent-soft hover:text-accent"
-                                                  }`}>
-                                                  {isPinned ? <Check size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
-                                                  <span>Leiste</span>
-                                                </button>
-                                                <button type="button" data-widget-card-action="primary"
-                                                  onClick={() => {
-                                                    handleOpenWidgetInCockpitLayout(item.type as CockpitWidgetConfig["type"]);
-                                                    setIsAddWidgetMenuOpen(false);
-                                                  }}
-                                                  aria-label={isMinimized ? `${name} wiederherstellen` : isActive ? `${name} auf der Tafel anzeigen` : `${name} öffnen`}
-                                                  title={isMinimized ? "Wiederherstellen" : isActive ? "Auf der Tafel anzeigen" : "Auf der Tafel öffnen"}
-                                                  className={`klassio-widget-primary flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-black transition-colors ${
-                                                    isActive ? "bg-success text-white hover:bg-success-hover" : "bg-accent text-accent-text hover:bg-accent-hover"
-                                                  }`}>
-                                                  <span aria-hidden="true">{isMinimized ? "↥" : isActive ? "↗" : "＋"}</span>
-                                                  <span>{isMinimized ? "Wiederherstellen" : isActive ? "Anzeigen" : "Öffnen"}</span>
-                                                </button>
-                                              </div>
-                                            </article>
-                                          );
-                                        })}
                                       </>
                                     );
                                   })()}
@@ -10241,6 +10049,11 @@ ${content}
                                 <div className="px-2 pt-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
                                   Archiv
                                 </div>
+                                <button type="button" onClick={openWidgetArchive}
+                                  className="flex min-h-11 w-full shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-slate-500/10">
+                                  <Archive size={13} className="shrink-0 text-slate-400" aria-hidden="true" />
+                                  <span>Widget-Archiv</span>
+                                </button>
                                 <button
                                   type="button"
                                   id="btn-menu-open-digitale-tafel"
@@ -10418,11 +10231,7 @@ ${content}
 
                                 <button
                                   onClick={() => {
-                                    setCockpitWidgets(DEFAULT_COCKPIT_LAYOUT);
-                                    setApp((p) => ({
-                                      ...p,
-                                      cockpitLayout: DEFAULT_COCKPIT_LAYOUT,
-                                    }));
+                                    restoreCockpitLayout(DEFAULT_COCKPIT_LAYOUT);
                                     showToast(
                                       "Leere Ausgangsfläche geladen.",
                                       "info",
@@ -10647,6 +10456,9 @@ ${content}
                         </div>
                       )}
 
+                      </>
+                      )}
+
                       {/* Quick-access widgets now live in the bottom favorites dock. */}
 
                       {/* Widget Board (classroomscreen.com style) */}
@@ -10658,8 +10470,9 @@ ${content}
                             : "bg-white border-slate-200 shadow-inner"
                         }`}
                         id="widget-board-stage"
-                        style={getCockpitPaperStyle(cockpitPaper, currentBgId === "canva" ? canvaBackground : null, cockpitPaperSpacing)}
+                        style={archiveWidgetTypes ? undefined : getCockpitPaperStyle(cockpitPaper, currentBgId === "canva" ? canvaBackground : null, cockpitPaperSpacing)}
                       >
+                        {!archiveWidgetTypes && <>
                         <BoardTextEditor
                           value={boardTextHtml}
                           active={isBoardTextEditing}
@@ -10683,6 +10496,7 @@ ${content}
                           onChange={saveBoardInkItems}
                           onDone={() => setBoardTool('select')}
                         />
+                        </>}
                         {/* Centered Confirm Dialog inside stage instead of native popup */}
                         {timerToCloseId && (
                           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[99999] no-print">
@@ -10735,25 +10549,23 @@ ${content}
                         {/* Render active cockpit widgets */}
                         {cockpitWidgets
                           // Keep minimized widgets mounted so their local state survives restore.
-                          .filter((w) => w.visible && w.type !== "studentlist")
+                          .filter(w => w.visible && (isCockpitTeachingBoardWidget(w.type) || archiveWidgetTypes?.includes(w.type)))
                           .map((widget) => {
                             const focusIndex = focusOrder.indexOf(widget.id);
                             const zIn = 10 + Math.max(0, focusIndex);
                             const visibleFocusOrder = focusOrder.filter(id =>
-                              cockpitWidgets.some(candidate =>
+                              displayedBoardWidgets.some(candidate =>
                                 candidate.id === id &&
                                 candidate.visible &&
                                 !minimizedWidgetIds.includes(candidate.id) &&
-                                candidate.type !== "studentlist" &&
                                 candidate.type !== "pet" &&
                                 !candidate.settings?.isDirectMode,
                               ),
                             );
-                            const fallbackFocusedId = cockpitWidgets
+                            const fallbackFocusedId = displayedBoardWidgets
                               .filter(candidate =>
                                 candidate.visible &&
                                 !minimizedWidgetIds.includes(candidate.id) &&
-                                candidate.type !== "studentlist" &&
                                 candidate.type !== "pet" &&
                                 !candidate.settings?.isDirectMode,
                               )
@@ -10762,7 +10574,8 @@ ${content}
                               visibleFocusOrder[visibleFocusOrder.length - 1] ||
                               fallbackFocusedId;
                             const isFocused = widget.id === focusedWidgetId;
-                            const isMinimized = minimizedWidgetIds.includes(widget.id);
+                            const isMinimized = minimizedWidgetIds.includes(widget.id) ||
+                              Boolean(archiveWidgetTypes && isCockpitTeachingBoardWidget(widget.type));
                             return (
                               <CockpitWidget
                                 key={widget.id}
@@ -10819,10 +10632,12 @@ ${content}
                               >
                                 {(() => {
                                   switch (widget.type) {
-                                    case "tischcheck":
+                                    case "tischcheck": {
+                                      const assignment = cockpitWidgets.find(item => item.type === "instruction" && item.visible);
                                       return (
                                         <TischCheckWidgetContent
                                           widget={widget}
+                                          instructionMaterialIds={assignment?.settings?.materials}
                                           onUpdate={(updates) =>
                                             handleUpdateWidgetPos(
                                               widget.id,
@@ -10832,6 +10647,7 @@ ${content}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
+                                    }
 
                                     case "faircall":
                                       return (
@@ -11790,9 +11606,9 @@ ${content}
                                             setWidgetSettingsOpenId(null)
                                           }
                                           hasActiveCountdown={countdown.run?.status === "running" || countdown.run?.status === "paused"}
-                                          onStartCountdown={() => {
+                                          onStartCountdown={(seconds: number) => {
                                             const timer = cockpitWidgets.find(item => item.type === "timer");
-                                            countdown.start(300, countdown.run?.alarm ?? getCockpitTimerPreferences(timer?.settings).alarm);
+                                            countdown.start(seconds, countdown.run?.alarm ?? getCockpitTimerPreferences(timer?.settings).alarm);
                                           }}
                                         />
                                       );
@@ -12735,7 +12551,7 @@ ${content}
 
                 {/* RIGHT COLUMN: STUDENT LIST SIDEBAR */}
                 <AnimatePresence initial={false}>
-                  {sidebarMode !== "hidden" && (
+                  {!archiveWidgetTypes && sidebarMode !== "hidden" && (
                     <motion.div
                       ref={sidebarRef}
                       id="klassio-cockpit-students"
@@ -12879,7 +12695,7 @@ ${content}
               </>
             )}
           </div>
-          {cockpitView === "cockpit" && (
+          {cockpitView === "cockpit" && !archiveWidgetTypes && (
             <CockpitWidgetDock
               settings={quickBarSettings}
               timerControl={<CockpitCountdownDock countdown={countdown} onOpen={() => handleOpenWidgetInCockpitLayout("timer", { type: "timer", mode: "timer" })} />}
@@ -12888,6 +12704,7 @@ ${content}
               onChange={updateQuickBarSettings}
               onReset={resetQuickBarSettings}
               onOpenWidget={(id) => {
+                if (!isCockpitTeachingBoardWidget(id)) return;
                 const visibleWidget = cockpitWidgets.find(widget => widget.type === id && widget.visible);
                 if (visibleWidget) {
                   if (minimizedWidgetIds.includes(visibleWidget.id)) {
@@ -12915,8 +12732,8 @@ ${content}
               }}
               mascotVisible={cockpitWidgets.some(widget => widget.type === "pet" && widget.visible)}
               reservedRightPx={getCockpitSidebarReservedRightPx(sidebarMode, sidebarResizePreview ?? sidebarPreferredWidth)}
-              activeTypes={cockpitWidgets.filter(widget => widget.visible).map(widget => widget.type)}
-              minimizedTypes={cockpitWidgets.filter(widget => minimizedWidgetIds.includes(widget.id)).map(widget => String(widget.type))}
+              activeTypes={teachingBoardWidgets.filter(widget => widget.visible).map(widget => widget.type)}
+              minimizedTypes={teachingBoardWidgets.filter(widget => minimizedWidgetIds.includes(widget.id)).map(widget => String(widget.type))}
               onRestoreMinimized={(type) => {
                 const widget = cockpitWidgets.find(candidate => String(candidate.type) === type && minimizedWidgetIds.includes(candidate.id));
                 if (!widget) return;
@@ -12924,6 +12741,26 @@ ${content}
                 bringToFront(widget.id);
               }}
               hasClass={Boolean(app.activeClassId)}
+            />
+          )}
+          {isWidgetArchiveOpen && (
+            <CockpitWidgetArchive
+              savedTypes={cockpitWidgets.filter(widget => widget.visible || widget.hasBeenOpened).map(widget => widget.type)}
+              pinnedTypes={quickBarSettings.itemIds}
+              onClose={() => {
+                setIsWidgetArchiveOpen(false);
+                requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(archiveWidgetTypes
+                  ? '#open-cockpit-widget-archive' : '[aria-label="Cockpit-Einstellungen"]')?.focus());
+              }}
+              onOpenWidget={type => {
+                if (!handleOpenWidgetInCockpitLayout(type, undefined, true)) return;
+                setIsWidgetArchiveOpen(false);
+                setTimerToCloseId(null);
+                setBoardTool("select");
+                setIsBoardTextEditing(false);
+                setShowBoardTools(false);
+                requestAnimationFrame(() => document.getElementById('open-cockpit-widget-archive')?.focus());
+              }}
             />
           )}
         </div>

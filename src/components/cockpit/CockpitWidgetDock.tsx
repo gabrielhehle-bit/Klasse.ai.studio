@@ -2,12 +2,19 @@ import React, { useEffect, useRef, useState } from 'react';
 import { LayoutGrid, PawPrint, Settings2 } from 'lucide-react';
 import {
   COCKPIT_QUICKBAR_ITEMS,
+  COCKPIT_QUICKBAR_ADDABLE_ITEMS,
   addCockpitQuickbarItem,
+  getCockpitTeachingQuickbarIds,
   moveCockpitQuickbarItem,
   removeCockpitQuickbarItem,
   type CockpitQuickbarId,
   type CockpitQuickbarSettings,
 } from '../../lib/cockpitQuickbar';
+
+const shortDockLabels: Partial<Record<CockpitQuickbarId, string>> = {
+  waldruhe: 'Waldruhe',
+  timer: 'Timer',
+};
 
 type Props = {
   settings: CockpitQuickbarSettings;
@@ -43,8 +50,9 @@ export function CockpitWidgetDock({
   const dockAreaRef = useRef<HTMLDivElement>(null);
   const draggedFavoriteRef = useRef<CockpitQuickbarId | null>(null);
 
-  const favorites = COCKPIT_QUICKBAR_ITEMS.filter(item => settings.itemIds.includes(item.id))
-    .sort((a, b) => settings.itemIds.indexOf(a.id) - settings.itemIds.indexOf(b.id));
+  const teachingIds = getCockpitTeachingQuickbarIds(settings);
+  const favorites = COCKPIT_QUICKBAR_ADDABLE_ITEMS.filter(item => teachingIds.includes(item.id))
+    .sort((a, b) => teachingIds.indexOf(a.id) - teachingIds.indexOf(b.id));
   const metaFor = (type: string) => COCKPIT_QUICKBAR_ITEMS.find(item => item.id === type);
 
   const normalizedSearch = search.trim().toLocaleLowerCase('de');
@@ -53,8 +61,9 @@ export function CockpitWidgetDock({
     item.label.toLocaleLowerCase('de').includes(normalizedSearch) ||
     item.id.toLocaleLowerCase('de').includes(normalizedSearch);
   const selectedMatches = favorites.filter(matchesSearch);
-  const availableMatches = COCKPIT_QUICKBAR_ITEMS.filter(item =>
-    !settings.itemIds.includes(item.id) && matchesSearch(item));
+  const availableMatches = COCKPIT_QUICKBAR_ADDABLE_ITEMS.filter(item =>
+    !settings.itemIds.includes(item.id) &&
+    (matchesSearch(item) || item.section.toLocaleLowerCase('de').includes(normalizedSearch)));
 
   useEffect(() => {
     const node = dockAreaRef.current;
@@ -150,7 +159,7 @@ export function CockpitWidgetDock({
               aria-label={(meta?.label || type) + ' wiederherstellen'}
               title={(meta?.label || type) + ' wiederherstellen'}>
               <span aria-hidden="true">{meta?.icon || '▣'}</span>
-              <span>{meta?.label || type}</span>
+              <span>{meta ? shortDockLabels[meta.id] ?? meta.label : type}</span>
             </button>;
           })}
         </div>
@@ -194,7 +203,7 @@ export function CockpitWidgetDock({
                     : 'border-transparent text-slate-800 hover:border-accent hover:bg-accent-soft'
               }`}>
               <span aria-hidden="true" className="text-lg leading-none">{item.icon}</span>
-              {showFavoriteLabels && <span className="max-w-24 truncate text-[11px] font-semibold leading-tight">{item.label}</span>}
+              {showFavoriteLabels && <span className="max-w-24 truncate text-[11px] font-semibold leading-tight">{shortDockLabels[item.id] ?? item.label}</span>}
               {isActive && !isMinimized && <span className="absolute -bottom-0.5 left-1/2 h-1.5 w-5 -translate-x-1/2 rounded-full bg-accent" aria-hidden="true" />}
               {isMinimized && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-black text-accent-text" aria-hidden="true">▾</span>}
             </button>
@@ -293,7 +302,7 @@ export function CockpitWidgetDock({
                 ) : (
                   <div className="space-y-1.5">
                     {selectedMatches.map(item => {
-                      const index = settings.itemIds.indexOf(item.id);
+                      const index = teachingIds.indexOf(item.id);
                       const confirming = confirmRemoveId === item.id;
                       return <div key={item.id} className="flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2">
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-lg" aria-hidden="true">{item.icon}</span>
@@ -302,7 +311,7 @@ export function CockpitWidgetDock({
                           <button type="button" aria-label={item.label + ' nach links verschieben'} disabled={index <= 0}
                             onClick={() => { setConfirmRemoveId(null); onChange(current => moveCockpitQuickbarItem(current, item.id, -1)); }}
                             className="min-h-11 min-w-10 rounded-lg border border-slate-200 bg-white text-sm font-bold disabled:opacity-30">←</button>
-                          <button type="button" aria-label={item.label + ' nach rechts verschieben'} disabled={index >= settings.itemIds.length - 1}
+                          <button type="button" aria-label={item.label + ' nach rechts verschieben'} disabled={index >= teachingIds.length - 1}
                             onClick={() => { setConfirmRemoveId(null); onChange(current => moveCockpitQuickbarItem(current, item.id, 1)); }}
                             className="min-h-11 min-w-10 rounded-lg border border-slate-200 bg-white text-sm font-bold disabled:opacity-30">→</button>
                           <button type="button"
@@ -332,8 +341,11 @@ export function CockpitWidgetDock({
                   </p>
                 ) : (
                   <div className="space-y-1.5">
-                    {availableMatches.map(item => <div key={item.id}
-                      className="flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2">
+                    {availableMatches.map((item, index) => <React.Fragment key={item.id}>
+                      {availableMatches[index - 1]?.section !== item.section && (
+                        <h4 className="px-1 pt-2 text-xs font-bold text-slate-600">{item.section}</h4>
+                      )}
+                      <div className="flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-lg" aria-hidden="true">{item.icon}</span>
                       <span className="min-w-0 flex-1 truncate text-sm font-semibold">{item.label}</span>
                       <button type="button"
@@ -342,7 +354,8 @@ export function CockpitWidgetDock({
                         className="klassio-dock-primary min-h-11 shrink-0 rounded-lg bg-accent px-3 text-xs font-black text-accent-text hover:bg-accent-hover">
                         + Hinzufügen
                       </button>
-                    </div>)}
+                      </div>
+                    </React.Fragment>)}
                   </div>
                 )}
               </section>

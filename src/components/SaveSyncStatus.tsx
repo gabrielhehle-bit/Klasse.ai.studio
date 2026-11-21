@@ -2,6 +2,8 @@ import AccountServerLoadButton from './AccountServerLoadButton';
 import { ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import React, { useEffect, useState } from 'react';
+import { openDashboardCustomization } from '../lib/dashboardCustomization';
+import { istSekundarstufe } from '../lib/sek1Navigation';
 import { useApp } from '../context/AppContext';
 import { useTeamDeviceAuthorization } from '../hooks/useTeamDeviceAuthorization';
 import { saveSyncPresentation } from '../lib/saveSyncPresentation';
@@ -43,7 +45,8 @@ export default function SaveSyncStatus({
   const [online, setOnline] = useState(() => navigator.onLine);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
-  const isDashboard = (app.currentPage || 'dashboard') === 'dashboard';
+  const currentPage = app.currentPage || 'dashboard';
+  const isDashboard = currentPage === 'dashboard' && !istSekundarstufe(app.schulart);
 
   useEffect(() => {
     if (!detailsOpen) return;
@@ -245,8 +248,8 @@ export default function SaveSyncStatus({
         <button
           type="button"
           aria-label="Heute bearbeiten"
-          title="Heute anpassen"
-          onClick={() => window.dispatchEvent(new Event('open-dashboard-customize'))}
+          title="Heute bearbeiten"
+          onClick={() => openDashboardCustomization(currentPage, setPage)}
           className="hidden h-8 w-[5.75rem] shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-black uppercase tracking-wide text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 sm:inline-flex"
         >
           Bearbeiten

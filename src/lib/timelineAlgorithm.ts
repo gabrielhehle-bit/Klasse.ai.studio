@@ -1,6 +1,7 @@
 import { AppState } from '../types';
 import { STUNDEN_INFO, TAGE_NAMEN } from '../constants';
 import { getKW } from './utils';
+import { normalizeTafelhinweis } from './weeklyPlanData';
 
 export interface TimelineUnit {
   id: string;
@@ -12,6 +13,7 @@ export interface TimelineUnit {
   isFrei: boolean;
   isVertretung: boolean;
   raum?: string;
+  tafelhinweis?: string;
   startMinutes: number; // minutes from 00:00
   endMinutes: number;
   startTimestamp: number; // epoch ms
@@ -213,17 +215,19 @@ export function buildDayTimeline(app: Partial<AppState> | undefined, date: Date)
     let fach = '';
     let raum: string | undefined = undefined;
     let isVertretung = false;
+    let tafelhinweis = '';
 
     // 1. Check wochenplanung for current week
     if (app?.wochenplanung?.[kw]) {
       const wpDay = app.wochenplanung[kw][dayName] || (dayIdx !== -1 ? app.wochenplanung[kw][dayIdx] : null);
       if (wpDay) {
-        const item = wpDay[stundenIdx - 1] || wpDay[stundenIdx];
+        const item = wpDay[stundenIdx - 1];
         if (typeof item === 'string') {
           fach = item;
         } else if (item && typeof item === 'object') {
           fach = item.fach || '';
           raum = item.raum;
+          tafelhinweis = normalizeTafelhinweis(item.tafelhinweis);
           if (item.vertretung || item.supplier || fach === 'Supplierstunde') {
             isVertretung = true;
           }
@@ -257,6 +261,7 @@ export function buildDayTimeline(app: Partial<AppState> | undefined, date: Date)
       isFrei,
       isVertretung,
       raum,
+      tafelhinweis: !isFrei && tafelhinweis ? tafelhinweis : undefined,
       startMinutes,
       endMinutes,
       startTimestamp: midnightMs + startMinutes * 60000,

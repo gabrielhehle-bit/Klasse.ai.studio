@@ -14,7 +14,9 @@ test('Der Speicherstatus enthält keine Steuerung für das Tafellayout', () => {
 
 test('Heute hat einen klaren Bearbeiten-Einstieg ohne wechselnde Breite', () => {
   assert.match(saveSyncStatus, /isDashboard/);
-  assert.match(saveSyncStatus, /open-dashboard-customize/);
+  assert.match(saveSyncStatus, /openDashboardCustomization\(currentPage, setPage\)/);
+  assert.match(topbar, /currentPage === 'dashboard' && !istSekundarstufe\(app.schulart\)/);
+  assert.match(topbar, /className="w-full sm:hidden"[\s\S]*?Heute bearbeiten/);
   assert.match(saveSyncStatus, /aria-label="Heute bearbeiten"/);
   assert.match(saveSyncStatus, /w-\[5\.75rem\]/);
 });

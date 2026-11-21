@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { openDashboardCustomization } from '../lib/dashboardCustomization';
+import { istSekundarstufe } from '../lib/sek1Navigation';
 import { useApp } from '../context/AppContext';
 import { 
   Search, Users, Calendar, ClipboardList, BarChart3, 
@@ -71,9 +73,13 @@ export default function Spotlight() {
     }
   }));
 
-  const actions: SpotlightItem[] = [
-    { id: 'toggle-edit', label: 'Dashboard anpassen', icon: <Settings size={18} />, section: 'Aktionen', action: () => setApp(prev => ({ ...prev, dashboardEditMode: !prev.dashboardEditMode })) },
-  ];
+  const actions: SpotlightItem[] = istSekundarstufe(app.schulart) ? [] : [{
+    id: 'toggle-edit',
+    label: 'Heute bearbeiten',
+    icon: <Settings size={18} />,
+    section: 'Aktionen',
+    action: () => openDashboardCustomization(app.currentPage || 'dashboard', setPage),
+  }];
 
   const allItems: SpotlightItem[] = [
     ...pages.map(p => ({ ...p, action: () => setPage(p.id) })),

@@ -2886,32 +2886,24 @@ const getDieStyles = (idx: number, mode: 'sum' | 'diff' | 'prod') => {
     if (idx === 0) {
       return {
         bg: "bg-gradient-to-br from-blue-400 to-blue-600 text-white border-2 border-blue-300 dark:border-blue-500 shadow-[0_4px_12px_rgba(59,130,246,0.35)]",
-        dot: "bg-white",
-        label: "Startwert 🔵",
-        badge: "bg-blue-500 text-white"
+        dot: "bg-white"
       };
     } else {
       return {
         bg: "bg-gradient-to-br from-rose-400 to-red-600 text-white border-2 border-rose-300 dark:border-red-500 shadow-[0_4px_12px_rgba(239,68,68,0.35)]",
-        dot: "bg-white",
-        label: `Abzug ${idx} 🔴`,
-        badge: "bg-rose-500 text-white"
+        dot: "bg-white"
       };
     }
   } else if (mode === 'prod') {
     return {
       bg: "bg-gradient-to-br from-amber-400 to-amber-600 text-white border-2 border-amber-300 dark:border-amber-500 shadow-[0_4px_12px_rgba(245,158,11,0.35)]",
-      dot: "bg-white",
-      label: `Faktor ${idx + 1} 🟡`,
-      badge: "bg-amber-500 text-white"
+      dot: "bg-white"
     };
   } else {
     // sum
     return {
       bg: "bg-gradient-to-br from-emerald-400 to-emerald-600 text-white border-2 border-emerald-300 dark:border-emerald-500 shadow-[0_4px_12px_rgba(16,185,129,0.35)]",
-      dot: "bg-white",
-      label: `Zahl ${idx + 1} 🟢`,
-      badge: "bg-emerald-500 text-white"
+      dot: "bg-white"
     };
   }
 };
@@ -2920,7 +2912,7 @@ type ClassroomDiceMode = 'sum' | 'diff' | 'prod';
 const validDice = (values: unknown): number[] =>
   Array.isArray(values) && values.length >= 1 && values.length <= 6 &&
   values.every(value => Number.isInteger(value) && value >= 0 && value < 6)
-    ? values : [0, 0];
+    ? values : [0];
 export const DiceWidgetContent: React.FC<{
   widget: any; onUpdate?: (updates: any) => void; currentIsLight: boolean;
 }> = ({ widget, onUpdate, currentIsLight }) => {
@@ -2930,10 +2922,11 @@ export const DiceWidgetContent: React.FC<{
     widget?.settings?.diceMathMode === 'diff' || widget?.settings?.diceMathMode === 'prod'
       ? widget.settings.diceMathMode : 'sum');
   const [revealed, setRevealed] = useState(false);
+  const practice = widget?.settings?.dicePractice ?? Boolean(widget?.settings?.diceMathMode);
   const rollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const persistDice = (values: number[], mode: ClassroomDiceMode) => {
+  const persistDice = (values: number[], mode: ClassroomDiceMode, showPractice = practice) => {
     if (onUpdate && widget?.id) onUpdate({ settings: {
-      ...(widget.settings || {}), diceValues: values, diceMathMode: mode,
+      ...(widget.settings || {}), diceValues: values, diceMathMode: mode, dicePractice: showPractice,
     } });
   };
   useEffect(() => {
@@ -2996,56 +2989,13 @@ export const DiceWidgetContent: React.FC<{
     persistDice(next, mathMode);
   };
 
-  const equationDisplay = useMemo(() => {
-    if (mathMode === 'diff') {
-      return (
-        <div className="flex max-w-full flex-wrap items-center justify-center gap-1 font-mono text-xs font-black select-none">
-          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-lg bg-blue-500 text-white shadow-xs text-[10px]">🔵 {values[0]}</span>
-          {values.slice(1).map((val, idx) => (
-            <React.Fragment key={idx}>
-              <span className="mx-0.5 text-slate-400 font-extrabold">-</span>
-              <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-lg bg-rose-500 text-white shadow-xs text-[10px]">🔴 {val}</span>
-            </React.Fragment>
-          ))}
-          <span className="mx-1 text-indigo-500 font-extrabold">=</span>
-          <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{resultValue}</span>
-        </div>
-      );
-    } else if (mathMode === 'prod') {
-      return (
-        <div className="flex max-w-full flex-wrap items-center justify-center gap-1 font-mono text-xs font-black select-none">
-          {values.map((val, idx) => (
-            <React.Fragment key={idx}>
-              {idx > 0 && <span className="mx-0.5 text-slate-400 font-extrabold">×</span>}
-              <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-lg bg-amber-500 text-white shadow-xs text-[10px]">🟡 {val}</span>
-            </React.Fragment>
-          ))}
-          <span className="mx-1 text-indigo-500 font-extrabold">=</span>
-          <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{resultValue}</span>
-        </div>
-      );
-    } else {
-      return (
-        <div className="flex max-w-full flex-wrap items-center justify-center gap-1 font-mono text-xs font-black select-none">
-          {values.map((val, idx) => (
-            <React.Fragment key={idx}>
-              {idx > 0 && <span className="mx-0.5 text-slate-400 font-extrabold">+</span>}
-              <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-lg bg-emerald-500 text-white shadow-xs text-[10px]">🟢 {val}</span>
-            </React.Fragment>
-          ))}
-          <span className="mx-1 text-indigo-500 font-extrabold">=</span>
-          <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{resultValue}</span>
-        </div>
-      );
-    }
-  }, [values, mathMode, resultValue]);
+  const operation = mathMode === 'prod' ? ' × ' : mathMode === 'diff' ? ' − ' : ' + ';
 
   return (
-    <div data-classroom-dice data-dice-values={JSON.stringify(values)} data-dice-mode={mathMode} data-dice-rolling={rolling} className="flex-grow flex flex-col items-center justify-between p-2 gap-2 h-full pointer-events-auto min-h-0 overflow-y-auto">
+    <div data-classroom-dice data-dice-values={JSON.stringify(values)} data-dice-mode={mathMode} data-dice-rolling={rolling} className="flex h-full min-h-0 w-full flex-col items-center gap-2 overflow-hidden p-2">
       {/* Selector Toolbar - Number of Dice */}
-      <div className="flex flex-col items-center gap-1 shrink-0 z-10 select-none">
-        <span className={`text-xs font-black uppercase tracking-wider ${currentIsLight ? 'text-slate-400' : 'text-slate-500'}`}>Würfel:</span>
-        <div className="flex flex-wrap items-center justify-center gap-1">
+      <div className="flex shrink-0 flex-wrap items-center justify-center gap-1.5">
+        <div role="group" aria-label="Anzahl der Würfel" className="flex flex-wrap items-center justify-center gap-1">
         {[1, 2, 3, 4, 5, 6].map((num) => (
           <button
             type="button"
@@ -3053,7 +3003,7 @@ export const DiceWidgetContent: React.FC<{
             disabled={rolling}
             onClick={() => {
               setRevealed(false);
-              const next = Array.from({ length: num }, () => Math.floor(Math.random() * 6));
+              const next = Array.from({ length: num }, (_, index) => dice[index] ?? 0);
               setDice(next);
               persistDice(next, mathMode);
             }}
@@ -3061,7 +3011,7 @@ export const DiceWidgetContent: React.FC<{
             aria-pressed={dice.length === num}
             className={`min-w-11 min-h-11 rounded-lg text-xs font-black transition-all cursor-pointer hover:scale-105 active:scale-95 border focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
               dice.length === num
-                ? 'bg-indigo-500 border-transparent text-white shadow-sm'
+                ? 'bg-accent border-transparent text-accent-text'
                 : currentIsLight
                 ? 'bg-white border-slate-200 text-slate-650 hover:bg-slate-100'
                 : 'bg-zinc-900 border-white/10 text-slate-300 hover:bg-zinc-800'
@@ -3071,14 +3021,23 @@ export const DiceWidgetContent: React.FC<{
           </button>
         ))}
         </div>
+        <button type="button" aria-pressed={practice} disabled={rolling}
+          onClick={() => {
+            setRevealed(false);
+            persistDice(dice, mathMode, !practice);
+          }}
+          className="min-h-11 rounded-lg border border-slate-300 px-2.5 text-sm font-semibold hover:bg-accent-soft aria-pressed:border-accent aria-pressed:bg-accent-soft">
+          Rechenrunde
+        </button>
       </div>
 
-      <div className="flex-grow flex flex-col items-center justify-center gap-2 py-1 select-none">
+      <output className="sr-only" aria-live="polite">{rolling ? '' : `Augenzahlen: ${values.join(', ')}`}</output>
+      <div className={`flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto py-1 select-none ${practice ? '' : 'justify-center'}`}>
         {/* Dice displays */}
-        <div className="flex gap-2.5 flex-wrap justify-center items-center max-w-full">
+        <div className="flex shrink-0 flex-wrap items-start justify-center gap-1.5">
           {dice.map((d, i) => {
             const val = d + 1;
-            const style = getDieStyles(i, mathMode);
+            const style = getDieStyles(i, practice ? mathMode : 'sum');
             return (
               <div key={i} className="flex flex-col items-center gap-1 select-none">
                 <motion.button
@@ -3086,17 +3045,18 @@ export const DiceWidgetContent: React.FC<{
                   role="button" tabIndex={0}
                   {...rollAction.buttonProps}
                   aria-label={`Würfel ${i + 1} werfen`}
+                  disabled={rolling}
                   animate={rolling ? { 
                     rotate: [0, 180, 360], 
                     scale: [1, 1.15, 1],
                     y: [0, -12, 0]
-                  } : {}}
+                  } : { rotate: 0, scale: 1, y: 0 }}
                   transition={{ 
                     duration: 0.4, 
                     repeat: rolling ? Infinity : 0, 
                     ease: "easeInOut" 
                   }}
-                  className={`min-w-11 min-h-11 w-12 h-12 md:w-14 md:h-14 rounded-2xl relative cursor-pointer flex items-center justify-center ${style.bg} select-none hover:scale-105 active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent`}
+                  className={`${dice.length <= 2 ? 'size-16' : 'size-11'} min-h-11 min-w-11 rounded-xl relative cursor-pointer flex items-center justify-center ${style.bg} select-none hover:scale-105 active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent`}
                 >
                   {/* Glare and 3D effects */}
                   <div className="absolute inset-0 rounded-2xl border border-white/20 pointer-events-none" />
@@ -3107,17 +3067,15 @@ export const DiceWidgetContent: React.FC<{
                 </motion.button>
 
                 {/* Subtitle Label for each die showing start/subtract value */}
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  {style.label}
-                </span>
+                {practice && mathMode === 'diff' && <span className="text-xs font-semibold text-slate-600 dark:text-slate-200">{i === 0 ? 'Start' : 'Abzug'}</span>}
               </div>
             );
           })}
         </div>
 
         {/* Math mode result with covering mechanism */}
-        {!rolling && (
-          <div className="flex min-w-0 max-w-full flex-col items-center gap-2 mt-1">
+        {practice && !rolling && (
+          <div className="flex min-w-0 max-w-full shrink-0 flex-col items-center gap-2">
             {!revealed ? (
               <button
                 type="button"
@@ -3125,7 +3083,7 @@ export const DiceWidgetContent: React.FC<{
                 onClick={() => setRevealed(true)}
                 className="min-h-11 px-3.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-[10px] uppercase tracking-wider shadow-md hover:scale-102 cursor-pointer active:scale-95 transition-all flex items-center gap-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
               >
-                <span>🧠</span> Ergebnis raten (Aufdecken!)
+                Ergebnis aufdecken
               </button>
             ) : (
               <motion.button
@@ -3139,8 +3097,10 @@ export const DiceWidgetContent: React.FC<{
                 }`}
                 title="Wieder verdecken"
               >
-                <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Rechnung ({resultLabel}):</div>
-                {equationDisplay}
+                <span className="text-xs font-semibold">{resultLabel}</span>
+                <span className="text-base font-bold tabular-nums">
+                  {values.join(operation)} = <span>{resultValue}</span>
+                </span>
               </motion.button>
             )}
 
@@ -3180,10 +3140,10 @@ export const DiceWidgetContent: React.FC<{
         )}
       </div>
 
-      <div className="flex gap-1.5 w-full justify-center shrink-0">
-        <button type="button" aria-label="Einen Würfel entfernen" disabled={rolling || dice.length <= 1} onClick={() => changeDiceCount('remove')} className={`min-h-11 min-w-11 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 border focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${currentIsLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}`}>-1</button>
-        <button type="button" {...rollAction.buttonProps} aria-label="Würfel werfen" disabled={rolling} className="flex-1 min-h-11 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] uppercase font-black tracking-widest shadow-md hover:scale-102 cursor-pointer active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">Würfeln!</button>
-        <button type="button" aria-label="Einen Würfel hinzufügen" disabled={rolling || dice.length >= 6} onClick={() => changeDiceCount('add')} className={`min-h-11 min-w-11 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 border focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${currentIsLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}`}>+1</button>
+      <div className="flex w-full shrink-0 justify-center gap-1.5 pr-11">
+        {practice && <button type="button" aria-label="Einen Würfel entfernen" disabled={rolling || dice.length <= 1} onClick={() => changeDiceCount('remove')} className="min-h-11 min-w-11 rounded-lg border border-slate-300 text-sm font-bold disabled:opacity-40">−1</button>}
+        <button type="button" {...rollAction.buttonProps} aria-label="Würfel werfen" disabled={rolling} className="min-h-11 flex-1 rounded-lg bg-accent px-3 text-sm font-bold text-accent-text hover:bg-accent-hover disabled:opacity-50">Würfeln</button>
+        {practice && <button type="button" aria-label="Einen Würfel hinzufügen" disabled={rolling || dice.length >= 6} onClick={() => changeDiceCount('add')} className="min-h-11 min-w-11 rounded-lg border border-slate-300 text-sm font-bold disabled:opacity-40">+1</button>}
       </div>
     </div>
   );

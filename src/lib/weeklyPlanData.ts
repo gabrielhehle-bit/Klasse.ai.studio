@@ -1,6 +1,14 @@
 import { MAX_LESSON_SLOTS } from '../constants';
 import { getKW, getSchulstartKW, getStartYear, getSW, kwToMonday } from './utils';
 
+export const MAX_TAFELHINWEIS_LENGTH = 80;
+
+export function normalizeTafelhinweis(value: unknown): string {
+  return typeof value === 'string'
+    ? Array.from(value.trim().replace(/\s+/g, ' ')).slice(0, MAX_TAFELHINWEIS_LENGTH).join('').trimEnd()
+    : '';
+}
+
 export type WeeklyPlanWeek = {
   kw: number;
   monday: Date;

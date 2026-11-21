@@ -36,7 +36,7 @@ interface CockpitWidgetProps {
 }
 
 const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
-  timeline: { w: 40, h: 30 },
+  timeline: { w: 46, h: 42 },
   clock: { w: 25, h: 28 },
   instruction: { w: 45, h: 50 },
   timer: { w: 23, h: 38 },

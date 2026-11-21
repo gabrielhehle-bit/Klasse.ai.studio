@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { normalizeClassTimerSeconds, MAX_CLASS_TIMER_SECONDS } from './classTimerInput';
+import { getInstructionCountdownMinutes, normalizeClassTimerSeconds, MAX_CLASS_TIMER_SECONDS } from './classTimerInput';
 import { instructionTextPages, instructionChecklistWindow } from './instructionPaging';
+import { hasInstructionReference, normalizeInstructionReference } from './instructionReference';
 
 const timer = readFileSync('src/components/cockpit/widgets/TimerWidget.tsx', 'utf8');
 const timeline = readFileSync('src/components/cockpit/widgets/TimelineWidget.tsx', 'utf8');
@@ -31,6 +32,19 @@ test('Widget 6 Tagesablauf stays readable with explicit pages and class-aware up
   assert.doesNotMatch(timeline, /overflow-x-auto/);
 });
 
+test('Arbeitsauftrag starts the selected whole-minute duration and leaves free-text estimates display-only', () => {
+  assert.equal(getInstructionCountdownMinutes(''), 5);
+  assert.equal(getInstructionCountdownMinutes('  '), 5);
+  assert.equal(getInstructionCountdownMinutes('2 Min.'), 2);
+  assert.equal(getInstructionCountdownMinutes(' 10 Minuten '), 10);
+  assert.equal(getInstructionCountdownMinutes('7'), 7);
+  assert.equal(getInstructionCountdownMinutes('1 Minute'), 1);
+  assert.equal(getInstructionCountdownMinutes('720 min'), 720);
+  for (const estimate of ['0 Minuten', '-5 Min.', '2,5 Minuten', '10–15 Minuten', 'nach Bedarf', '721 Min.']) {
+    assert.equal(getInstructionCountdownMinutes(estimate), null);
+  }
+});
+
 test('Widget 7 Arbeitsauftrag pages text without cutting content or hiding work steps', () => {
   for (const value of ['Kurz', 'Lies S. 30.\nSchreibe 5 Sätze.\nArbeite mit deinem Partner.',
     'EinSchwierigesWort'.repeat(35), 'eins '.repeat(400)]) {
@@ -54,4 +68,14 @@ test('Widget 7 Arbeitsauftrag pages text without cutting content or hiding work 
   assert.match(instruction, /document\.body/);
   assert.match(instruction, /onUpdate\(\{ settings: updatedSettings \}\)/);
   assert.match(instruction, /handleToggleCheckItem/);
+});
+
+test('assignment references accept optional fields and preserve school page and exercise notation', () => {
+  for (const value of [undefined, null, {}, 'TRAX S. 12', { page: 12, color: 'unknown' }]) {
+    assert.equal(hasInstructionReference(normalizeInstructionReference(value)), false);
+  }
+  const reference = normalizeInstructionReference({ material: ' TRAX-Arbeitsheft ', color: 'green', page: '12–13', exercises: '1a, 2–3' });
+  assert.deepEqual(reference, { material: 'TRAX-Arbeitsheft', color: 'green', page: '12–13', exercises: '1a, 2–3' });
+  assert.equal(hasInstructionReference(reference), true);
+  assert.equal(hasInstructionReference(normalizeInstructionReference({ color: 'navy' })), true);
 });
