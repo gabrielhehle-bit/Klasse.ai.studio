@@ -7201,7 +7201,7 @@ export const CompassWidgetContent: React.FC<{
             <>
               <p className="text-[10px] font-black uppercase tracking-wider opacity-50">Aufgabe</p>
               <h3 className="mt-1 text-base font-black leading-snug text-accent">
-                Stelle {practiceRound.target.name} ein.
+                {practiceRound.prompt}
               </h3>
               {answerState !== 'correct' && (
                 <p className="mt-2 text-xs font-semibold leading-relaxed opacity-65">

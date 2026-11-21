@@ -874,6 +874,13 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
             <MoreHorizontal size={16} strokeWidth={2.5} />
           </button>
 
+          <button type="button" title={displayLabel + " schließen"} aria-label={displayLabel + " schließen"}
+            onPointerDown={event => event.stopPropagation()}
+            onClick={event => { event.stopPropagation(); onClose(); }}
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-100 focus-visible:ring-2 dark:text-red-400">
+            <X size={20} strokeWidth={3} aria-hidden="true" />
+          </button>
+
           {showWidgetMenu && !isFreeMascot && (
             <div
               onPointerDown={(e) => e.stopPropagation()}

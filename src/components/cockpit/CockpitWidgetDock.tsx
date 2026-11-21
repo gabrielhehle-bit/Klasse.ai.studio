@@ -146,28 +146,18 @@ export function CockpitWidgetDock({
       data-board-right-inset={Math.round(reservedRightPx)}
     >
       <div ref={dockAreaRef} className="relative flex w-full min-w-0 justify-center">
-      {minimizedTypes.length > 0 && (
-        <div className="klassio-minimized-strip absolute bottom-full left-1/2 mb-1.5 flex w-max max-w-full -translate-x-1/2 items-center gap-1 overflow-x-auto rounded-2xl border border-accent bg-white/95 p-1.5 shadow-lg backdrop-blur" aria-label="Minimierte Widgets">
-          <span className="sticky left-0 z-10 flex min-h-10 shrink-0 items-center gap-1 rounded-xl bg-accent-soft px-2 text-[10px] font-black uppercase tracking-wide text-accent" aria-hidden="true">
-            <span>▾</span><span>Minimiert</span>
-          </span>
-          {minimizedTypes.map(type => {
-            const meta = metaFor(type);
-            return <button type="button" key={type}
-              onClick={() => onRestoreMinimized?.(type)}
-              className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-accent bg-white px-2.5 text-xs font-bold text-slate-800 shadow-sm hover:bg-accent-soft"
-              aria-label={(meta?.label || type) + ' wiederherstellen'}
-              title={(meta?.label || type) + ' wiederherstellen'}>
-              <span aria-hidden="true">{meta?.icon || '▣'}</span>
-              <span>{meta ? shortDockLabels[meta.id] ?? meta.label : type}</span>
-            </button>;
-          })}
-        </div>
-      )}
       <nav aria-label="Meine Widget-Favoriten"
         className="klassio-widget-dock relative flex w-fit max-w-full min-w-0 items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 text-slate-900 shadow-lg backdrop-blur">
         <div className="klassio-dock-favorites flex min-w-0 flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           aria-label="Widget-Schnellzugriffe">
+          {minimizedTypes.filter(type => !settings.enabled || !favorites.some(item => item.id === type)).map(type => (
+            <button key={type} type="button" className="grid size-11 shrink-0 place-items-center rounded-lg focus-visible:ring-2"
+              aria-label={(metaFor(type)?.label || type) + ' wiederherstellen'}
+              title={(metaFor(type)?.label || type) + ' wiederherstellen'}
+              onClick={() => onRestoreMinimized?.(type)}>
+              <span aria-hidden="true" className="size-2.5 rounded-full bg-black" />
+            </button>
+          ))}
           {settings.enabled && favorites.map(item => {
             const isActive = activeTypes.includes(item.id);
             const isMinimized = minimizedTypes.includes(item.id);
@@ -197,15 +187,14 @@ export function CockpitWidgetDock({
               data-minimized={isMinimized ? "true" : "false"}
               className={`klassio-dock-favorite relative flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-xl border py-1 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-40 ${showFavoriteLabels ? 'px-2.5' : 'px-2'} ${editing ? 'touch-none select-none cursor-grab active:cursor-grabbing' : ''} ${draggedFavoriteId === item.id ? 'scale-95 opacity-60 ring-2 ring-accent' : ''} ${
                 isMinimized
-                  ? 'border-accent bg-accent-soft text-accent opacity-80'
+                  ? 'border-transparent'
                   : isActive
                     ? 'border-accent bg-accent-soft text-accent shadow-sm'
                     : 'border-transparent text-slate-800 hover:border-accent hover:bg-accent-soft'
               }`}>
-              <span aria-hidden="true" className="text-lg leading-none">{item.icon}</span>
-              {showFavoriteLabels && <span className="max-w-24 truncate text-[11px] font-semibold leading-tight">{shortDockLabels[item.id] ?? item.label}</span>}
+              {isMinimized ? <span aria-hidden="true" className="size-2.5 rounded-full bg-black" /> : <span aria-hidden="true" className="text-lg leading-none">{item.icon}</span>}
+              {!isMinimized && showFavoriteLabels && <span className="max-w-24 truncate text-[11px] font-semibold leading-tight">{shortDockLabels[item.id] ?? item.label}</span>}
               {isActive && !isMinimized && <span className="absolute -bottom-0.5 left-1/2 h-1.5 w-5 -translate-x-1/2 rounded-full bg-accent" aria-hidden="true" />}
-              {isMinimized && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-black text-accent-text" aria-hidden="true">▾</span>}
             </button>
           )})}
         </div>

@@ -37,6 +37,37 @@ import {
   migrateLegacyMathWidget
 } from '../../../lib/zahlenraumAlgorithm';
 
+function Schaetzfenster({ onExit }: { onExit: () => void }) {
+  const [count, setCount] = useState(() => 1 + Math.floor(Math.random() * 20));
+  const [phase, setPhase] = useState<'ready' | 'flash' | 'covered' | 'revealed'>('ready');
+  useEffect(() => {
+    if (phase !== 'flash') return;
+    const timer = window.setTimeout(() => setPhase('covered'), 1500);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
+  const visible = phase === 'flash' || phase === 'revealed';
+  const control = 'min-h-11 rounded-xl border border-current/30 px-3 font-semibold';
+  return <section aria-label="Schätzfenster" className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-auto">
+    <h3 className="font-bold">Schätzfenster</h3>
+    <div role="status" className="text-center">{phase === 'revealed' ? count + ' Punkte. Wie hast du sie gesehen?' :
+      phase === 'covered' ? 'Wie viele Punkte hast du gesehen?' : phase === 'flash' ? 'Schau genau!' : 'Gleich siehst du ein Punktebild.'}</div>
+    <div className="grid w-full max-w-lg grid-cols-2 gap-3 p-2" aria-hidden="true">
+      {[0, 1, 2, 3].map(group => <div key={group} className="grid grid-cols-5 gap-1">
+        {[0, 1, 2, 3, 4].map(index => <span key={index} className={`aspect-square rounded-full border border-current/30 ${visible && group * 5 + index < count ? 'bg-accent' : ''}`} />)}
+      </div>)}
+    </div>
+    <div className="flex flex-wrap justify-center gap-2">
+      <button type="button" className={control} onClick={() => setPhase(phase === 'flash' ? 'covered' : 'flash')}>{phase === 'flash' ? 'Verdecken' : 'Kurz zeigen'}</button>
+      {phase === 'covered' && <button type="button" className={control} onClick={() => setPhase('revealed')}>Aufdecken</button>}
+      {phase === 'revealed' && <button type="button" className={control} onClick={() => {
+        setCount(previous => 1 + (previous + Math.floor(Math.random() * 19)) % 20);
+        setPhase('ready');
+      }}>Neue Menge</button>}
+      <button type="button" className={control} onClick={onExit}>Zurück zum Zahlenraum</button>
+    </div>
+  </section>;
+}
+
 export interface ZahlenraumStudioProps {
   widget?: CockpitWidgetConfig;
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
@@ -169,6 +200,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
   const [jumps, setJumps] = useState<ZahlenraumJump[]>(initialSettings.jumps);
   const [newJumpStep, setNewJumpStep] = useState<number>(initialSettings.pendingJumpStep ?? 10);
   const [showCustomRangeInputs, setShowCustomRangeInputs] = useState<boolean>(initialSettings.range === 'custom');
+  const [estimating, setEstimating] = useState(false);
   const showLinkedLine = widget?.type === 'zahlenraum' && mode === 'quantity' && range === 20;
   const linkedColors = TWENTY_FIELD_COLORS[currentIsLight ? 'light' : 'dark'];
   const settingsRef = useRef(initialSettings);
@@ -494,7 +526,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
 
       {/* Hauptbereich */}
       <div className={`flex-1 flex flex-col min-h-0 p-3 gap-2 ${showLinkedLine ? 'pb-14' : ''}`}>
-        {mode === 'quantity' ? (
+        {estimating && showLinkedLine ? <Schaetzfenster onExit={() => setEstimating(false)} /> : mode === 'quantity' ? (
           /* =========================================================================
              MODUS A: MENGEN & ZAHLENBILDER
              ========================================================================= */
@@ -506,6 +538,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
                 currentIsLight ? 'bg-white border-slate-200' : 'bg-slate-950 border-slate-800'
               }`}
             >
+              {showLinkedLine && <button type="button" className="min-h-11 rounded-xl border border-current/30 px-3 font-bold" onClick={() => setEstimating(true)}>Schätzfenster</button>}
               {/* Stepper für Hauptzahl */}
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Zahl:</span>

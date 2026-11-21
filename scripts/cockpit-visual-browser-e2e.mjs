@@ -367,6 +367,21 @@ async function checkLinkedNumbers(client) {
   await waitFor(client, 'the curated Zahlenraum card is available', `Boolean(document.querySelector('[data-testid="cockpit-core-group-zahlenraum"] [data-widget-card-action="primary"]'))`);
   await evaluate(client, `document.querySelector('[data-testid="cockpit-core-group-zahlenraum"] [data-widget-card-action="primary"]').click()`);
   await waitFor(client, 'the twenty field and number line open with the same seventeen', matches(17));
+  await clickButton(client, 'Schätzfenster');
+  await clickButton(client, 'Kurz zeigen');
+  const estimate = `${widget}.querySelector('section[aria-label="Schätzfenster"]')`;
+  const shown = await evaluate(client, `${estimate}.querySelectorAll('span.bg-accent').length`);
+  if (shown < 1 || shown > 20) throw Error('Invalid flash quantity');
+  await waitFor(client, 'the estimate is covered automatically', `${estimate}.textContent.includes('Wie viele Punkte') && !${estimate}.querySelector('span.bg-accent')`);
+  await clickButton(client, 'Aufdecken');
+  await waitFor(client, 'revealing restores the same quantity', `${estimate}.querySelectorAll('span.bg-accent').length === ${shown} && ${estimate}.textContent.includes('${shown} Punkte')`);
+  await clickButton(client, 'Zurück zum Zahlenraum');
+  await evaluate(client, `${widget}.querySelector('.cockpit-widget-menu-trigger').click()`);
+  await clickButton(client, 'Minimieren');
+  const dot = `Array.from(document.querySelectorAll('.klassio-widget-dock button')).find(b => b.getAttribute('aria-label')?.includes('Zahlenraum') && b.querySelector('.bg-black'))`;
+  await waitFor(client, 'only the dot is visible for the minimized widget', `Boolean(${dot}) && !(${dot}).textContent.trim()`);
+  await evaluate(client, `(${dot}).click()`);
+  await waitFor(client, 'restoring keeps the original field', matches(17));
   await clickButton(client, 'Zerlegung');
   await waitFor(client, 'the initial decomposition groups seventeen into ten and seven', matches(17, 10, 7));
   await waitFor(client, 'both colours are projected at the mathematically correct positions', `(() => {
@@ -418,6 +433,8 @@ async function checkLinkedNumbers(client) {
   await clickLabel(client, 'Zahlenraum-Einstellungen schließen');
   await waitFor(client, 'standalone number line still exposes marker and jump controls',
     `!${line} && ${widget}.querySelector('[aria-label="Hauptmarker eingeben"]') && Boolean(${widget}.querySelector('[aria-label="Eigene Sprungweite"]'))`);
+  await evaluate(client, `${widget}.querySelector('button[title$=" schließen"][aria-label$=" schließen"]').click()`);
+  await waitFor(client, 'the header close button dismisses the widget', `!${widget}`);
 }
 
 async function checkSubjectWidgets(client) {
