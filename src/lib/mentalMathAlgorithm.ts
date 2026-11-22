@@ -70,6 +70,19 @@ export const DEFAULT_KOPFRECHEN_SETTINGS: KopfrechenSettings = {
   autoRevealOnSolve: false,
 };
 
+export const mentalMathLevels = [
+  { label: '1 · Bis 10', settings: { mode: 'flash', range: 10, operators: ['+', '-'], tenCrossing: 'mixed' } },
+  { label: '2 · Zehnerübergang', settings: { mode: 'flash', range: 100, operators: ['+', '-'], tenCrossing: 'force' } },
+  { label: '3 · Einmaleins', settings: { mode: 'tables', selectedTables: [2,3,4,5,6,7,8,9,10], tablesVariant: 'mixed' } },
+  { label: '4 · Rechenketten', settings: { mode: 'chain', chainLength: 4, chainDifficulty: 'hard', chainOperators: ['+', '-', '×', '÷'] } },
+] satisfies {label: string; settings: Partial<KopfrechenSettings>}[];
+
+export function mentalMathLevel(settings: KopfrechenSettings): number {
+  return mentalMathLevels.findIndex(preset => Object.entries(preset.settings).every(([key, value]) =>
+    JSON.stringify(settings[key as keyof KopfrechenSettings]) === JSON.stringify(value)
+  )) + 1;
+}
+
 /**
  * Pseudo-Random Number Generator Typ für deterministische Tests
  */
@@ -136,6 +149,9 @@ export function generateFlashTask(settings: KopfrechenSettings, rng: RNG = Math.
       if (tenCrossing === 'none' && !crossing) break;
       if (tenCrossing === 'force' && crossing) break;
     } while (attempts < 100);
+    if (tenCrossing === 'force' && !hasTenCrossing(left, right, '+')) {
+      left = 8; right = 2; answer = 10;
+    }
 
   } else if (op === '-') {
     let attempts = 0;
@@ -166,6 +182,9 @@ export function generateFlashTask(settings: KopfrechenSettings, rng: RNG = Math.
       if (tenCrossing === 'none' && !crossing) break;
       if (tenCrossing === 'force' && crossing) break;
     } while (attempts < 100);
+    if (tenCrossing === 'force' && !hasTenCrossing(left, right, '-')) {
+      left = 10; right = 3; answer = 7;
+    }
 
   } else if (op === '×') {
     // Multiplikation 1x1 der Volksschule

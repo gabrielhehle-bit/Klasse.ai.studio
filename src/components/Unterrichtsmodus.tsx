@@ -12316,6 +12316,7 @@ ${content}
                                           currentIsLight={currentIsLight}
                                           showSettings={widgetSettingsOpenId === widget.id}
                                           onCloseSettings={() => setWidgetSettingsOpenId(null)}
+                                          classGrade={app.stufe}
                                         />
                                       );
 
