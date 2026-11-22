@@ -1,3 +1,4 @@
+import AlleZeigen from './AlleZeigen';
 import React, { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { instructionChecklistWindow, instructionTextPages } from '../../../lib/instructionPaging';
@@ -451,6 +452,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
 
             {/* Teacher Action Controls (Accessible, large touch targets, unobtrusive) */}
             <div className="flex items-center gap-2">
+              <AlleZeigen />
               <button
                 onClick={handleClearTask}
                 className={`min-h-11 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
@@ -703,6 +705,7 @@ export const InstructionWidget: React.FC<InstructionWidgetProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                <AlleZeigen />
                 {hasSavedTask && (
                   <button
                     type="button"
