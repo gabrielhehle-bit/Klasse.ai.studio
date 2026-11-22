@@ -10696,6 +10696,7 @@ ${content}
                                           widget={widget}
                                           onUpdate={(updates) => handleUpdateWidgetPos(widget.id, updates)}
                                           currentIsLight={currentIsLight}
+                                          classGrade={app.stufe}
                                         />
                                       );
 
@@ -10846,6 +10847,7 @@ ${content}
                                           }
                                           showSettings={widgetSettingsOpenId === widget.id}
                                           onCloseSettings={() => setWidgetSettingsOpenId(null)}
+                                          classGrade={app.stufe}
                                         />
                                       );
 
@@ -11367,6 +11369,7 @@ ${content}
                                           isFullscreen={
                                             fullscreenWidgetId === widget.id
                                           }
+                                          classGrade={app.stufe}
                                         />
                                       );
 
@@ -11448,6 +11451,7 @@ ${content}
                                           currentIsLight={currentIsLight}
                                           showSettings={widgetSettingsOpenId === widget.id}
                                           onCloseSettings={() => setWidgetSettingsOpenId(null)}
+                                          classGrade={app.stufe}
                                         />
                                       );
 
@@ -12449,6 +12453,7 @@ ${content}
                                           isFullscreen={fullscreenWidgetId === widget.id}
                                           showSettings={widgetSettingsOpenId === widget.id}
                                           onCloseSettings={() => setWidgetSettingsOpenId(null)}
+                                          classGrade={app.stufe}
                                         />
                                       );
 

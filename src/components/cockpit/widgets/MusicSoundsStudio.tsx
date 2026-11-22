@@ -24,6 +24,7 @@ export function normalizeMusicStudioMode(input: unknown): MusicStudioMode {
 }
 
 interface MusicSoundsStudioProps {
+  classGrade?:number;
   widget: CockpitWidgetConfig;
   currentIsLight: boolean;
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
@@ -38,7 +39,7 @@ interface MusicSoundsStudioProps {
  * of saved music/rhythm lessons is performed here.
  */
 export const MusicSoundsStudio: React.FC<MusicSoundsStudioProps> = ({
-  widget, currentIsLight, onUpdate, isFullscreen = false,
+  widget, currentIsLight, onUpdate, classGrade, isFullscreen = false,
   showSettings = false, onCloseSettings,
 }) => {
   const mode = normalizeMusicStudioMode(widget.settings?.musicStudioMode);
@@ -92,7 +93,7 @@ export const MusicSoundsStudio: React.FC<MusicSoundsStudioProps> = ({
         {mode === 'signals' && <SoundsWidget widget={widget} currentIsLight={currentIsLight}
           isFullscreen={isFullscreen} onUpdate={onUpdate} showVolumeControls={false} />}
         {mode === 'piano' && <PianoWidgetContent widget={widget} currentIsLight={currentIsLight} />}
-        {mode === 'rhythm' && <RhythmWidgetContent onUpdate={onUpdate} widget={widget} currentIsLight={currentIsLight} />}
+        {mode === 'rhythm' && <RhythmWidgetContent classGrade={classGrade} onUpdate={onUpdate} widget={widget} currentIsLight={currentIsLight} />}
         {mode === 'tonetrainer' && <TonetrainerWidgetContent onUpdate={onUpdate} widget={widget} currentIsLight={currentIsLight} />}
         {mode === 'ambient' && <SoundmachineWidgetContent widget={widget} currentIsLight={currentIsLight}
           isFullscreen={isFullscreen} onUpdate={onUpdate} />}

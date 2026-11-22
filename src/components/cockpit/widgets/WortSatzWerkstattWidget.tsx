@@ -43,6 +43,7 @@ import {
 
 export interface WortSatzWerkstattWidgetProps {
   widget?: any;
+  classGrade?:number;
   onUpdate?: (patch: any) => void;
   currentIsLight?: boolean;
   isFullscreen?: boolean;
@@ -58,6 +59,7 @@ function opensInLeseanfang(widget: WortSatzWerkstattWidgetProps['widget']): bool
 
 export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = ({
   widget,
+  classGrade,
   onUpdate,
   currentIsLight = true,
   isFullscreen: isFullscreenProp = false,
@@ -485,7 +487,7 @@ export const WortSatzWerkstattWidget: React.FC<WortSatzWerkstattWidgetProps> = (
       } ${size.isCompact ? 'p-2 gap-1.5' : size.isLarge ? 'p-4 gap-3' : 'p-3 gap-2'}`}
     >
       {showBeginner ? (
-        <Leseanfang key={currentWidgetKey} saved={widget?.settings?.readingExercise} light={currentIsLight}
+        <Leseanfang key={currentWidgetKey+':'+classGrade} classGrade={classGrade} saved={widget?.settings?.readingExercise} light={currentIsLight}
           onShowAll={() => switchReadingView(false)}
           onChange={readingExercise => onUpdate?.({ settings: { ...(widget?.settings || {}), readingView: 'beginner', readingExercise } })} />
       ) : <>

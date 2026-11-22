@@ -1,3 +1,4 @@
+import {ZahlenraumUebung,numberRound} from './ZahlenraumUebung';
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
@@ -70,6 +71,7 @@ function Schaetzfenster({ onExit }: { onExit: () => void }) {
 
 export interface ZahlenraumStudioProps {
   widget?: CockpitWidgetConfig;
+  classGrade?:number;
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
   currentIsLight?: boolean;
   showSettings?: boolean;
@@ -163,6 +165,7 @@ const SignedIntegerInput: React.FC<Omit<React.InputHTMLAttributes<HTMLInputEleme
 
 export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
   widget,
+  classGrade=1,
   onUpdate,
   currentIsLight = true,
   showSettings = false,
@@ -246,6 +249,9 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
     });
   }, [onUpdate, widget?.settings, applySettings]);
 
+  const savedRound = widget?.settings?.numberPractice;
+  const round = savedRound && [1,2,3,4].includes(savedRound.level) && Number.isInteger(savedRound.round) && savedRound.round>=0 && savedRound.round<6 && typeof savedRound.answer==='string' ? savedRound : numberRound(classGrade);
+  const saveRound=(next:ReturnType<typeof numberRound>)=>onUpdate?.({settings:{...widget?.settings,numberPractice:next,numberPracticeOpen:true}});
   // Modus wechseln
   const handleSelectMode = (newMode: ZahlenraumMode) => {
     setMode(newMode);
@@ -524,6 +530,8 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
         </div>
       </div></dialog>, document.body)}
 
+      {widget?.type==='zahlenraum' && widget.settings?.numberPracticeOpen ? <ZahlenraumUebung state={round} change={saveRound} exit={()=>onUpdate?.({settings:{...widget.settings,numberPracticeOpen:false}})}/> : <>
+      {widget?.type==='zahlenraum' && !estimating && <button className="mx-3 mt-1 min-h-11 self-end rounded-lg border px-3 font-bold" onClick={()=>saveRound(round)}>Zahlenraum üben</button>}
       {/* Hauptbereich */}
       <div className={`flex-1 flex flex-col min-h-0 p-3 gap-2 ${showLinkedLine ? 'pb-14' : ''}`}>
         {estimating && showLinkedLine ? <Schaetzfenster onExit={() => setEstimating(false)} /> : mode === 'quantity' ? (
@@ -1065,7 +1073,7 @@ export const ZahlenraumStudio: React.FC<ZahlenraumStudioProps> = ({
             </div>
           </div>
         )}
-      </div>
+      </div></>}
     </div>
   );
 };

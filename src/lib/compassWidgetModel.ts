@@ -143,3 +143,12 @@ export function createCompassPracticeRound(
   const target = pool[index];
   return { target, prompt: mapTasks[target.angle] };
 }
+
+export function compassLessonPrompt(target: CompassDirection, level: number): string {
+  const arrow = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'][target.angle / 45];
+  const place = ['oben', 'oben rechts', 'rechts', 'unten rechts', 'unten', 'unten links', 'links', 'oben links'][target.angle / 45];
+  if (level === 1) return `Stelle die Nadel wie den Pfeil ein: ${arrow}`;
+  if (level === 2) return `Norden ist oben. Der Teich liegt auf der Karte ${place} von der Schule. In welcher Richtung liegt er?`;
+  if (level === 3) return `Du blickst nach ${getCompassDirection(target.angle - 90).name}. Drehe dich eine Vierteldrehung nach rechts. Wohin blickst du?`;
+  return `Du gehst von der Schule Richtung ${getCompassDirection(target.angle + 180).name} zum Wald. In welche Richtung gehst du auf demselben Weg zurück? Begründe mit der Windrose.`;
+}

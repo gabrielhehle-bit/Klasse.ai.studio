@@ -1,3 +1,4 @@
+import {GradeSelect,schoolLevel} from './widgets/GradeSelect';
 import { spokenClockTime } from "../../lib/clockLearningSettings";
 import { WidgetReadableText } from './WidgetReadableText';
 import { normalizeQuizSession, quizAnswerFeedback, type QuizDifficulty } from '../../lib/classroomQuizSession';
@@ -89,6 +90,7 @@ import {
 } from '../../lib/bodypartsWidgetModel';
 import {
   createCompassPracticeRound,
+  compassLessonPrompt,
   getCompassDirection,
   getCompassDirections,
   normalizeCompassWidgetSettings,
@@ -6895,12 +6897,13 @@ export const ChallengeWidgetContent: React.FC<{ widget: any, currentIsLight: boo
 // ==========================================
 export const CompassWidgetContent: React.FC<{
   widget: any;
+  classGrade?:number;
   currentIsLight: boolean;
   onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
   showSettings?: boolean;
   onCloseSettings?: () => void;
 }> = ({
-  widget,
+  widget, classGrade,
   currentIsLight,
   onUpdate,
   showSettings = false,
@@ -6915,16 +6918,18 @@ export const CompassWidgetContent: React.FC<{
     [settings.directionSet],
   );
   const lifecycle = readWidgetLifecycleState(widget, "compass", {
+    level: schoolLevel(classGrade),
     angle: 0,
     practiceRound: createCompassPracticeRound(getCompassDirections(settings.directionSet)),
     answerState: 'idle' as 'idle' | 'wrong' | 'correct',
     feedback: ''
   });
+  const [level,setLevel]=useState(schoolLevel(lifecycle.level));
   const [angle, setAngle] = useState<number>(lifecycle.angle);
   const [practiceRound, setPracticeRound] = useState<CompassPracticeRound | null>(lifecycle.practiceRound);
   const [answerState, setAnswerState] = useState<'idle' | 'wrong' | 'correct'>(lifecycle.answerState);
   const [feedback, setFeedback] = useState(lifecycle.feedback);
-  usePersistedWidgetLifecycleState(widget, onUpdate, "compass", { angle, practiceRound, answerState, feedback });
+  usePersistedWidgetLifecycleState(widget, onUpdate, "compass", { level, angle, practiceRound, answerState, feedback });
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
@@ -7090,6 +7095,9 @@ export const CompassWidgetContent: React.FC<{
         </div>
       )}
 
+      {settings.mode==='practice' && <GradeSelect level={level} change={next=>{
+        setLevel(next);nextPractice();
+      }}/>}
       <div className="grid shrink-0 grid-cols-2 gap-2" role="group" aria-label="Lernmodus">
         <button
           type="button"
@@ -7201,7 +7209,7 @@ export const CompassWidgetContent: React.FC<{
             <>
               <p className="text-[10px] font-black uppercase tracking-wider opacity-50">Aufgabe</p>
               <h3 className="mt-1 text-base font-black leading-snug text-accent">
-                {practiceRound.prompt}
+                {compassLessonPrompt(practiceRound.target,level)}
               </h3>
               {answerState !== 'correct' && (
                 <p className="mt-2 text-xs font-semibold leading-relaxed opacity-65">
@@ -13591,6 +13599,7 @@ export const WordbuilderWidgetContent: React.FC<{
 };
 
 export const WortSatzWerkstattWidgetContent: React.FC<{
+  classGrade?:number;
   widget?: any;
   currentIsLight?: boolean;
   onUpdate?: (updates: any) => void;
