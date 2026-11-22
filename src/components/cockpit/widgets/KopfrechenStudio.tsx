@@ -24,6 +24,7 @@ import { CockpitWidgetConfig } from '../../../types';
 import { parseWholeNumberAnswer } from '../../../lib/mathWidgetInteraction';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
 import {
+  mentalMathLevel, mentalMathLevels,
   MentalMathMode,
   MentalMathOperator,
   MentalMathRange,
@@ -40,6 +41,7 @@ import {
 
 export interface KopfrechenStudioProps {
   widget?: CockpitWidgetConfig;
+  classGrade?: number;
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
   currentIsLight?: boolean;
   showSettings?: boolean;
@@ -48,6 +50,7 @@ export interface KopfrechenStudioProps {
 
 export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
   widget,
+  classGrade = 1,
   onUpdate,
   currentIsLight = true,
   showSettings = false,
@@ -66,8 +69,12 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
     if (raw && (raw.mode === 'flash' || raw.mode === 'tables' || raw.mode === 'chain')) {
       return migrateLegacyMentalMathWidget('kopfrechnen', raw);
     }
+    if (widget?.type === 'kopfrechnen' && !raw?.__widgetLifecycleState?.mentalMath) {
+      const preset = mentalMathLevels[classGrade - 1] ?? mentalMathLevels[0];
+      return { ...DEFAULT_KOPFRECHEN_SETTINGS, ...preset.settings };
+    }
     return { ...DEFAULT_KOPFRECHEN_SETTINGS };
-  }, [widget?.type, widget?.settings]);
+  }, [widget?.type, widget?.settings, classGrade]);
 
   const saved=readWidgetLifecycleState(widget,'mentalMath',{currentTask:generateMentalMathTask(initialSettings),isRevealed:false,studentInput:'',feedbackState:'idle' as 'idle'|'correct'|'try_again'});
   const [settings, setSettings] = useState<KopfrechenSettings>(initialSettings);
@@ -76,7 +83,9 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
   const [isRevealed, setIsRevealed] = useState<boolean>(saved.isRevealed);
   const [studentInput, setStudentInput] = useState<string>(saved.studentInput);
   const [feedbackState, setFeedbackState] = useState<'idle' | 'correct' | 'try_again'>(saved.feedbackState);
-  usePersistedWidgetLifecycleState(widget,onUpdate,'mentalMath',{currentTask,isRevealed,studentInput,feedbackState});
+  usePersistedWidgetLifecycleState(widget, updates => onUpdate?.({
+    ...updates, settings: { ...settingsRef.current, ...updates.settings },
+  }),'mentalMath',{currentTask,isRevealed,studentInput,feedbackState});
   const editAnswer=(value:string)=>{setStudentInput(value);setFeedbackState('idle');setIsRevealed(false);};
   const showSettingsDrawer = showSettings;
   const settingsDialogRef = useRef<HTMLDialogElement>(null);
@@ -336,6 +345,13 @@ export const KopfrechenStudio: React.FC<KopfrechenStudioProps> = ({
     >
       {/* 1. Header Toolbar */}
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-1.5 pb-2 border-b border-slate-200 dark:border-slate-800">
+        {widget?.type === 'kopfrechnen' && <label className="flex items-center gap-1.5 text-sm font-bold">Stufe
+          <select className="min-h-11 rounded-lg border border-current/30 bg-transparent px-2" value={mentalMathLevel(settings)}
+            onChange={event => updateSettings(mentalMathLevels[Number(event.target.value) - 1].settings)}>
+            <option value="0" disabled>Eigene Einstellung</option>
+            {mentalMathLevels.map((preset, i) => <option key={preset.label} value={i+1}>{preset.label}</option>)}
+          </select>
+        </label>}
         {/* Modus Umschalter Tabs */}
         <div className="flex items-center gap-1 bg-slate-200/70 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-semibold">
           <button

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import {
+  mentalMathLevels, mentalMathLevel,
   generateMentalMathTask,
   generateFlashTask,
   generateTablesTask,
@@ -448,4 +449,20 @@ test('35. andere Widgets unverändert', () => {
   // Prüfe dass Zahlenraum-Studio Min-Size-Konfiguration weiterhin intakt ist
   assert.strictEqual(WIDGET_MIN_SIZES['zahlenraum'].minW, 760);
   assert.strictEqual(WIDGET_MIN_SIZES['zahlenraum'].minH, 560);
+});
+
+test('Schulstufen starten vier passende Aufgabenarten; eigene Einstellungen bleiben erkennbar', () => {
+  for (const [index, preset] of mentalMathLevels.entries()) {
+    const settings = { ...DEFAULT_KOPFRECHEN_SETTINGS, ...preset.settings };
+    assert.equal(mentalMathLevel(settings), index + 1);
+    const rng = createLcgRng(157);
+    for (let n = 0; n < 40; n++) {
+      const task = generateMentalMathTask(settings, rng);
+      assert.equal(task.mode, settings.mode);
+      if (index === 0) assert.ok(task.correctAnswer >= 0 && task.correctAnswer <= 10);
+      if (index === 1) assert.ok(hasTenCrossing(task.left!, task.right!, task.operator as '+' | '-'));
+      if (index === 3) assert.equal(task.steps?.length, 4);
+    }
+  }
+  assert.equal(mentalMathLevel(DEFAULT_KOPFRECHEN_SETTINGS), 0);
 });
