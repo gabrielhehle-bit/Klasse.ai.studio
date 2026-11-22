@@ -1,3 +1,4 @@
+import {GradeSelect,schoolLevel} from './widgets/GradeSelect';
 import React,{useState,useEffect,useRef} from 'react';
 import {readWidgetLifecycleState,usePersistedWidgetLifecycleState} from '../../lib/widgetLifecycleState';
 import {GUITAR_STRINGS,memoryDeck,judgeRhythmTap,estimatePitch,centsBetween,nearestGuitarString} from '../../lib/musicPractice';
@@ -46,14 +47,32 @@ export function SoundmemoryWidgetContent({widget,onUpdate}:Props){
   <div className="flex gap-2 items-center pr-11"><p role="status" className="flex-1 text-sm font-bold">{matched===cards.length?'Alle Klangpaare gefunden!':feedback} · {matched/2}/{cards.length/2} Paare</p><button className={button} disabled={selected.length!==2} onClick={()=>{selectionRef.current=[];setSelected([]);setFeedback('Höre zwei weitere Karten an.');}}>Weiter</button></div>
  </div>;
 }
-export function RhythmWidgetContent({widget,onUpdate}:Props){
- const saved=readWidgetLifecycleState(widget,'rhythm',{bpm:90,timeSignature:'4_4',numBars:1,sequence:['stomp','slap','clap','rest','stomp','slap','clap','rest'],isMuted:false,streak:0});
+const rhythmLessons=[
+ {tempo:72,bars:1,line:['clap','clap','clap','clap'],instruction:'Hört vier Schläge. Klatscht sie im Echo nach.'},
+ {tempo:80,bars:1,line:['clap','rest','slap','clap'],instruction:'Spielt das Echo. Bei der Pause bleibt es still.'},
+ {tempo:84,bars:2,line:['clap','slap','rest','clap','slap','rest','clap','clap'],instruction:'Erfindet zwei Takte. Lasst ein anderes Kind euer Echo spielen.'},
+ {tempo:88,bars:2,line:['clap','rest','slap','rest','rest','clap','slap','clap'],instruction:'Gruppe A spielt das Muster. Gruppe B stampft jeden Viertelschlag leise mit. Tauscht danach die Rollen.'},
+];
+function rhythmPreset(level:number){
+ const lesson=rhythmLessons[level-1];
+ return {bpm:lesson.tempo,timeSignature:'4_4',numBars:lesson.bars,sequence:lesson.bars===1?[...lesson.line,...lesson.line]:[...lesson.line]};
+}
+export function RhythmWidgetContent({widget,onUpdate,classGrade}:Props & {classGrade?:number}){
+ const initialLevel=widget?.settings?.__widgetLifecycleState?.rhythm ? 3 : schoolLevel(classGrade);
+ const saved=readWidgetLifecycleState(widget,'rhythm',{...rhythmPreset(initialLevel),level:initialLevel,patterns:{} as Record<number,ReturnType<typeof rhythmPreset>>,isMuted:false,streak:0});
+ const [level,setLevel]=useState(schoolLevel(saved.level)),[patterns,setPatterns]=useState(saved.patterns);
  const [bpm,setBpm]=useState(saved.bpm),[timeSignature,setTimeSignature]=useState(saved.timeSignature),[numBars,setNumBars]=useState(saved.numBars),[sequence,setSequence]=useState(saved.sequence),[isMuted,setIsMuted]=useState(saved.isMuted),[streak,setStreak]=useState(saved.streak),[rating,setRating]=useState('Wähle Rhythmus starten oder Rhythmus-Echo.'),[isPlaying,setIsPlaying]=useState(false),[currentStep,setCurrentStep]=useState(0);
- usePersistedWidgetLifecycleState(widget,onUpdate,'rhythm',{bpm,timeSignature,numBars,sequence,isMuted,streak});
+ usePersistedWidgetLifecycleState(widget,onUpdate,'rhythm',{level,patterns,bpm,timeSignature,numBars,sequence,isMuted,streak});
  const tone=useTone(),clock=useRef({start:0,played:-1,lastHit:-1});const count=(timeSignature==='4_4'?4:3)*numBars;
  const [echo,setEcho]=useState(false);
  const stop=()=>{setEcho(false);setIsPlaying(false);setCurrentStep(0);};
  const change=()=>{stop();setStreak(0);setRating('Muster geändert. Starte den Rhythmus.');};
+ const chooseLevel=(nextLevel:number)=>{
+  const next=patterns[nextLevel]??rhythmPreset(nextLevel);
+  stop(); setStreak(0); setRating('Wähle Rhythmus starten oder Rhythmus-Echo.');
+  setPatterns({...patterns,[level]:{bpm,timeSignature,numBars,sequence}});
+  setLevel(nextLevel);setBpm(next.bpm);setTimeSignature(next.timeSignature);setNumBars(next.numBars);setSequence(next.sequence);
+ };
  const moves=['stomp','slap','clap','rest'];const labels:Record<string,string>={stomp:'Stampfen',slap:'Patschen',clap:'Klatschen',rest:'Pause'};
  useEffect(()=>{
   if(!isPlaying)return;
@@ -71,6 +90,7 @@ export function RhythmWidgetContent({widget,onUpdate}:Props){
    setCurrentStep(step);
    if(echo && previousBeat<count && beat>=count)setRating('Jetzt ihr! Spielt das Muster nach.');
    const action=sequence[step];
+   if(level===4 && !isMuted && (!echo || beat<count))tone(82,'sine',0.14);
    if(!isMuted && action!=='rest' && (!echo || beat<count)){
     tone(action==='stomp'?110:action==='slap'?330:660,'triangle',0.1);
    }
@@ -78,7 +98,7 @@ export function RhythmWidgetContent({widget,onUpdate}:Props){
   tick();
   const timer=setInterval(tick,20);
   return()=>clearInterval(timer);
- },[isPlaying,bpm,count,sequence,isMuted,echo]);
+ },[isPlaying,bpm,count,sequence,isMuted,echo,level]);
  const startEcho=()=>{
   clock.current={start:performance.now(),played:-1,lastHit:-1};
   setCurrentStep(0);
@@ -87,13 +107,15 @@ export function RhythmWidgetContent({widget,onUpdate}:Props){
   setRating('Erst zuhören und zuschauen.');
  };
  const tap=()=>{if(echo)return;if(!isPlaying){setRating('Starte zuerst den Rhythmus.');return;}const result=judgeRhythmTap(performance.now()-clock.current.start,bpm,sequence.slice(0,count),clock.current.lastHit);if(result.status==='duplicate'){setRating('Dieser Schlag zählt schon. Warte auf den nächsten.');return;}if(result.status==='hit'){clock.current.lastHit=result.beat;setStreak(s=>s+1);setRating('Im Takt!');}else{setStreak(0);setRating(result.status==='rest'?'Das war eine Pause. Hier bleibt es still.':'Noch nicht im Takt. Klopfe beim Aufleuchten.');}};
- return <div data-practice-root tabIndex={0} aria-label="Rhythmus-Klopfer" onKeyDown={e=>{if(e.code==='Space'&&!e.repeat&&e.target===e.currentTarget){e.preventDefault();tap();}}} className={root}>
-  <div className="flex justify-between items-center"><span className="text-sm font-bold">Komponieren und im Takt klopfen</span><button className={button} aria-pressed={isMuted} onClick={()=>setIsMuted(!isMuted)}>{isMuted?'🔇 Stumm':'🔊 Ton'}</button></div>
+ return <div data-practice-root tabIndex={0} aria-label="Rhythmus-Klopfer" onKeyDown={e=>{if(e.code==='Space'&&!e.repeat&&e.target===e.currentTarget){e.preventDefault();tap();}}} className={root+' overflow-y-auto!'}>
+  <div className="flex justify-between items-center"><GradeSelect level={level} change={chooseLevel}/><button className={button} aria-pressed={isMuted} onClick={()=>setIsMuted(!isMuted)}>{isMuted?'🔇 Stumm':'🔊 Ton'}</button></div>
   <div className="flex gap-2 justify-center">{['4_4','3_4'].map(sig=><button key={sig} className={button} aria-pressed={sig===timeSignature} onClick={()=>{if(sig!==timeSignature){change();setTimeSignature(sig);}}}>{sig==='4_4'?'4/4':'3/4'}</button>)}{[1,2].map(n=><button key={n} className={button} aria-pressed={n===numBars} onClick={()=>{if(n!==numBars){change();setNumBars(n);}}}>{n} {n===1?'Takt':'Takte'}</button>)}</div>
   <label className="flex gap-2 items-center text-sm font-bold">Tempo: {bpm} BPM <input className="min-h-11 flex-1 accent-accent" aria-label="Rhythmustempo" type="range" min="55" max="160" value={bpm} onChange={e=>{change();setBpm(Number(e.target.value));}}/></label>
   <div className="flex gap-2 justify-center">{[['basic','Grundmuster'],['waltz','Walzer'],['funky','Wechsel']].map(([id,label])=><button key={id} className={button} onClick={()=>{change();setTimeSignature(id==='waltz'?'3_4':'4_4');setSequence(id==='waltz'?['stomp','slap','slap','stomp','slap','slap','stomp','slap']:id==='funky'?['stomp','clap','slap','clap','stomp','clap','slap','clap']:['stomp','slap','clap','rest','stomp','slap','clap','rest']);}}>{label}</button>)}</div>
+  <p className="text-center font-bold">{rhythmLessons[level-1].instruction}</p>
   <p className="text-sm text-center">Jedes Feld ist ein Viertelschlag. Tippen wechselt Stampfen → Patschen → Klatschen → Pause.</p>
-  <div className={`flex-1 min-h-0 grid gap-2 ${timeSignature==='3_4'?'grid-cols-3':'grid-cols-4'}`}>{sequence.slice(0,count).map((move,i)=><button key={i} aria-label={'Schlag '+(i+1)+': '+labels[move]} data-rhythm-step={i} aria-current={isPlaying&&currentStep===i?'step':undefined} className={button+(isPlaying&&currentStep===i?' bg-accent text-accent-text':'')} onClick={()=>{change();setSequence(prev=>prev.map((v,j)=>j===i?moves[(moves.indexOf(v)+1)%4]:v));}}>{i+1} · {labels[move]}</button>)}</div>
+  <div className={`grid gap-2 ${timeSignature==='3_4'?'grid-cols-3':'grid-cols-4'}`}>{sequence.slice(0,count).map((move,i)=><button key={i} aria-label={'Schlag '+(i+1)+': '+labels[move]} data-rhythm-step={i} aria-current={isPlaying&&currentStep===i?'step':undefined} className={button+(isPlaying&&currentStep===i?' bg-accent text-accent-text':'')} onClick={()=>{change();setSequence(prev=>prev.map((v,j)=>j===i?moves[(moves.indexOf(v)+1)%4]:v));}}>{i+1} · {labels[move]}</button>)}</div>
+  {level===4 && <div role="group" aria-label="Gruppe B: Grundpuls" className={`grid gap-1 ${timeSignature==='3_4'?'grid-cols-3':'grid-cols-4'}`}>{Array.from({length:count},(_,i)=><span key={i} aria-current={isPlaying&&currentStep===i?'step':undefined} className={'rounded p-1 text-center text-xs '+(isPlaying&&currentStep===i?'bg-accent text-accent-text':'bg-accent-soft')}>B · Stampfen</span>)}</div>}
   <p role="status" className="text-sm font-bold text-center">{rating}{!echo && !rating.startsWith('Echo beendet') && <> · {streak} Treffer in Folge</>}</p>
   <div className="flex gap-2 pr-11"><button className={button+' flex-1'} onClick={()=>{if(isPlaying){stop();setRating('Rhythmus pausiert.');}else{clock.current={start:performance.now(),played:-1,lastHit:-1};setCurrentStep(0);setIsPlaying(true);setStreak(0);setRating('Klopfe beim Aufleuchten.');}}}>{isPlaying?'Rhythmus stoppen':'Rhythmus starten'}</button><button className={button+' flex-1 bg-accent text-accent-text'} onClick={tap} disabled={echo}>Mitklopfen</button>{!isPlaying && <button className={button} onClick={startEcho}>Rhythmus-Echo</button>}</div>
  </div>;

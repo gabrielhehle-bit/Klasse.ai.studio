@@ -54,3 +54,12 @@ test('direction explanations stay geographically careful', () => {
   assert.match(text, /je nach Jahreszeit/);
   assert.match(text, /nach Norden ausgerichteten Karte/);
 });
+
+test('Vier Stufen üben dieselbe Richtung mit Pfeil, Lage, Drehung und Rückweg', async () => {
+  const { compassLessonPrompt, getCompassDirection } = await import('./compassWidgetModel');
+  const east = getCompassDirection(90);
+  assert.match(compassLessonPrompt(east,1), /→/);
+  assert.match(compassLessonPrompt(east,2), /rechts/);
+  assert.match(compassLessonPrompt(east,3), /Norden/);
+  assert.match(compassLessonPrompt(east,4), /Westen/);
+});

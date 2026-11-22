@@ -258,3 +258,14 @@ test('27. Feedback Werte: exakt "correct" oder "incorrect" für "Passt." bzw. "N
   state.checkFeedback = 'incorrect';
   assert.equal(state.checkFeedback, 'incorrect');
 });
+
+test('Lesespur speichert Antwort und beide nötigen Hinweise; ältere Wortaufgaben bleiben in Stufe eins', () => {
+  const start = startReadingExercise('trail',0,4);
+  const solved = {...start, placed:[1], evidence:[1,2], checked:true};
+  assert.deepEqual(restoreReadingExercise(solved,1),solved);
+  assert.equal(isReadingExerciseSolved(solved),true);
+  assert.equal(isReadingExerciseSolved({...solved,evidence:[1]}),false);
+  const {level,...legacy}=startReadingExercise('letters');
+  assert.equal(restoreReadingExercise(legacy,4).level,level);
+  assert.equal(restoreReadingExercise(undefined,3).level,3);
+});
