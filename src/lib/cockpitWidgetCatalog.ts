@@ -189,8 +189,8 @@ export const COCKPIT_WIDGET_LIBRARY_ITEMS = [
                                       },
                                       {
                                         type: "geometry",
-                                        label: "📐 Geometrie-Muster",
-                                        desc: "Bunte geometrische Collagen",
+                                        label: "📐 Formen & Körper",
+                                        desc: "Muster legen, Flächen und Körper untersuchen",
                                         category: "mathe",
                                       },
                                       {

@@ -245,8 +245,8 @@ const widgetCatalog: Array<{ id: string; title: string; purpose: string; group: 
   },
   {
     "id": "geometry",
-    "title": "📐 Geometrie-Muster",
-    "purpose": "Bunte geometrische Collagen",
+    "title": "📐 Formen & Körper",
+    "purpose": "Muster legen, Flächen und Körper untersuchen",
     "group": "mathe"
   },
   {
@@ -761,6 +761,7 @@ const widgetSpecificSteps: Record<string, string[]> = {
   scoreboard: ['Öffne „Gruppen-Punkte“.', 'Lege die benötigten Teams und deren Ausgangswerte fest.', 'Passe den Punktestand während des Spiels an.'],
   timeline: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Tagesablauf“.', 'KLASSIO übernimmt für heute automatisch Stunden, Pausen und Unterrichtszeiten aus deinem Stundenplan. „Jetzt“ und „Danach“ zeigen der Klasse mit Symbolen und Uhrzeiten, was gerade läuft und was folgt.', 'Trage bei Bedarf in der Wochenplanung einen „Tafelhinweis“ für die Einheit ein. Der Text ist im Tagesablauf für die Klasse sichtbar.', 'Über „Tagesverlauf“ öffnest du die Übersicht. Bei längeren Schultagen kannst du mit den Pfeiltasten durch die Abschnitte blättern. Tippe einen Stundenblock an, um dessen Details zu sehen.', 'Korrigiere Fach, Reihenfolge und Zeiten im Stundenplan beziehungsweise in den Unterrichtszeiten.'],
   sounds: ['Öffne „Musik & Klänge“.', 'Wähle einen angebotenen Klang und passe die Lautstärke an.', 'Stoppe die Wiedergabe nach dem Einsatz.'],
+  geometry: ['Öffne unter „Mathe“ das Widget „Formen & Körper“ und wähle die Schulstufe.', 'Wähle im Modus „Muster bauen“ eine Form und tippe auf die Zeichenfläche, um sie abzulegen.', 'Unter „2D ↔ 3D“ kannst du eine ebene Form und einen Körper betrachten und ihre Eigenschaften besprechen.'],
   dice: ['Öffne „Würfel“ unter „Spiele“ und wähle die Anzahl.', 'Tippe auf „Würfeln“ oder direkt auf einen Würfel.', 'Aktiviere „Rechenrunde“, wenn die Klasse mit den gewürfelten Augen rechnen soll.'],
   compass: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Geographie-Kompass“.', 'Wähle „Erkunden“, um eine Richtung anzutippen und die Erklärung dazu zu lesen, oder „Üben“, um eine vorgegebene Himmelsrichtung einzustellen und anschließend zu prüfen.', 'Über das Zahnrad stellst du ein, ob nur die vier Haupthimmelsrichtungen oder alle acht Richtungen verwendet werden und ob Gradangaben sichtbar sind.', 'Die Sonnenhinweise sind bewusst nur eine ungefähre Orientierung für Österreich, weil Auf- und Untergang je nach Jahreszeit nicht exakt im Osten beziehungsweise Westen liegen.'],
   weekdays: ['Öffne im Lehrercockpit „Widget hinzufügen“ → „Wochentage-Trainer“.', 'Wähle „Wochentage“ für den Morgenkreis mit Gestern, Heute und Morgen oder „Monate“, um die Reihenfolge im Jahreskreis zu üben.', 'Im Modus „Erkunden“ kannst du jeden Tag oder Monat antippen; mit „Zurück zu heute“ springst du wieder zum echten aktuellen Kalendertag beziehungsweise Monat.', 'Im Modus „Üben“ beantwortet die Klasse Vorher-/Nachher-Fragen und prüft die Auswahl. Über das Zahnrad kannst du das angezeigte aktuelle Datum ein- oder ausblenden.'],

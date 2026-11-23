@@ -22,8 +22,8 @@ interface CockpitWidgetGroup {
 
 export const COCKPIT_TEACHING_WIDGET_SECTIONS = [
   { id: 'core', label: 'Kernwidgets', icon: '🧩', widgets: ['kidattendance', 'waldruhe', 'timeline', 'instruction', 'timer', 'groups'] },
-  { id: 'classroom', label: 'Klassenalltag', icon: '🎒', widgets: ['tischcheck', 'classweeklyplan', 'homework', 'dienste', 'image', 'qrcode'] },
-  { id: 'mathe', label: 'Mathe', icon: '🔢', widgets: ['zahlenraum', 'kopfrechnen'] },
+  { id: 'classroom', label: 'Klassenalltag', icon: '🎒', widgets: ['tischcheck', 'classweeklyplan'] },
+  { id: 'mathe', label: 'Mathe', icon: '🔢', widgets: ['zahlenraum', 'kopfrechnen', 'geometry'] },
   { id: 'deutsch', label: 'Deutsch', icon: '📖', widgets: ['vocabulary', 'wortsatzwerkstatt'] },
   { id: 'sachunterricht', label: 'Sachunterricht', icon: '🌍', widgets: ['compass', 'watercycle'] },
   { id: 'musik', label: 'Musik', icon: '🎵', widgets: ['sounds'] },

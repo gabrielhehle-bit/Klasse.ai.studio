@@ -4215,10 +4215,11 @@ export const WordgridWidgetContent: React.FC<{
 // NEW WIDGET 13: GEOMETRIE-MUSTER (Shape collage generator)
 // ==========================================
 export const GeometryWidgetContent: React.FC<{
+  classGrade?: number;
   widget: any;
   onUpdate?: (updates: { settings?: any; [key: string]: any }) => void;
   currentIsLight: boolean;
-}> = ({ widget, onUpdate, currentIsLight }) => {
+}> = ({ widget, onUpdate, currentIsLight, classGrade }) => {
   type ShapeType = 'circle' | 'square' | 'rectangle' | 'triangle';
   type Mode = 'pattern' | 'compare';
   type PlacedShape = { id: number; type: ShapeType; color: string; rotation: number; size: number; x: number; y: number };
@@ -4239,7 +4240,8 @@ export const GeometryWidgetContent: React.FC<{
   ];
 
   const lifecycle = readWidgetLifecycleState(widget, "geometry", {
-    mode: "pattern" as Mode,
+    level: schoolLevel(classGrade),
+    mode: (schoolLevel(classGrade) >= 3 ? "compare" : "pattern") as Mode,
     activeShape: "circle" as ShapeType,
     colorVal: "#3b82f6",
     placedShapes: [] as PlacedShape[],
@@ -4249,6 +4251,7 @@ export const GeometryWidgetContent: React.FC<{
     nextId: 0,
   });
   const [mode, setMode] = useState<Mode>(() => lifecycle.mode);
+  const [level, setLevel] = useState(() => schoolLevel(lifecycle.level));
   const [activeShape, setActiveShape] = useState<ShapeType>(() => lifecycle.activeShape);
   const [colorVal, setColorVal] = useState<string>(() => lifecycle.colorVal);
   const [placedShapes, setPlacedShapes] = useState<PlacedShape[]>(() => lifecycle.placedShapes);
@@ -4258,6 +4261,7 @@ export const GeometryWidgetContent: React.FC<{
   const idCounter = useRef(Math.max(lifecycle.nextId, ...lifecycle.placedShapes.map(shape => shape.id), 0));
 
   usePersistedWidgetLifecycleState(widget, onUpdate, "geometry", {
+    level,
     mode,
     activeShape,
     colorVal,
@@ -4400,6 +4404,10 @@ export const GeometryWidgetContent: React.FC<{
   return (
     <div data-practice-root data-geometry-mode={mode} data-geometry-count={placedShapes.length} className="h-full min-h-full w-full p-2 flex flex-col gap-2 select-none overflow-visible">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
+        <GradeSelect level={level} change={next => {
+          setLevel(next);
+          setMode(next >= 3 ? 'compare' : 'pattern');
+        }} />
         <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1" role="tablist" aria-label="Geometrie-Modus">
           <button
             type="button"
@@ -4446,7 +4454,7 @@ export const GeometryWidgetContent: React.FC<{
       {mode === 'pattern' ? (
         <>
           <div className="shrink-0 rounded-xl bg-accent-soft border border-accent/20 px-3 py-2 text-center text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Muster-Idee: Wiederhole Formen oder Farben bewusst, zum Beispiel Kreis – Quadrat – Kreis – Quadrat.
+            Muster-Idee: {['Lege Kreis – Quadrat – Kreis – Quadrat. Benenne jede Form.', 'Lege ein Muster aus drei Formen. Lass ein anderes Kind die Reihe fortsetzen.', 'Baue eine Reihe, bei der sich Farbe und Form nach verschiedenen Regeln ändern.', 'Lege eine Figur und ihr Spiegelbild. Zeige, wo die Spiegelachse verläuft.'][level - 1]}
           </div>
 
           <div
@@ -4596,7 +4604,7 @@ export const GeometryWidgetContent: React.FC<{
           </div>
 
           <div className="shrink-0 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-center text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200">
-            Beobachte: {activeProperties.question}
+            Beobachte: {['Benenne die Form und finde im Klassenzimmer einen Gegenstand mit dieser Form.', activeProperties.question, 'Vergleiche Würfel und Quader. Was fällt dir an Ecken, Kanten und Flächen auf?', 'Vergleiche Dreiecksprisma und Quader. Erkläre, welche Flächen jeden Körper begrenzen.'][level - 1]}
           </div>
 
           <label className="shrink-0 text-xs font-bold text-slate-600 dark:text-slate-300">
