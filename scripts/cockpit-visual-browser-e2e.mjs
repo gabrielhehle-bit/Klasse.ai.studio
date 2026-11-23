@@ -1247,14 +1247,14 @@ async function checkWidgetArchive(client) {
     const key = Object.keys(dock).find(key => key.startsWith('__reactFiber$'));
     for (let fiber = dock[key]; fiber; fiber = fiber.return) {
       if (typeof fiber.memoizedProps?.onOpenWidget !== 'function') continue;
-      fiber.memoizedProps.onChange(settings => ({ ...settings, itemIds: [...settings.itemIds, 'clock'] }));
+      fiber.memoizedProps.onChange(settings => ({ ...settings, itemIds: [...settings.itemIds, 'clock', 'todo'] }));
       return;
     }
     throw Error('Could not seed a legacy dock pin');
   })()`);
   await openArchive();
-  await waitFor(client, '91 retired tools are listed and the former pin is marked',
-    `${archive}.querySelectorAll('[data-archived-widget]').length === 91 &&
+  await waitFor(client, 'only the two former pins are listed and the former pin is marked',
+    `${archive}.querySelectorAll('[data-archived-widget]').length === 2 &&
       ${archive}.querySelector('${savedPin}').textContent.includes('Früher angeheftet') &&
       !document.querySelector('[data-dock-favorite-id="clock"]')`);
   await screenshot(client, 'widget-archiv');
@@ -1694,10 +1694,10 @@ async function main() {
     await sleep(250);
     await screenshot(client, 'widget-kernwidgets');
     await clickButton(client, 'Klassenalltag');
-    await waitFor(client, 'the classroom category contains six practical tools',
-      `${coreCards} === 'tischcheck,classweeklyplan,homework,dienste,image,qrcode'`);
+    await waitFor(client, 'the classroom category contains two practical tools',
+      `${coreCards} === 'tischcheck,classweeklyplan'`);
     for (const [category, tools] of [
-      ['Mathe', 'zahlenraum,kopfrechnen'],
+      ['Mathe', 'zahlenraum,kopfrechnen,geometry'],
       ['Deutsch', 'vocabulary,wortsatzwerkstatt'],
       ['Sachunterricht', 'compass,watercycle'],
       ['Musik', 'sounds'],

@@ -9637,9 +9637,7 @@ ${content}
                                         return true;
                                       if (folder.id === resolvedActiveFach)
                                         return false;
-                                      const count = (
-                                        favoritesBySubject[folder.id] || []
-                                      ).length;
+                                      const count = getCockpitGroupsForTypes(favoritesBySubject[folder.id] || []).length;
                                       return count > 0;
                                     });
 
@@ -10703,6 +10701,7 @@ ${content}
                                     case "geometry":
                                       return (
                                         <GeometryWidgetContent
+                                          classGrade={app.stufe}
                                           widget={widget}
                                           onUpdate={(updates) =>
                                             handleUpdateWidgetPos(widget.id, updates)
@@ -12751,8 +12750,13 @@ ${content}
           )}
           {isWidgetArchiveOpen && (
             <CockpitWidgetArchive
-              savedTypes={cockpitWidgets.filter(widget => widget.visible || widget.hasBeenOpened).map(widget => widget.type)}
-              pinnedTypes={quickBarSettings.itemIds}
+              savedTypes={cockpitWidgets.filter(widget => {
+                if (widget.visible || widget.hasBeenOpened) return true;
+                const defaults = DEFAULT_COCKPIT_LAYOUT.find(item => item.type === widget.type)?.settings;
+                return Object.entries(widget.settings ?? {}).some(([key, value]) =>
+                  JSON.stringify(value) !== JSON.stringify(defaults?.[key]));
+              }).map(widget => widget.type)}
+              pinnedTypes={[...quickBarSettings.itemIds, ...Object.values(favoritesBySubject).flat()]}
               onClose={() => {
                 setIsWidgetArchiveOpen(false);
                 requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(archiveWidgetTypes

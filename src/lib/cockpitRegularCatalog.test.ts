@@ -21,7 +21,7 @@ test('grouped variants and uncurated widgets keep their original library entries
 });
 
 test('retired types belong only to the archive; the integrated tools stay on the board', () => {
-  assert.equal(COCKPIT_ARCHIVED_WIDGETS.length, 91);
+  assert.equal(COCKPIT_ARCHIVED_WIDGETS.length, 94);
   assert.deepEqual(
     COCKPIT_WIDGET_LIBRARY_ITEMS.filter(item => isCockpitTeachingBoardWidget(item.type)).map(item => item.type).sort(),
     [...COCKPIT_REGULAR_WIDGETS.map(group => group.id), 'randomname', 'pet'].sort(),
@@ -77,16 +77,16 @@ test('classroom and subject categories show a short, distinct teaching selection
   const categories = COCKPIT_TEACHING_WIDGET_SECTIONS.map(section => section.id);
   assert.deepEqual(categories, ['core', 'classroom', 'mathe', 'deutsch', 'sachunterricht', 'musik', 'play']);
   const groups = categories.flatMap(category => getRegularCockpitGroups(category));
-  assert.equal(groups.length, 20);
+  assert.equal(groups.length, 17);
   assert.equal(new Set(groups.map(group => group.id)).size, groups.length);
   assert.deepEqual(getRegularCockpitGroups('classroom').map(group => group.id), [
-    'tischcheck', 'classweeklyplan', 'homework', 'dienste', 'image', 'qrcode',
+    'tischcheck', 'classweeklyplan',
   ]);
-  assert.deepEqual(getRegularCockpitGroups('mathe').map(group => group.id), ['zahlenraum', 'kopfrechnen']);
+  assert.deepEqual(getRegularCockpitGroups('mathe').map(group => group.id), ['zahlenraum', 'kopfrechnen', 'geometry']);
   assert.deepEqual(getRegularCockpitGroups('deutsch').map(group => group.id), ['vocabulary', 'wortsatzwerkstatt']);
   assert.deepEqual(getRegularCockpitGroups('sachunterricht').map(group => group.id), ['compass', 'watercycle']);
   assert.deepEqual(getRegularCockpitGroups('musik').map(group => group.id), ['sounds']);
   assert.deepEqual(getRegularCockpitGroups('play').map(group => group.id), ['dice']);
   assert.ok(groups.every(group => group.sources.every(type => COCKPIT_WIDGET_LIBRARY_ITEMS.some(item => item.type === type))));
-  assert.deepEqual(getRegularCockpitGroups('mathe', 'Hausübungen').map(group => group.id), ['homework']);
+  assert.deepEqual(getRegularCockpitGroups('mathe', 'Hausübungen').map(group => group.id), []);
 });

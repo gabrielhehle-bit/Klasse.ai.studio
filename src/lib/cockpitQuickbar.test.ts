@@ -18,7 +18,7 @@ test('new classrooms get an ordered customizable dock; old disabled favorites re
   assert.deepEqual(normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['timer', 'timer', 'unsafe', null] }), {
     enabled: true, itemIds: ['timer'],
   });
-  assert.equal(COCKPIT_QUICKBAR_ADDABLE_ITEMS.length, 20);
+  assert.equal(COCKPIT_QUICKBAR_ADDABLE_ITEMS.length, 17);
   assert.ok(!COCKPIT_QUICKBAR_ADDABLE_ITEMS.some(item => item.id === 'toothbrush'));
   assert.deepEqual(toggleCockpitQuickbarItem(defaults, 'toothbrush'), defaults);
   assert.equal(COCKPIT_QUICKBAR_ITEMS.some(item => item.id === 'pet'), true);
@@ -53,12 +53,12 @@ test('dock labels are derived from the same catalog instead of a second visible-
 
 test('favorites can be chosen and reordered without modifying saved widget positions', () => {
   const before = normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['timer', 'clock'] });
-  const next = toggleCockpitQuickbarItem(before, 'dienste');
+  const next = toggleCockpitQuickbarItem(before, 'classweeklyplan');
   assert.deepEqual(before.itemIds, ['timer', 'clock']);
-  assert.deepEqual(next.itemIds, ['timer', 'clock', 'dienste']);
-  assert.deepEqual(toggleCockpitQuickbarItem(next, 'timer').itemIds, ['clock', 'dienste']);
-  assert.deepEqual(getCockpitTeachingQuickbarIds(next), ['timer', 'dienste']);
-  assert.deepEqual(moveCockpitQuickbarItem(next, 'dienste', -1).itemIds, ['dienste', 'clock', 'timer']);
+  assert.deepEqual(next.itemIds, ['timer', 'clock', 'classweeklyplan']);
+  assert.deepEqual(toggleCockpitQuickbarItem(next, 'timer').itemIds, ['clock', 'classweeklyplan']);
+  assert.deepEqual(getCockpitTeachingQuickbarIds(next), ['timer', 'classweeklyplan']);
+  assert.deepEqual(moveCockpitQuickbarItem(next, 'classweeklyplan', -1).itemIds, ['classweeklyplan', 'clock', 'timer']);
   assert.deepEqual(moveCockpitQuickbarItem(next, 'timer', -1).itemIds, next.itemIds);
   assert.deepEqual(moveCockpitQuickbarItem(next, 'clock', 1).itemIds, next.itemIds);
   assert.match(source, /cockpitQuickbarByClass/);

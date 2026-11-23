@@ -26,8 +26,7 @@ export function CockpitWidgetArchive({ savedTypes, pinnedTypes, onOpenWidget, on
   }, []);
 
   const hasSavedData = (type: string) => savedTypes.includes(type) || pinnedTypes.includes(type);
-  const matches = archiveItems.filter(item => matchesCockpitWidgetSearch(item, query));
-  const ordered = [...matches.filter(item => hasSavedData(item.type)), ...matches.filter(item => !hasSavedData(item.type))];
+  const ordered = archiveItems.filter(item => hasSavedData(item.type) && matchesCockpitWidgetSearch(item, query));
 
   return createPortal(
     <dialog ref={dialogRef} onClose={onClose} aria-labelledby="cockpit-archive-title"
@@ -66,7 +65,7 @@ export function CockpitWidgetArchive({ savedTypes, pinnedTypes, onOpenWidget, on
               </li>
             ))}
           </ul>
-          {!ordered.length && <p className="py-3 text-sm text-slate-600">Kein archiviertes Widget gefunden.</p>}
+          {!ordered.length && <p className="py-3 text-sm text-slate-600">{query.trim() ? 'Kein passendes Widget im Archiv.' : 'Auf dieser Tafelseite sind keine früheren Widgets gespeichert oder angeheftet.'}</p>}
         </div>
       </div>
     </dialog>,
